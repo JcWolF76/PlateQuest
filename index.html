@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlateQuest</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #000;
+    }
+    body.dark {
+      background: #121212;
+      color: #eee;
+    }
+    body.dark .state {
+      background-color: #333;
+      border-color: #555;
+    }
+    body.dark .state.selected {
+      background-color: #2e7d32;
+      border-color: #1b5e20;
+    }
+  </style>
+</head>
+<body>
+  <div style="text-align:center; margin-top: 20px;">
+    <img src="platequest-final-logo.jpeg" alt="PlateQuest Logo" style="max-width:90%; height:auto;" />
+    <h1>PlateQuest</h1>
+    <p><em>Created by JcWoLF76</em></p>
+    <button onclick="document.getElementById('game').style.display='block'; this.style.display='none';">
+      Play the Game!
+    </button>
+  </div>
+
+  <div id="game" style="display:none; padding: 20px;">
+    <div style="text-align:center;">
+      <label for="profileSelect"><strong>Profile:</strong></label>
+      <select id="profileSelect"></select>
+      <input type="text" id="newProfileInput" placeholder="New profile" />
+      <button onclick="createProfile()">Create</button>
+      <button onclick="deleteProfile()">Delete</button>
+    </div>
+
+    <div style="text-align:center; margin-top: 10px;">
+      <label for="tripSelect"><strong>Trip:</strong></label>
+      <select id="tripSelect"></select>
+      <input type="text" id="newTripInput" placeholder="New trip" />
+      <button onclick="createTrip()">Create</button>
+    </div>
+
+    <div style="text-align:center; margin-top: 10px;">
+      <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    </div>
+
+    <div class="grid" id="stateGrid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; max-width:500px; margin:20px auto;"></div>
+
+    <div style="text-align:center;">
+      <button onclick="resetGame()">Reset</button>
+      <button onclick="exportSelections()">Export</button>
+      <button onclick="shareTrip()">Share Trip</button>
+      <button onclick="importTrip()">Open Trip</button>
+      <button onclick="shareGame()">Share Game</button>
+      <textarea id="exportBox" placeholder="Trip code / Export output..." style="width:90%; max-width:500px; height:100px; margin-top:10px;"></textarea>
+    </div>
+  </div>
+
+  <script>
+    const states = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia",
+    "Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+    "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York",
+    "North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
+    "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
+
+    let currentProfile = null;
+    let currentTrip = null;
+
+    function profileKey(profile, trip) {
+      return `profile_${profile}_trip_${trip}`;
+    }
+
+    function loadProfiles() {
+      const profiles = new Set();
+      Object.keys(localStorage).forEach(k => {
+        const match = k.match(/^profile_(.*?)_trip_/);
+        if (match) profiles.add(match[1]);
+      });
+      const select = document.getElementById("profileSelect");
+      select.innerHTML = '';
+      profiles.forEach(p => select.add(new Option(p, p)));
+      if (profiles.size > 0) {
+        currentProfile = select.value;
+        loadTrips();
+      }
+    }
+
+    function loadTrips() {
+      const trips = new Set();
+      Object.keys(localStorage).forEach(k => {
+        const match = k.match(new RegExp(`^profile_${currentProfile}_trip_(.*?)$`));
+        if (match) trips.add(match[1]);
+      });
+      const select = document.getElementById("tripSelect");
+      select.innerHTML = '';
+      trips.forEach(t => select.add(new Option(t, t)));
+      if (trips.size > 0) {
+        currentTrip = select.value;
+        loadStates();
+      }
+    }
+
+    function createProfile() {
+      const input = document.getElementById("newProfileInput");
+      const name = input.value.trim();
+      if (!name) return;
+      document.getElementById("profileSelect").add(new Option(name, name));
+      input.value = '';
+      currentProfile = name;
+      loadTrips();
+    }
+
+    function deleteProfile() {
+      if (!confirm(`Delete profile "${currentProfile}"?`)) return;
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith(`profile_${currentProfile}_`)) localStorage.removeItem(k);
+      });
+      loadProfiles();
+      document.getElementById("stateGrid").innerHTML = '';
+    }
+
+    function createTrip() {
+      const input = document.getElementById("newTripInput");
+      const name = input.value.trim();
+      if (!name) return;
+      document.getElementById("tripSelect").add(new Option(name, name));
+      input.value = '';
+      currentTrip = name;
+      saveStates([]);
+      renderStates([]);
+    }
+
+    function loadStates() {
+      const key = profileKey(currentProfile, currentTrip);
+      const selected = JSON.parse(localStorage.getItem(key)) || [];
+      renderStates(selected);
+    }
+
+    function renderStates(selected) {
+      const grid = document.getElementById("stateGrid");
+      grid.innerHTML = '';
+      states.forEach(state => {
+        const div = document.createElement("div");
+        div.className = "state";
+        div.textContent = state;
+        if (selected.includes(state)) div.classList.add("selected");
+        div.onclick = () => {
+          div.classList.toggle("selected");
+          saveStates(getSelectedStates());
+        };
+        grid.appendChild(div);
+      });
+    }
+
+    function saveStates(selected) {
+      const key = profileKey(currentProfile, currentTrip);
+      localStorage.setItem(key, JSON.stringify(selected));
+    }
+
+    function getSelectedStates() {
+      return Array.from(document.querySelectorAll(".state.selected")).map(el => el.textContent);
+    }
+
+    function resetGame() {
+      document.querySelectorAll(".state").forEach(el => el.classList.remove("selected"));
+      saveStates([]);
+      document.getElementById("exportBox").value = '';
+    }
+
+    function exportSelections() {
+      const data = {
+        profile: currentProfile,
+        trip: currentTrip,
+        states: getSelectedStates()
+      };
+      document.getElementById("exportBox").value = JSON.stringify(data, null, 2);
+    }
+
+    function shareTrip() {
+      exportSelections();
+      const text = document.getElementById("exportBox").value;
+      if (navigator.share) {
+        navigator.share({ title: "My PlateQuest Trip", text });
+      } else {
+        navigator.clipboard.writeText(text);
+        alert("Trip copied to clipboard!");
+      }
+    }
+
+    function importTrip() {
+      try {
+        const data = JSON.parse(document.getElementById("exportBox").value);
+        currentProfile = data.profile;
+        currentTrip = data.trip;
+        document.getElementById("profileSelect").add(new Option(data.profile, data.profile));
+        document.getElementById("tripSelect").add(new Option(data.trip, data.trip));
+        document.getElementById("profileSelect").value = data.profile;
+        document.getElementById("tripSelect").value = data.trip;
+        saveStates(data.states);
+        renderStates(data.states);
+      } catch {
+        alert("Invalid trip code.");
+      }
+    }
+
+    function shareGame() {
+      const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+      const file = new File([blob], "platequest.html", { type: "text/html" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: "PlateQuest", text: "Check out PlateQuest!" });
+      } else {
+        alert("Sharing not supported. You can copy and send the file manually.");
+      }
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark');
+    }
+
+    document.getElementById("profileSelect").addEventListener("change", function () {
+      currentProfile = this.value;
+      loadTrips();
+    });
+
+    document.getElementById("tripSelect").addEventListener("change", function () {
+      currentTrip = this.value;
+      loadStates();
+    });
+
+    loadProfiles();
+  </script>
+</body>
+</html>
