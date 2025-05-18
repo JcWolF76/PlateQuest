@@ -26,11 +26,6 @@ Spot the States. Complete the Quest.
 - **Open Trip** — Paste shared JSON to load states
 - **Share Game** — Sends or downloads this HTML game to others
 
-## Hosting & Sharing
 
-To use this online:
-1. Upload `index.html` and `platequest-final-logo.jpeg` to GitHub.
-2. Enable GitHub Pages on the repository.
-3. Share your link!
 
 Created by **JcWolF76**
