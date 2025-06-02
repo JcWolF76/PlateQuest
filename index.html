@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlateQuest - License Plate Adventure</title>
     
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK - FIXED for Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <style>
         * {
@@ -783,6 +783,20 @@
             animation: slideInToast 0.3s ease;
         }
 
+        /* Debug Panel */
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 10000;
+            border: 1px solid #3498db;
+        }
+
         /* Animations */
         @keyframes slideInUp {
             from {
@@ -1036,8 +1050,18 @@
         </div>
     </div>
 
+    <!-- Debug Panel (remove after testing) -->
+    <div id="debugPanel" class="debug-panel" style="display: none;">
+        <div><strong>🔧 Firebase Debug</strong></div>
+        <div>Firebase SDK: <span id="firebaseStatus">❓</span></div>
+        <div>Database: <span id="databaseStatus">❓</span></div>
+        <div>Connection: <span id="connectionStatus">❓</span></div>
+        <button onclick="testConnection()" style="margin-top: 5px; padding: 2px 6px; background: #3498db; color: white; border: none; border-radius: 3px;">Test</button>
+        <button onclick="document.getElementById('debugPanel').style.display='none'" style="margin-top: 5px; padding: 2px 6px; background: #e74c3c; color: white; border: none; border-radius: 3px;">Hide</button>
+    </div>
+
     <script>
-        // Firebase Configuration
+        // Firebase Configuration - FIXED for Realtime Database
         const firebaseConfig = {
             apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
             authDomain: "platequest-multiplayer.firebaseapp.com",
@@ -1107,7 +1131,7 @@
         let currentTrip = null;
         let selectedStates = [];
         let currentGameMode = 'solo';
-        let db = null;
+        let database = null;  // CHANGED: using Realtime Database
         let cloudEnabled = false;
         let challengeStartTime = null;
         let challengeTimer = null;
@@ -1148,25 +1172,84 @@
         const shareSection = document.getElementById('shareSection');
         const exportBox = document.getElementById('exportBox');
 
-        // Initialize Firebase for cloud features
+        // FIXED: Initialize Firebase for Realtime Database
         function initializeCloudSharing() {
             try {
-                if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-                    firebase.initializeApp(firebaseConfig);
-                    db = firebase.firestore();
-                    cloudEnabled = true;
-                    showCloudFeatures();
-                    console.log('Cloud sharing enabled');
-                } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
-                    db = firebase.firestore();
-                    cloudEnabled = true;
-                    showCloudFeatures();
-                    console.log('Cloud sharing enabled (existing app)');
+                if (typeof firebase !== 'undefined') {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(firebaseConfig);
+                    }
+                    database = firebase.database();  // CHANGED: using database() instead of firestore()
+                    
+                    // Test the connection
+                    testFirebaseConnection().then(connected => {
+                        if (connected) {
+                            cloudEnabled = true;
+                            showCloudFeatures();
+                            console.log('✅ Cloud sharing enabled with Realtime Database');
+                            updateDebugStatus();
+                        } else {
+                            cloudEnabled = false;
+                            showOfflineFeatures();
+                            console.warn('❌ Firebase connection failed');
+                            updateDebugStatus();
+                        }
+                    });
+                } else {
+                    console.warn('Firebase SDK not loaded');
+                    cloudEnabled = false;
+                    showOfflineFeatures();
+                    updateDebugStatus();
                 }
             } catch (error) {
                 console.warn('Cloud sharing unavailable:', error);
                 cloudEnabled = false;
                 showOfflineFeatures();
+                updateDebugStatus();
+            }
+        }
+
+        // Test function to verify connection
+        async function testFirebaseConnection() {
+            try {
+                const snapshot = await database.ref('.info/connected').once('value');
+                return snapshot.val() === true;
+            } catch (error) {
+                console.error('Firebase connection test failed:', error);
+                return false;
+            }
+        }
+
+        // Debug functions (remove after testing)
+        function showDebugPanel() {
+            document.getElementById('debugPanel').style.display = 'block';
+            updateDebugStatus();
+        }
+
+        function updateDebugStatus() {
+            document.getElementById('firebaseStatus').textContent = typeof firebase !== 'undefined' ? '✅' : '❌';
+            document.getElementById('databaseStatus').textContent = database ? '✅' : '❌';
+            
+            if (database) {
+                database.ref('.info/connected').once('value', (snapshot) => {
+                    document.getElementById('connectionStatus').textContent = snapshot.val() ? '✅' : '❌';
+                });
+            } else {
+                document.getElementById('connectionStatus').textContent = '❌';
+            }
+        }
+
+        async function testConnection() {
+            updateDebugStatus();
+            if (database) {
+                try {
+                    const snapshot = await database.ref('.info/connected').once('value');
+                    alert(`Connection test: ${snapshot.val() ? 'SUCCESS ✅' : 'FAILED ❌'}`);
+                } catch (error) {
+                    alert(`Connection test: FAILED ❌\n${error.message}`);
+                }
+            } else {
+                alert('Database not initialized ❌');
             }
         }
 
@@ -1201,12 +1284,15 @@
             });
 
             // Initialize cloud features
-            setTimeout(initializeCloudSharing, 500);
+            setTimeout(initializeCloudSharing, 1000);
+            
+            // Show debug panel temporarily
+            setTimeout(showDebugPanel, 2000);
             
             // Check for shared trip in URL
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('share')) {
-                setTimeout(() => loadSharedTrip(), 1000);
+                setTimeout(() => loadSharedTrip(), 1500);
             }
 
             // Initialize dark mode from saved preference
@@ -1807,7 +1893,7 @@
             }
         }
 
-        // Cloud sharing functions
+        // FIXED: Cloud sharing functions for Realtime Database
         function generateShareCode() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
             let code = '';
@@ -1843,13 +1929,13 @@
                     mode: currentGameMode,
                     states: prepareStatesForSharing(),
                     contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: firebase.database.ServerValue.TIMESTAMP,  // CHANGED: using ServerValue.TIMESTAMP
+                    lastUpdated: firebase.database.ServerValue.TIMESTAMP,
                     totalStates: selectedStates.length,
                     isPublic: true
                 };
 
-                await db.collection('sharedTrips').doc(shareCode).set(tripData);
+                await database.ref(`sharedTrips/${shareCode}`).set(tripData);  // CHANGED: using database.ref()
                 
                 hideLoading();
                 showShareSuccess(shareCode);
@@ -1897,7 +1983,7 @@
                         <div class="share-url-display">
                             <label>Direct Link:</label>
                             <div class="url-box" onclick="copyShareUrl('${shareCode}')">
-                                <span class="url">${window.location.origin}?share=${shareCode}</span>
+                                <span class="url">${window.location.origin}${window.location.pathname}?share=${shareCode}</span>
                                 <span class="copy-hint">📋 Click to copy</span>
                             </div>
                         </div>
@@ -1951,15 +2037,15 @@
             try {
                 showLoading('Loading shared trip...');
                 
-                const doc = await db.collection('sharedTrips').doc(shareCode).get();
+                const snapshot = await database.ref(`sharedTrips/${shareCode}`).once('value');  // CHANGED: using database.ref()
                 
-                if (!doc.exists) {
+                if (!snapshot.exists()) {
                     hideLoading();
                     alert('Share code not found. Please check the code and try again.');
                     return;
                 }
                 
-                const tripData = doc.data();
+                const tripData = snapshot.val();
                 
                 // Import the trip data
                 await importSharedTripData(tripData);
@@ -2039,12 +2125,12 @@
                 
                 const updateData = {
                     states: prepareStatesForSharing(),
-                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastUpdated: firebase.database.ServerValue.TIMESTAMP,  // CHANGED: using ServerValue.TIMESTAMP
                     totalStates: selectedStates.length,
                     contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile]
                 };
                 
-                await db.collection('sharedTrips').doc(shareCode).update(updateData);
+                await database.ref(`sharedTrips/${shareCode}`).update(updateData);  // CHANGED: using database.ref()
                 
                 hideLoading();
                 alert('Shared trip updated successfully!');
@@ -2058,7 +2144,7 @@
 
         // System sharing API
         function shareViaSystem(shareCode) {
-            const url = `${window.location.origin}?share=${shareCode}`;
+            const url = `${window.location.origin}${window.location.pathname}?share=${shareCode}`;
             const title = `PlateQuest: ${currentTrip}`;
             const text = `Check out my license plate spotting progress! I've found ${selectedStates.length} out of 50 states.`;
             
@@ -2092,7 +2178,7 @@
         }
 
         function copyShareUrl(shareCode) {
-            const url = `${window.location.origin}?share=${shareCode}`;
+            const url = `${window.location.origin}${window.location.pathname}?share=${shareCode}`;
             navigator.clipboard.writeText(url).then(() => {
                 showToast('Share link copied!');
             }).catch(() => {
