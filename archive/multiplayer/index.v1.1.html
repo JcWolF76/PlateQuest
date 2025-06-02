@@ -40,25 +40,6 @@
             z-index: 1;
         }
 
-        /* Wolf paw prints scattered background */
-        body::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                radial-gradient(circle at 15% 25%, rgba(52, 152, 219, 0.1) 2px, transparent 3px),
-                radial-gradient(circle at 85% 75%, rgba(52, 152, 219, 0.1) 2px, transparent 3px),
-                radial-gradient(circle at 45% 85%, rgba(52, 152, 219, 0.1) 2px, transparent 3px),
-                radial-gradient(circle at 75% 15%, rgba(52, 152, 219, 0.1) 2px, transparent 3px);
-            background-size: 200px 200px, 250px 250px, 180px 180px, 220px 220px;
-            pointer-events: none;
-            z-index: 1;
-            opacity: 0.3;
-        }
-
         body.dark {
             background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 50%, #1a1a1a 100%);
         }
@@ -88,69 +69,34 @@
         }
 
         .logo {
-            width: 300px;
+            width: 250px;
             height: auto;
             border-radius: 20px;
             box-shadow: 
-                0 0 40px rgba(52, 152, 219, 0.6),
-                0 0 80px rgba(52, 152, 219, 0.4),
+                0 0 30px rgba(52, 152, 219, 0.5),
+                0 0 60px rgba(52, 152, 219, 0.3),
                 inset 0 0 20px rgba(255, 255, 255, 0.1);
-            border: 3px solid rgba(52, 152, 219, 0.4);
+            border: 3px solid rgba(52, 152, 219, 0.3);
             animation: logoGlow 3s ease-in-out infinite;
         }
 
         @keyframes logoGlow {
             0%, 100% { 
                 box-shadow: 
-                    0 0 40px rgba(52, 152, 219, 0.6),
-                    0 0 80px rgba(52, 152, 219, 0.4),
+                    0 0 30px rgba(52, 152, 219, 0.5),
+                    0 0 60px rgba(52, 152, 219, 0.3),
                     inset 0 0 20px rgba(255, 255, 255, 0.1);
-                transform: scale(1);
             }
             50% { 
                 box-shadow: 
-                    0 0 50px rgba(52, 152, 219, 0.8),
-                    0 0 100px rgba(52, 152, 219, 0.6),
+                    0 0 40px rgba(52, 152, 219, 0.8),
+                    0 0 80px rgba(52, 152, 219, 0.5),
                     inset 0 0 30px rgba(255, 255, 255, 0.2);
-                transform: scale(1.02);
-            }
-        }
-
-        /* Wolf paw decorations around logo */
-        .logo-container::before,
-        .logo-container::after {
-            content: '🐾';
-            position: absolute;
-            font-size: 24px;
-            color: rgba(52, 152, 219, 0.6);
-            animation: pawFloat 4s ease-in-out infinite;
-        }
-
-        .logo-container::before {
-            top: -20px;
-            left: -30px;
-            animation-delay: 0s;
-        }
-
-        .logo-container::after {
-            bottom: -20px;
-            right: -30px;
-            animation-delay: 2s;
-        }
-
-        @keyframes pawFloat {
-            0%, 100% { 
-                transform: translateY(0) rotate(0deg);
-                opacity: 0.6;
-            }
-            50% { 
-                transform: translateY(-10px) rotate(5deg);
-                opacity: 1;
             }
         }
 
         .welcome-text {
-            background: linear-gradient(145deg, rgba(44, 62, 80, 0.95), rgba(52, 73, 94, 0.95));
+            background: linear-gradient(145deg, rgba(44, 62, 80, 0.9), rgba(52, 73, 94, 0.9));
             padding: 40px;
             border-radius: 25px;
             box-shadow: 
@@ -161,30 +107,23 @@
             margin-bottom: 40px;
             max-width: 700px;
             border: 1px solid rgba(52, 152, 219, 0.2);
-            position: relative;
         }
 
-        /* Wolf paw corner decorations */
-        .welcome-text::before {
-            content: '🐾';
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 20px;
-            opacity: 0.4;
+        .welcome-text h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #3498db, #2980b9, #74b9ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(52, 152, 219, 0.5);
+            font-weight: 900;
+            letter-spacing: 2px;
         }
 
         .welcome-text p {
             font-size: 1.1em;
             line-height: 1.6;
             color: #bdc3c7;
-        }
-
-        .welcome-text p:first-child {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #3498db;
-            margin-bottom: 15px;
         }
 
         .version-info {
@@ -222,7 +161,6 @@
             border: 2px solid rgba(231, 76, 60, 0.3);
             text-transform: uppercase;
             letter-spacing: 1px;
-            position: relative;
         }
 
         .start-btn:hover {
@@ -231,23 +169,6 @@
                 0 15px 40px rgba(231, 76, 60, 0.6),
                 inset 0 1px 0 rgba(255, 255, 255, 0.3);
             background: linear-gradient(45deg, #ec7063, #e74c3c);
-        }
-
-        /* Wolf howl effect on hover */
-        .start-btn::before {
-            content: '🐺';
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 18px;
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
-
-        .start-btn:hover::before {
-            opacity: 1;
-            left: 20px;
         }
 
         .version-links {
@@ -303,16 +224,6 @@
             height: 100%;
             background: linear-gradient(45deg, transparent, rgba(52, 152, 219, 0.1), transparent);
             animation: shimmer 3s infinite;
-        }
-
-        /* Wolf eyes in header corners */
-        .game-header::after {
-            content: '👁️‍🗨️ 🐺';
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 16px;
-            opacity: 0.5;
         }
 
         @keyframes shimmer {
@@ -375,19 +286,6 @@
         /* Setup Section */
         .setup-section {
             padding: 30px;
-            position: relative;
-        }
-
-        /* Wolf track decoration */
-        .setup-section::before {
-            content: '🐾 🐾 🐾';
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 12px;
-            opacity: 0.3;
-            letter-spacing: 20px;
         }
 
         .control-group {
@@ -426,16 +324,6 @@
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
-            position: relative;
-        }
-
-        .mode-card::before {
-            content: '🐾';
-            position: absolute;
-            top: 12px;
-            right: 15px;
-            font-size: 14px;
-            opacity: 0.3;
         }
 
         .mode-card:hover {
@@ -519,16 +407,6 @@
             font-family: 'Courier New', monospace;
             box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
             border: 2px solid rgba(39, 174, 96, 0.3);
-            position: relative;
-        }
-
-        .game-code::before {
-            content: '🐺';
-            position: absolute;
-            top: -5px;
-            left: -5px;
-            font-size: 14px;
-            opacity: 0.7;
         }
 
         .players-list {
@@ -558,26 +436,11 @@
             padding: 20px;
             text-align: center;
             transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .player-card::before {
-            content: '🐾';
-            position: absolute;
-            top: 8px;
-            right: 12px;
-            font-size: 12px;
-            opacity: 0.3;
         }
 
         .player-card.host {
             border-color: #e74c3c;
             background: linear-gradient(45deg, rgba(231, 76, 60, 0.2), rgba(192, 57, 43, 0.2));
-        }
-
-        .player-card.host::before {
-            content: '🐺';
-            color: rgba(231, 76, 60, 0.7);
         }
 
         .player-name {
@@ -605,16 +468,6 @@
             padding: 25px;
             margin-bottom: 25px;
             border-radius: 15px;
-            position: relative;
-        }
-
-        .live-scores::before {
-            content: '🏆 🐺';
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 20px;
-            opacity: 0.7;
         }
 
         .live-scores h3 {
@@ -637,28 +490,12 @@
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
             border: 1px solid rgba(255,255,255,0.3);
-            position: relative;
-        }
-
-        .score-card::before {
-            content: '🐾';
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            font-size: 10px;
-            opacity: 0.5;
         }
 
         .score-card.leader {
             background: rgba(241, 196, 15, 0.3);
             border: 2px solid #f1c40f;
             box-shadow: 0 0 20px rgba(241, 196, 15, 0.4);
-        }
-
-        .score-card.leader::before {
-            content: '🐺';
-            color: rgba(241, 196, 15, 0.8);
-            font-size: 12px;
         }
 
         .score-player-name {
@@ -689,16 +526,6 @@
             text-align: center;
             margin-bottom: 25px;
             border-radius: 15px;
-            position: relative;
-        }
-
-        .score-section::before {
-            content: '🏆 🐺';
-            position: absolute;
-            top: 15px;
-            left: 20px;
-            font-size: 20px;
-            opacity: 0.7;
         }
 
         .score-display {
@@ -754,15 +581,6 @@
             position: relative;
         }
 
-        .state-card::before {
-            content: '🐾';
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            font-size: 10px;
-            opacity: 0.2;
-        }
-
         .state-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 15px 35px rgba(52, 152, 219, 0.3);
@@ -777,22 +595,10 @@
             box-shadow: 0 15px 35px rgba(39, 174, 96, 0.4);
         }
 
-        .state-card.selected::before {
-            content: '🐺';
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
-        }
-
         .state-card.selected-by-other {
             background: linear-gradient(45deg, #f39c12, #e67e22);
             color: white;
             border-color: #f39c12;
-        }
-
-        .state-card.selected-by-other::before {
-            content: '👤';
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
         }
 
         .state-info {
@@ -865,18 +671,6 @@
             flex-wrap: wrap;
             padding-top: 30px;
             border-top: 1px solid rgba(52, 152, 219, 0.2);
-            position: relative;
-        }
-
-        .game-controls::before {
-            content: '🐾 ━━━━━━━━━━━━━━━━━━━━━━━━━━ 🐾';
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 10px;
-            opacity: 0.2;
-            white-space: nowrap;
         }
 
         /* Game Over */
@@ -891,17 +685,6 @@
             padding: 50px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(52, 152, 219, 0.2);
-            position: relative;
-        }
-
-        .celebration::before {
-            content: '🐺 🏆 🐺';
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 24px;
-            opacity: 0.7;
         }
 
         .celebration h2 {
@@ -1028,25 +811,10 @@
             transform: translateX(400px);
             animation: slideInToast 0.3s ease forwards;
             border: 1px solid rgba(52, 152, 219, 0.3);
-            position: relative;
-        }
-
-        .toast::before {
-            content: '🐾';
-            position: absolute;
-            top: 5px;
-            left: 8px;
-            font-size: 10px;
-            opacity: 0.5;
         }
 
         .toast.success {
             background: linear-gradient(45deg, #27ae60, #2ecc71);
-        }
-
-        .toast.success::before {
-            content: '🐺';
-            color: rgba(255, 255, 255, 0.7);
         }
 
         .toast.error {
@@ -1086,13 +854,12 @@
                 flex-direction: column;
             }
 
-            .logo {
-                width: 250px;
+            .welcome-text h1 {
+                font-size: 2.2em;
             }
 
-            .logo-container::before,
-            .logo-container::after {
-                font-size: 18px;
+            .logo {
+                width: 200px;
             }
 
             .scores-container {
@@ -1149,17 +916,6 @@
             animation: celebrate 0.8s ease;
         }
 
-        /* Wolf howl celebration */
-        @keyframes wolfHowl {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .wolf-celebration {
-            animation: wolfHowl 1s ease;
-        }
-
         /* Steel textures and effects */
         .steel-texture {
             background: 
@@ -1177,6 +933,7 @@
                 <img src="../platequest-final-logo.jpeg" alt="PlateQuest Logo" class="logo">
             </div>
             <div class="welcome-text">
+                <h1>PlateQuest</h1>
                 <p><strong>MULTIPLAYER EDITION</strong></p>
                 <p>Play live with friends and family! Real-time updates, shared adventures, and instant competition across all devices.</p>
                 <div class="version-info">
@@ -1190,15 +947,15 @@
             <div class="version-links">
                 <a href="../index.html" class="version-link">🚗 Single Player Version</a>
             </div>
-            <p style="margin-top: 30px; opacity: 0.7; font-style: italic;">Created by JcWoLF76 🐺</p>
+            <p style="margin-top: 30px; opacity: 0.7; font-style: italic;">Created by JcWoLF76</p>
         </div>
 
         <!-- Game Interface -->
         <div id="game">
             <!-- Header -->
             <div class="game-header">
-                <div class="game-title" id="gameTitle">PlateQuest Multiplayer Pack 🐺</div>
-                <div class="game-subtitle">Live adventure with your pack!</div>
+                <div class="game-title" id="gameTitle">PlateQuest Multiplayer</div>
+                <div class="game-subtitle">Live adventure with friends!</div>
                 <div class="connection-status" id="connectionStatus">
                     <span class="status-dot offline" id="statusDot"></span>
                     <span id="statusText">Connecting...</span>
@@ -1213,14 +970,14 @@
                         <input type="text" id="playerNameInput" placeholder="Enter your name..." style="flex: 1;">
                         <button class="btn btn-primary" id="setNameBtn">Set Name</button>
                     </div>
-                    <p style="font-size: 14px; color: #bdc3c7; margin-top: 8px;">Choose any name you like - everyone can create their own adventures! 🐺</p>
+                    <p style="font-size: 14px; color: #bdc3c7; margin-top: 8px;">Choose any name you like - kids can create their own adventures!</p>
                 </div>
 
                 <div class="game-mode-selector">
                     <div class="mode-card" id="createGameCard" style="opacity: 0.5;">
                         <div class="mode-icon">🎮</div>
                         <h3>Create New Game</h3>
-                        <p>Start a new adventure and invite your pack with a simple game code</p>
+                        <p>Start a new adventure and invite friends with a simple game code</p>
                         <input type="text" id="newGameInput" placeholder="Game name..." class="mode-input" disabled>
                         <button class="btn btn-primary" id="createGameBtn" disabled>Create Game</button>
                     </div>
@@ -1228,7 +985,7 @@
                     <div class="mode-card" id="joinGameCard" style="opacity: 0.5;">
                         <div class="mode-icon">🔗</div>
                         <h3>Join Game</h3>
-                        <p>Enter a friend's 6-character game code to join their pack adventure</p>
+                        <p>Enter a friend's 6-character game code to join their adventure</p>
                         <input type="text" id="joinCodeInput" placeholder="Enter game code..." class="mode-input" maxlength="6" disabled>
                         <button class="btn btn-primary" id="joinGameBtn" disabled>Join Game</button>
                     </div>
@@ -1238,25 +995,25 @@
             <!-- Game Lobby -->
             <div class="lobby-section" id="lobbySection" style="display: none;">
                 <div class="lobby-header">
-                    <h2 id="lobbyGameName">Pack Lobby 🐺</h2>
+                    <h2 id="lobbyGameName">Game Lobby</h2>
                     <div class="game-code-display">
                         <span style="color: #bdc3c7; font-size: 18px;">Game Code:</span>
                         <span class="game-code" id="gameCodeDisplay">LOADING...</span>
                         <button class="btn btn-secondary btn-small" id="copyGameCodeBtn">📋 Copy</button>
                     </div>
-                    <p style="margin-top: 15px; color: #95a5a6; font-size: 16px;">Share this code with your pack to join the hunt!</p>
+                    <p style="margin-top: 15px; color: #95a5a6; font-size: 16px;">Share this code with friends to join your game!</p>
                 </div>
 
                 <div class="players-list" id="playersList">
-                    <h3>Pack Members:</h3>
+                    <h3>Players in Game:</h3>
                     <div id="playersContainer">
                         <!-- Players will be populated by JavaScript -->
                     </div>
                 </div>
 
                 <div class="lobby-controls">
-                    <button class="btn btn-primary" id="startGameBtn" style="display: none;">🚀 Start Pack Hunt</button>
-                    <button class="btn btn-secondary" id="leaveLobbyBtn">❌ Leave Pack</button>
+                    <button class="btn btn-primary" id="startGameBtn" style="display: none;">🚀 Start Adventure</button>
+                    <button class="btn btn-secondary" id="leaveLobbyBtn">❌ Leave Game</button>
                 </div>
             </div>
 
@@ -1264,7 +1021,7 @@
             <div class="game-active" id="gameActive" style="display: none;">
                 <!-- Real-time Score Display -->
                 <div class="live-scores" id="liveScores">
-                    <h3>🏆 Pack Leaderboard</h3>
+                    <h3>🏆 Live Leaderboard</h3>
                     <div class="scores-container" id="scoresContainer">
                         <!-- Live scores will be populated here -->
                     </div>
@@ -1284,8 +1041,8 @@
                         <h3 style="margin-bottom: 15px; color: #3498db; font-size: 24px;">🗺️ State License Plates</h3>
                         <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">
                             Tap any state when you spot their license plate! 
-                            <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> 
-                            <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span>
+                            <span style="color: #2ecc71; font-weight: bold;">■ You found</span> 
+                            <span style="color: #f39c12; font-weight: bold;">■ Others found</span>
                         </p>
                     </div>
                     <div class="states-grid" id="statesGrid">
@@ -1296,7 +1053,7 @@
                 <!-- Game Controls -->
                 <div class="game-controls">
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
-                    <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
+                    <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Game</button>
                     <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
                 </div>
             </div>
@@ -1304,11 +1061,11 @@
             <!-- Game Over -->
             <div class="game-over" id="gameOver" style="display: none;">
                 <div class="celebration">
-                    <h2>🎉 Pack Hunt Complete!</h2>
+                    <h2>🎉 Adventure Complete!</h2>
                     <div id="finalResults">
                         <!-- Final results will be shown here -->
                     </div>
-                    <button class="btn btn-primary" id="newGameBtn">🚀 Start New Pack Hunt</button>
+                    <button class="btn btn-primary" id="newGameBtn">🚀 Start New Adventure</button>
                 </div>
             </div>
         </div>
@@ -1316,7 +1073,7 @@
         <!-- Loading Overlay -->
         <div id="loadingOverlay" class="loading-overlay" style="display: none;">
             <div class="loading-spinner"></div>
-            <div class="loading-text">Connecting to the pack...</div>
+            <div class="loading-text">Connecting to multiplayer...</div>
         </div>
 
         <!-- Toast Notifications -->
