@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlateQuest - License Plate Adventure</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -346,6 +351,19 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-weight: 600;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-label::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s ease;
         }
 
         .mode-option input[type="radio"]:checked + .mode-label {
@@ -354,6 +372,10 @@
             border-color: #3498db;
             transform: translateY(-3px);
             box-shadow: 0 10px 30px rgba(52, 152, 219, 0.4);
+        }
+
+        .mode-option input[type="radio"]:checked + .mode-label::before {
+            left: 100%;
         }
 
         /* Score Section */
@@ -391,6 +413,50 @@
             box-shadow: 0 0 20px rgba(241, 196, 15, 0.5);
         }
 
+        /* Enhanced sections for game modes */
+        .contributor-section, .challenge-section {
+            background: linear-gradient(145deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.1));
+            border: 1px solid rgba(39, 174, 96, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .contributor-badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin: 0 5px 5px 0;
+        }
+
+        .challenge-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: rgba(52, 73, 94, 0.6);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3498db;
+        }
+
         /* States Grid */
         .states-section {
             padding: 30px;
@@ -416,6 +482,8 @@
             box-shadow: 
                 0 5px 15px rgba(0, 0, 0, 0.2),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            animation: slideInUp 0.4s ease;
         }
 
         .state-card:hover {
@@ -430,6 +498,43 @@
             border-color: #2ecc71;
             transform: translateY(-5px) scale(1.02);
             box-shadow: 0 15px 35px rgba(39, 174, 96, 0.4);
+        }
+
+        .state-card.selected.collaborative {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            border-color: #2ecc71;
+        }
+
+        .challenge-mode-active .state-card.selected {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            border-color: #e74c3c;
+        }
+
+        .challenge-mode-active .state-card.selected::after {
+            content: '⚡';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        .state-card .contributor-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background: #3498db;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         .state-info {
@@ -486,6 +591,135 @@
             justify-content: center;
         }
 
+        /* Share Modal */
+        .share-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+        }
+
+        .share-modal-content {
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 15px;
+            padding: 0;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+            color: white;
+        }
+
+        .share-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #bdc3c7;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .share-body {
+            padding: 25px;
+        }
+
+        .code-box, .url-box {
+            background: rgba(52, 73, 94, 0.8);
+            border: 2px solid rgba(52, 152, 219, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .code-box:hover, .url-box:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .code {
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .url {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .copy-hint {
+            font-size: 12px;
+            color: #bdc3c7;
+            opacity: 0.7;
+        }
+
+        .qr-code-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-placeholder {
+            width: 120px;
+            height: 120px;
+            border: 2px solid #3498db;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            color: #2c3e50;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .share-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .share-actions .btn {
+            flex: 1;
+        }
+
         /* Share Section */
         .share-section {
             background: linear-gradient(145deg, rgba(44, 62, 80, 0.9), rgba(52, 73, 94, 0.9));
@@ -508,6 +742,103 @@
             color: #ecf0f1;
             resize: vertical;
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Loading overlay */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+            font-size: 18px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 10000;
+            animation: slideInToast 0.3s ease;
+        }
+
+        /* Animations */
+        @keyframes slideInUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes celebrate {
+            0%, 100% { 
+                transform: scale(1) rotate(0deg);
+                filter: brightness(1);
+            }
+            25% { 
+                transform: scale(1.1) rotate(-3deg);
+                filter: brightness(1.2);
+            }
+            50% { 
+                transform: scale(1.15) rotate(0deg);
+                filter: brightness(1.3);
+            }
+            75% { 
+                transform: scale(1.1) rotate(3deg);
+                filter: brightness(1.2);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes slideInToast {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .state-card.celebrating {
+            animation: celebrate 0.8s ease;
+        }
+
+        .state-card:nth-child(even) {
+            animation-delay: 0.1s;
+        }
+
+        .state-card:nth-child(3n) {
+            animation-delay: 0.2s;
         }
 
         /* Responsive Design */
@@ -540,41 +871,24 @@
             .logo {
                 width: 200px;
             }
-        }
 
-        /* Animations */
-        @keyframes slideInUp {
-            from {
-                transform: translateY(30px);
-                opacity: 0;
+            .share-modal-content {
+                width: 95%;
+                margin: 10px;
             }
-            to {
-                transform: translateY(0);
-                opacity: 1;
+            
+            .challenge-stats {
+                grid-template-columns: 1fr;
             }
-        }
-
-        .state-card {
-            animation: slideInUp 0.4s ease;
-        }
-
-        .state-card:nth-child(even) {
-            animation-delay: 0.1s;
-        }
-
-        .state-card:nth-child(3n) {
-            animation-delay: 0.2s;
-        }
-
-        @keyframes celebrate {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            25% { transform: scale(1.1) rotate(-3deg); }
-            50% { transform: scale(1.15) rotate(0deg); }
-            75% { transform: scale(1.1) rotate(3deg); }
-        }
-
-        .state-card.celebrating {
-            animation: celebrate 0.8s ease;
+            
+            .share-actions {
+                flex-direction: column;
+            }
+            
+            .code {
+                font-size: 18px;
+                letter-spacing: 2px;
+            }
         }
 
         /* Steel textures and effects */
@@ -599,9 +913,11 @@
                 <p>The ultimate license plate spotting adventure! Find all 50 state plates, track your progress, and turn every road trip into an exciting quest.</p>
                 <div class="version-info">
                     <span class="badge">🚗 Solo Adventure</span>
+                    <span class="badge">👨‍👩‍👧‍👦 Family Mode</span>
+                    <span class="badge">🏆 Challenge Mode</span>
+                    <span class="badge">☁️ Cloud Sharing</span>
                     <span class="badge">📱 Mobile Optimized</span>
                     <span class="badge">💾 Auto Save</span>
-                    <span class="badge">🎯 Achievement System</span>
                 </div>
             </div>
             <button class="start-btn" id="startBtn">Start Your Quest! 🎯</button>
@@ -654,21 +970,21 @@
                             <input type="radio" name="mode" value="solo" id="soloMode" checked>
                             <label for="soloMode" class="mode-label">
                                 🚗 Solo Adventure
-                                <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Just me exploring</div>
+                                <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Track your personal progress</div>
                             </label>
                         </div>
                         <div class="mode-option">
                             <input type="radio" name="mode" value="collab" id="collabMode">
                             <label for="collabMode" class="mode-label">
                                 👥 Family Mode
-                                <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Shared progress</div>
+                                <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Everyone contributes, see who found what</div>
                             </label>
                         </div>
                         <div class="mode-option">
                             <input type="radio" name="mode" value="versus" id="versusMode">
                             <label for="versusMode" class="mode-label">
                                 🏆 Challenge Mode
-                                <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Track personal best</div>
+                                <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Race against time, track records</div>
                             </label>
                         </div>
                     </div>
@@ -695,9 +1011,9 @@
             <!-- Action Buttons -->
             <div class="actions-section">
                 <button class="btn btn-secondary" id="resetBtn">🔄 Reset Trip</button>
-                <button class="btn btn-primary" id="exportBtn">📤 Export Progress</button>
-                <button class="btn btn-secondary" id="importBtn">📥 Import Progress</button>
-                <button class="btn btn-secondary" id="shareBtn">📢 Share Trip</button>
+                <button class="btn btn-primary" id="shareBtn">📤 Share Trip</button>
+                <button class="btn btn-secondary" id="importBtn">📥 Load Shared Trip</button>
+                <button class="btn btn-secondary" id="exportBtn">📋 Export Backup</button>
                 <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
             </div>
 
@@ -712,9 +1028,26 @@
                 </div>
             </div>
         </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
     </div>
 
     <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
+            authDomain: "platequest-multiplayer.firebaseapp.com",
+            databaseURL: "https://platequest-multiplayer-default-rtdb.firebaseio.com/",
+            projectId: "platequest-multiplayer",
+            storageBucket: "platequest-multiplayer.firebasestorage.app",
+            messagingSenderId: "109596979102",
+            appId: "1:109596979102:web:586740c408daec71af708f"
+        };
+
         // State data with abbreviations for flag images
         const statesData = [
             { name: "Alabama", abbr: "AL" },
@@ -773,6 +1106,36 @@
         let currentProfile = null;
         let currentTrip = null;
         let selectedStates = [];
+        let currentGameMode = 'solo';
+        let db = null;
+        let cloudEnabled = false;
+        let challengeStartTime = null;
+        let challengeTimer = null;
+
+        // Mode configurations
+        const gameModes = {
+            solo: {
+                name: "Solo Adventure",
+                description: "Track your personal progress",
+                allowMultipleContributors: false,
+                showPersonalStats: true,
+                trackBestTimes: false
+            },
+            collab: {
+                name: "Family Mode", 
+                description: "Everyone contributes to shared progress",
+                allowMultipleContributors: true,
+                showPersonalStats: false,
+                trackBestTimes: false
+            },
+            versus: {
+                name: "Challenge Mode",
+                description: "Track personal best and compete",
+                allowMultipleContributors: false,
+                showPersonalStats: true,
+                trackBestTimes: true
+            }
+        };
 
         // DOM elements
         const splash = document.getElementById('splash');
@@ -785,21 +1148,103 @@
         const shareSection = document.getElementById('shareSection');
         const exportBox = document.getElementById('exportBox');
 
-        // Initialize game
-        document.getElementById('startBtn').addEventListener('click', startGame);
-        document.getElementById('createProfileBtn').addEventListener('click', createProfile);
-        document.getElementById('deleteProfileBtn').addEventListener('click', deleteProfile);
-        document.getElementById('createTripBtn').addEventListener('click', createTrip);
-        document.getElementById('resetBtn').addEventListener('click', resetTrip);
-        document.getElementById('exportBtn').addEventListener('click', showExport);
-        document.getElementById('importBtn').addEventListener('click', showImport);
-        document.getElementById('shareBtn').addEventListener('click', shareTrip);
-        document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
-        document.getElementById('copyExportBtn').addEventListener('click', copyExport);
-        document.getElementById('hideShareBtn').addEventListener('click', hideShare);
+        // Initialize Firebase for cloud features
+        function initializeCloudSharing() {
+            try {
+                if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.firestore();
+                    cloudEnabled = true;
+                    showCloudFeatures();
+                    console.log('Cloud sharing enabled');
+                } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
+                    db = firebase.firestore();
+                    cloudEnabled = true;
+                    showCloudFeatures();
+                    console.log('Cloud sharing enabled (existing app)');
+                }
+            } catch (error) {
+                console.warn('Cloud sharing unavailable:', error);
+                cloudEnabled = false;
+                showOfflineFeatures();
+            }
+        }
 
-        profileSelect.addEventListener('change', selectProfile);
-        tripSelect.addEventListener('change', selectTrip);
+        // Initialize game
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('createProfileBtn').addEventListener('click', createProfile);
+            document.getElementById('deleteProfileBtn').addEventListener('click', deleteProfile);
+            document.getElementById('createTripBtn').addEventListener('click', createTrip);
+            document.getElementById('resetBtn').addEventListener('click', resetTrip);
+            document.getElementById('shareBtn').addEventListener('click', shareTrip);
+            document.getElementById('importBtn').addEventListener('click', loadSharedTrip);
+            document.getElementById('exportBtn').addEventListener('click', showExport);
+            document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
+            document.getElementById('copyExportBtn').addEventListener('click', copyExport);
+            document.getElementById('hideShareBtn').addEventListener('click', hideShare);
+
+            profileSelect.addEventListener('change', selectProfile);
+            tripSelect.addEventListener('change', selectTrip);
+
+            // Game mode listeners
+            const modeInputs = document.querySelectorAll('input[name="mode"]');
+            modeInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    if (this.checked) {
+                        currentGameMode = this.value;
+                        updateGameModeUI();
+                        updateScore();
+                    }
+                });
+            });
+
+            // Initialize cloud features
+            setTimeout(initializeCloudSharing, 500);
+            
+            // Check for shared trip in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('share')) {
+                setTimeout(() => loadSharedTrip(), 1000);
+            }
+
+            // Initialize dark mode from saved preference
+            if (localStorage.getItem('platequest_dark_mode') === 'true') {
+                document.body.classList.add('dark');
+                document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
+            }
+
+            // Auto-detect system dark mode preference
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                if (!localStorage.getItem('platequest_dark_mode')) {
+                    document.body.classList.add('dark');
+                    document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
+                }
+            }
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key) {
+                        case 's':
+                            e.preventDefault();
+                            shareTrip();
+                            break;
+                        case 'l':
+                            e.preventDefault();
+                            loadSharedTrip();
+                            break;
+                        case 'r':
+                            e.preventDefault();
+                            if (confirm('Reset current trip?')) {
+                                resetTrip();
+                            }
+                            break;
+                    }
+                }
+            });
+        });
 
         function startGame() {
             splash.style.display = 'none';
@@ -808,6 +1253,219 @@
             renderStates();
         }
 
+        // Game Mode Functions
+        function updateGameModeUI() {
+            const mode = gameModes[currentGameMode];
+            
+            // Update body class for styling
+            document.body.className = document.body.className.replace(/\b\w+-mode-active\b/g, '');
+            document.body.classList.add(`${currentGameMode}-mode-active`);
+            
+            // Update UI based on mode
+            if (mode.allowMultipleContributors) {
+                showCollaborativeFeatures();
+            } else {
+                hideCollaborativeFeatures();
+            }
+            
+            if (mode.trackBestTimes) {
+                showChallengeFeatures();
+            } else {
+                hideChallengeFeatures();
+            }
+            
+            // Update game title to reflect mode
+            updateGameTitle();
+        }
+
+        function showCollaborativeFeatures() {
+            // Add contributor tracking
+            let contributorSection = document.getElementById('contributorSection');
+            if (!contributorSection) {
+                contributorSection = document.createElement('div');
+                contributorSection.id = 'contributorSection';
+                contributorSection.className = 'contributor-section';
+                contributorSection.innerHTML = `
+                    <h4>👥 Family Contributors</h4>
+                    <div id="contributorList"></div>
+                    <button class="btn btn-secondary" onclick="addContributor()" style="margin-top: 10px;">+ Add Family Member</button>
+                `;
+                
+                // Insert after score section
+                const scoreSection = document.querySelector('.score-section');
+                if (scoreSection) {
+                    scoreSection.insertAdjacentElement('afterend', contributorSection);
+                }
+            }
+            updateContributorList();
+        }
+
+        function hideCollaborativeFeatures() {
+            const contributorSection = document.getElementById('contributorSection');
+            if (contributorSection) {
+                contributorSection.remove();
+            }
+        }
+
+        function showChallengeFeatures() {
+            // Add challenge statistics
+            let challengeSection = document.getElementById('challengeSection');
+            if (!challengeSection) {
+                challengeSection = document.createElement('div');
+                challengeSection.id = 'challengeSection';
+                challengeSection.className = 'challenge-section';
+                challengeSection.innerHTML = `
+                    <h4>🏆 Challenge Statistics</h4>
+                    <div class="challenge-stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Personal Best</div>
+                            <div class="stat-value" id="personalBest">${getPersonalBest()}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Current Time</div>
+                            <div class="stat-value" id="currentTime">${getCurrentTripTime()}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">States/Day Avg</div>
+                            <div class="stat-value" id="dailyAverage">${getDailyAverage()}</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert after score section
+                const scoreSection = document.querySelector('.score-section');
+                if (scoreSection) {
+                    scoreSection.insertAdjacentElement('afterend', challengeSection);
+                }
+            }
+            
+            // Start timing
+            startChallengeTimer();
+        }
+
+        function hideChallengeFeatures() {
+            const challengeSection = document.getElementById('challengeSection');
+            if (challengeSection) {
+                challengeSection.remove();
+            }
+            stopChallengeTimer();
+        }
+
+        // Challenge mode timing functions
+        function startChallengeTimer() {
+            const tripKey = `profile_${currentProfile}_trip_${currentTrip}`;
+            const startTimeKey = `${tripKey}_startTime`;
+            
+            // Get or set start time
+            challengeStartTime = localStorage.getItem(startTimeKey);
+            if (!challengeStartTime) {
+                challengeStartTime = Date.now();
+                localStorage.setItem(startTimeKey, challengeStartTime);
+            } else {
+                challengeStartTime = parseInt(challengeStartTime);
+            }
+            
+            // Update timer every minute
+            challengeTimer = setInterval(updateChallengeTimer, 60000);
+            updateChallengeTimer(); // Initial update
+        }
+
+        function stopChallengeTimer() {
+            if (challengeTimer) {
+                clearInterval(challengeTimer);
+                challengeTimer = null;
+            }
+        }
+
+        function updateChallengeTimer() {
+            const currentTimeElement = document.getElementById('currentTime');
+            if (currentTimeElement && challengeStartTime) {
+                const elapsed = Date.now() - challengeStartTime;
+                const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((elapsed % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                currentTimeElement.textContent = `${days}d ${hours}h`;
+            }
+        }
+
+        function getPersonalBest() {
+            const bestKey = `profile_${currentProfile}_personalBest`;
+            const best = localStorage.getItem(bestKey);
+            return best ? `${best} days` : 'None';
+        }
+
+        function getCurrentTripTime() {
+            return challengeStartTime ? 'Tracking...' : 'Not started';
+        }
+
+        function getDailyAverage() {
+            if (!challengeStartTime) return '0';
+            const elapsed = Date.now() - challengeStartTime;
+            const days = elapsed / (1000 * 60 * 60 * 24);
+            const average = selectedStates.length / Math.max(days, 1);
+            return average.toFixed(1);
+        }
+
+        // Collaborative mode functions
+        function getCurrentContributor() {
+            // In collaborative mode, ask who found it
+            if (currentGameMode === 'collab') {
+                const contributors = getContributors();
+                if (contributors.length === 1) {
+                    return contributors[0];
+                }
+                
+                // Simple prompt for now - could be enhanced with a modal
+                const contributor = prompt(`Who found this state?\n\nContributors: ${contributors.join(', ')}`);
+                return contributor && contributors.includes(contributor) ? contributor : contributors[0];
+            }
+            return currentProfile;
+        }
+
+        function getContributors() {
+            const tripKey = `profile_${currentProfile}_trip_${currentTrip}_contributors`;
+            const contributors = localStorage.getItem(tripKey);
+            return contributors ? JSON.parse(contributors) : [currentProfile];
+        }
+
+        function addContributor() {
+            const name = prompt('Enter family member name:');
+            if (name && name.trim()) {
+                const contributors = getContributors();
+                if (!contributors.includes(name.trim())) {
+                    contributors.push(name.trim());
+                    const tripKey = `profile_${currentProfile}_trip_${currentTrip}_contributors`;
+                    localStorage.setItem(tripKey, JSON.stringify(contributors));
+                    updateContributorList();
+                }
+            }
+        }
+
+        function updateContributorList() {
+            const listElement = document.getElementById('contributorList');
+            if (listElement) {
+                const contributors = getContributors();
+                listElement.innerHTML = contributors.map(name => 
+                    `<span class="contributor-badge">${name}</span>`
+                ).join('');
+            }
+        }
+
+        function addContributorBadge(cardElement, contributor) {
+            // Remove existing badge
+            const existingBadge = cardElement.querySelector('.contributor-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            // Add new badge
+            const badge = document.createElement('div');
+            badge.className = 'contributor-badge';
+            badge.textContent = contributor.charAt(0).toUpperCase();
+            badge.title = `Found by ${contributor}`;
+            cardElement.appendChild(badge);
+        }
+
+        // Profile and trip management
         function createProfile() {
             const name = document.getElementById('newProfileInput').value.trim();
             if (!name) {
@@ -874,6 +1532,11 @@
             renderStates();
             updateScore();
             updateGameTitle();
+            
+            // Initialize challenge timer if in challenge mode
+            if (currentGameMode === 'versus') {
+                startChallengeTimer();
+            }
         }
 
         function selectProfile() {
@@ -913,7 +1576,9 @@
             const trips = new Set();
             Object.keys(localStorage).forEach(key => {
                 const match = key.match(new RegExp(`^profile_${currentProfile}_trip_(.*?)$`));
-                if (match) trips.add(match[1]);
+                if (match && !key.includes('_contributors') && !key.includes('_startTime')) {
+                    trips.add(match[1]);
+                }
             });
             
             tripSelect.innerHTML = '<option value="">Select Trip...</option>';
@@ -941,6 +1606,7 @@
             selectedStates = saved ? JSON.parse(saved) : [];
             renderStates();
             updateScore();
+            updateGameModeUI();
         }
 
         function renderStates() {
@@ -949,8 +1615,26 @@
             statesData.forEach((state, index) => {
                 const card = document.createElement('div');
                 card.className = 'state-card';
-                if (selectedStates.includes(state.name)) {
+                
+                // Check if state is selected (handle both old string format and new object format)
+                let isSelected = false;
+                let foundBy = null;
+                
+                if (currentGameMode === 'collab' && Array.isArray(selectedStates) && selectedStates[0]?.state) {
+                    // New collaborative format
+                    const stateData = selectedStates.find(s => s.state === state.name);
+                    isSelected = !!stateData;
+                    foundBy = stateData?.foundBy;
+                } else {
+                    // Simple string array format
+                    isSelected = selectedStates.includes(state.name);
+                }
+                
+                if (isSelected) {
                     card.classList.add('selected');
+                    if (currentGameMode === 'collab') {
+                        card.classList.add('collaborative');
+                    }
                 }
                 
                 // Try to load flag image, fallback to abbreviation
@@ -967,6 +1651,11 @@
                     </div>
                 `;
                 
+                // Add contributor badge if collaborative mode
+                if (currentGameMode === 'collab' && foundBy) {
+                    addContributorBadge(card, foundBy);
+                }
+                
                 card.addEventListener('click', () => toggleState(state.name, card));
                 
                 // Add animation delay
@@ -977,20 +1666,69 @@
         }
 
         function toggleState(stateName, cardElement) {
-            const index = selectedStates.indexOf(stateName);
+            if (currentGameMode === 'collab') {
+                toggleStateCollaborative(stateName, cardElement);
+            } else {
+                // Original logic for solo/versus modes
+                const index = selectedStates.indexOf(stateName);
+                
+                if (index > -1) {
+                    selectedStates.splice(index, 1);
+                    cardElement.classList.remove('selected');
+                } else {
+                    selectedStates.push(stateName);
+                    cardElement.classList.add('selected');
+                    
+                    // Add celebration effect
+                    cardElement.classList.add('celebrating');
+                    setTimeout(() => cardElement.classList.remove('celebrating'), 800);
+                    
+                    // Check for milestones in challenge mode
+                    if (currentGameMode === 'versus') {
+                        checkChallengeAchievements();
+                    }
+                    
+                    // Check for milestone
+                    if (selectedStates.length === 10 || selectedStates.length === 25 || selectedStates.length === 50) {
+                        celebrateAchievement(selectedStates.length);
+                    }
+                }
+                
+                saveStates();
+                updateScore();
+            }
+        }
+
+        function toggleStateCollaborative(stateName, cardElement) {
+            const index = selectedStates.findIndex(s => s.state === stateName);
             
             if (index > -1) {
+                // Remove state
                 selectedStates.splice(index, 1);
-                cardElement.classList.remove('selected');
-            } else {
-                selectedStates.push(stateName);
-                cardElement.classList.add('selected');
+                cardElement.classList.remove('selected', 'collaborative');
                 
-                // Add celebration effect
+                // Remove contributor badge
+                const badge = cardElement.querySelector('.contributor-badge');
+                if (badge) badge.remove();
+            } else {
+                // Add state with contributor info
+                const contributor = getCurrentContributor();
+                if (!contributor) return; // User cancelled
+                
+                selectedStates.push({
+                    state: stateName,
+                    foundBy: contributor,
+                    foundAt: new Date().toISOString(),
+                    mode: currentGameMode
+                });
+                cardElement.classList.add('selected', 'collaborative');
+                
+                // Add contributor badge
+                addContributorBadge(cardElement, contributor);
+                
+                // Celebration effect
                 cardElement.classList.add('celebrating');
-                setTimeout(() => {
-                    cardElement.classList.remove('celebrating');
-                }, 800);
+                setTimeout(() => cardElement.classList.remove('celebrating'), 800);
                 
                 // Check for milestone
                 if (selectedStates.length === 10 || selectedStates.length === 25 || selectedStates.length === 50) {
@@ -1002,11 +1740,36 @@
             updateScore();
         }
 
+        function checkChallengeAchievements() {
+            const count = selectedStates.length;
+            
+            // Check for personal records
+            if (count === 50 && challengeStartTime) {
+                const elapsed = Date.now() - challengeStartTime;
+                const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+                
+                const bestKey = `profile_${currentProfile}_personalBest`;
+                const currentBest = localStorage.getItem(bestKey);
+                
+                if (!currentBest || days < parseInt(currentBest)) {
+                    localStorage.setItem(bestKey, days.toString());
+                    alert(`🏆 NEW PERSONAL RECORD! Completed in ${days} days!`);
+                }
+            }
+        }
+
         function updateScore() {
             const count = selectedStates.length;
             const percentage = Math.round((count / 50) * 100);
             
-            scoreDisplay.textContent = `Found ${count} of 50 plates (${percentage}%)`;
+            if (currentGameMode === 'collab') {
+                scoreDisplay.textContent = `Family Progress: ${count} of 50 plates (${percentage}%)`;
+            } else if (currentGameMode === 'versus') {
+                scoreDisplay.textContent = `Challenge Progress: ${count} of 50 plates (${percentage}%)`;
+            } else {
+                scoreDisplay.textContent = `Found ${count} of 50 plates (${percentage}%)`;
+            }
+            
             progressFill.style.width = `${percentage}%`;
         }
 
@@ -1029,8 +1792,379 @@
             saveStates();
             renderStates();
             updateScore();
+            
+            // Reset challenge timer if in challenge mode
+            if (currentGameMode === 'versus' && currentProfile && currentTrip) {
+                const tripKey = `profile_${currentProfile}_trip_${currentTrip}`;
+                const startTimeKey = `${tripKey}_startTime`;
+                localStorage.removeItem(startTimeKey);
+                challengeStartTime = null;
+                if (challengeTimer) {
+                    clearInterval(challengeTimer);
+                    challengeTimer = null;
+                }
+                showChallengeFeatures(); // Restart timer
+            }
         }
 
+        // Cloud sharing functions
+        function generateShareCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        async function shareTrip() {
+            if (!currentProfile || !currentTrip) {
+                alert('Please select a profile and trip first!');
+                return;
+            }
+
+            if (cloudEnabled) {
+                await shareToCloud();
+            } else {
+                // Fallback to old method
+                showExport();
+            }
+        }
+
+        async function shareToCloud() {
+            try {
+                showLoading('Creating share link...');
+                
+                const shareCode = generateShareCode();
+                const tripData = {
+                    shareCode: shareCode,
+                    profile: currentProfile,
+                    trip: currentTrip,
+                    mode: currentGameMode,
+                    states: prepareStatesForSharing(),
+                    contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    totalStates: selectedStates.length,
+                    isPublic: true
+                };
+
+                await db.collection('sharedTrips').doc(shareCode).set(tripData);
+                
+                hideLoading();
+                showShareSuccess(shareCode);
+                
+            } catch (error) {
+                hideLoading();
+                console.error('Error sharing trip:', error);
+                alert('Failed to create share link. Please try again.');
+            }
+        }
+
+        function prepareStatesForSharing() {
+            if (currentGameMode === 'collab' && Array.isArray(selectedStates) && selectedStates[0]?.state) {
+                // Collaborative mode with detailed state info
+                return selectedStates;
+            } else {
+                // Simple string array - convert to detailed format
+                return selectedStates.map(state => ({
+                    state: typeof state === 'string' ? state : state.state,
+                    foundBy: currentProfile,
+                    foundAt: new Date().toISOString(),
+                    mode: currentGameMode
+                }));
+            }
+        }
+
+        function showShareSuccess(shareCode) {
+            const modal = document.createElement('div');
+            modal.className = 'share-modal';
+            modal.innerHTML = `
+                <div class="share-modal-content">
+                    <div class="share-header">
+                        <h3>🎉 Trip Shared Successfully!</h3>
+                        <button class="close-btn" onclick="closeShareModal()">&times;</button>
+                    </div>
+                    <div class="share-body">
+                        <div class="share-code-display">
+                            <label>Share Code:</label>
+                            <div class="code-box" onclick="copyShareCode('${shareCode}')">
+                                <span class="code">${shareCode}</span>
+                                <span class="copy-hint">📋 Click to copy</span>
+                            </div>
+                        </div>
+                        
+                        <div class="share-url-display">
+                            <label>Direct Link:</label>
+                            <div class="url-box" onclick="copyShareUrl('${shareCode}')">
+                                <span class="url">${window.location.origin}?share=${shareCode}</span>
+                                <span class="copy-hint">📋 Click to copy</span>
+                            </div>
+                        </div>
+                        
+                        <div class="qr-code-container">
+                            <div class="qr-placeholder">
+                                <div>QR Code for<br/>${shareCode}</div>
+                            </div>
+                            <p>Scan QR code to open on mobile</p>
+                        </div>
+                        
+                        <div class="share-actions">
+                            <button class="btn btn-primary" onclick="shareViaSystem('${shareCode}')">
+                                📱 Share via Apps
+                            </button>
+                            <button class="btn btn-secondary" onclick="updateSharedTrip('${shareCode}')">
+                                🔄 Update Shared Trip
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-backdrop" onclick="closeShareModal()"></div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        async function loadSharedTrip() {
+            // Check URL for share parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareCode = urlParams.get('share');
+            
+            if (shareCode) {
+                await loadTripByShareCode(shareCode);
+                return;
+            }
+            
+            // Manual entry
+            const code = prompt('Enter a 6-character share code:');
+            if (code && code.length === 6) {
+                await loadTripByShareCode(code.toUpperCase());
+            }
+        }
+
+        async function loadTripByShareCode(shareCode) {
+            if (!cloudEnabled) {
+                alert('Cloud sharing is not available. Please check your internet connection.');
+                return;
+            }
+            
+            try {
+                showLoading('Loading shared trip...');
+                
+                const doc = await db.collection('sharedTrips').doc(shareCode).get();
+                
+                if (!doc.exists) {
+                    hideLoading();
+                    alert('Share code not found. Please check the code and try again.');
+                    return;
+                }
+                
+                const tripData = doc.data();
+                
+                // Import the trip data
+                await importSharedTripData(tripData);
+                
+                hideLoading();
+                
+                // Show success message
+                alert(`Successfully loaded "${tripData.trip}" from ${tripData.profile}!\n` +
+                      `Found ${tripData.totalStates} states in ${tripData.mode} mode.`);
+                
+                // Clear the URL parameter
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+                
+            } catch (error) {
+                hideLoading();
+                console.error('Error loading shared trip:', error);
+                alert('Failed to load shared trip. Please try again.');
+            }
+        }
+
+        async function importSharedTripData(tripData) {
+            // Create or select profile
+            let profileOption = Array.from(profileSelect.options).find(opt => opt.value === tripData.profile);
+            if (!profileOption) {
+                profileOption = new Option(tripData.profile, tripData.profile);
+                profileSelect.add(profileOption);
+            }
+            
+            profileSelect.value = tripData.profile;
+            currentProfile = tripData.profile;
+            loadTrips();
+            
+            // Create unique trip name to avoid conflicts
+            const timestamp = new Date().toLocaleDateString();
+            const importedTripName = `${tripData.trip} (Imported ${timestamp})`;
+            
+            let tripOption = new Option(importedTripName, importedTripName);
+            tripSelect.add(tripOption);
+            
+            tripSelect.value = importedTripName;
+            currentTrip = importedTripName;
+            
+            // Set game mode
+            currentGameMode = tripData.mode || 'solo';
+            const modeRadio = document.querySelector(`input[name="mode"][value="${currentGameMode}"]`);
+            if (modeRadio) {
+                modeRadio.checked = true;
+            }
+            
+            // Import states
+            selectedStates = tripData.states || [];
+            
+            // Import contributors if collaborative mode
+            if (tripData.mode === 'collab' && tripData.contributors) {
+                const tripKey = `profile_${currentProfile}_trip_${currentTrip}_contributors`;
+                localStorage.setItem(tripKey, JSON.stringify(tripData.contributors));
+            }
+            
+            // Save and update UI
+            saveStates();
+            renderStates();
+            updateScore();
+            updateGameModeUI();
+            updateGameTitle();
+        }
+
+        async function updateSharedTrip(shareCode) {
+            if (!cloudEnabled) {
+                alert('Cloud sharing is not available.');
+                return;
+            }
+            
+            try {
+                showLoading('Updating shared trip...');
+                
+                const updateData = {
+                    states: prepareStatesForSharing(),
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    totalStates: selectedStates.length,
+                    contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile]
+                };
+                
+                await db.collection('sharedTrips').doc(shareCode).update(updateData);
+                
+                hideLoading();
+                alert('Shared trip updated successfully!');
+                
+            } catch (error) {
+                hideLoading();
+                console.error('Error updating shared trip:', error);
+                alert('Failed to update shared trip. Please try again.');
+            }
+        }
+
+        // System sharing API
+        function shareViaSystem(shareCode) {
+            const url = `${window.location.origin}?share=${shareCode}`;
+            const title = `PlateQuest: ${currentTrip}`;
+            const text = `Check out my license plate spotting progress! I've found ${selectedStates.length} out of 50 states.`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: title,
+                    text: text,
+                    url: url
+                }).catch(console.error);
+            } else {
+                // Fallback: copy to clipboard
+                copyShareUrl(shareCode);
+                alert('Share link copied to clipboard!');
+            }
+        }
+
+        // Utility functions
+        function copyShareCode(shareCode) {
+            navigator.clipboard.writeText(shareCode).then(() => {
+                showToast('Share code copied!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = shareCode;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('Share code copied!');
+            });
+        }
+
+        function copyShareUrl(shareCode) {
+            const url = `${window.location.origin}?share=${shareCode}`;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Share link copied!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('Share link copied!');
+            });
+        }
+
+        function closeShareModal() {
+            const modal = document.querySelector('.share-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function showCloudFeatures() {
+            // Update button text to indicate cloud features
+            const shareBtn = document.getElementById('shareBtn');
+            if (shareBtn) {
+                shareBtn.innerHTML = '☁️ Share Trip Online';
+            }
+            
+            const importBtn = document.getElementById('importBtn');
+            if (importBtn) {
+                importBtn.innerHTML = '☁️ Load Shared Trip';
+            }
+        }
+
+        function showOfflineFeatures() {
+            // Keep original offline functionality as fallback
+            const shareBtn = document.getElementById('shareBtn');
+            if (shareBtn) {
+                shareBtn.innerHTML = '📤 Share Trip';
+            }
+            
+            const importBtn = document.getElementById('importBtn');
+            if (importBtn) {
+                importBtn.innerHTML = '📥 Load Shared Trip';
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showLoading(message = 'Loading...') {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.querySelector('.loading-text').textContent = message;
+            overlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'none';
+        }
+
+        // Legacy export/import functions
         function showExport() {
             if (!currentProfile || !currentTrip) {
                 alert('Please select a profile and trip first!');
@@ -1040,69 +2174,14 @@
             const exportData = {
                 profile: currentProfile,
                 trip: currentTrip,
+                mode: currentGameMode,
                 states: selectedStates,
+                contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile],
                 exportedAt: new Date().toISOString()
             };
             
             exportBox.value = JSON.stringify(exportData, null, 2);
             shareSection.style.display = 'block';
-        }
-
-        function showImport() {
-            const input = prompt('Paste your trip code here:');
-            if (!input) return;
-            
-            try {
-                const data = JSON.parse(input);
-                
-                if (!data.profile || !data.trip || !Array.isArray(data.states)) {
-                    throw new Error('Invalid format');
-                }
-                
-                // Create profile and trip if they don't exist
-                let profileOption = Array.from(profileSelect.options).find(opt => opt.value === data.profile);
-                if (!profileOption) {
-                    profileOption = new Option(data.profile, data.profile);
-                    profileSelect.add(profileOption);
-                }
-                
-                profileSelect.value = data.profile;
-                currentProfile = data.profile;
-                loadTrips();
-                
-                let tripOption = Array.from(tripSelect.options).find(opt => opt.value === data.trip);
-                if (!tripOption) {
-                    tripOption = new Option(data.trip, data.trip);
-                    tripSelect.add(tripOption);
-                }
-                
-                tripSelect.value = data.trip;
-                currentTrip = data.trip;
-                selectedStates = data.states;
-                
-                saveStates();
-                renderStates();
-                updateScore();
-                updateGameTitle();
-                
-                alert(`Successfully imported "${data.trip}" for ${data.profile}!`);
-                
-            } catch (error) {
-                alert('Invalid trip code format. Please check and try again.');
-            }
-        }
-
-        function shareTrip() {
-            showExport();
-            
-            if (navigator.share) {
-                const shareData = {
-                    title: `PlateQuest: ${currentTrip}`,
-                    text: `Check out my PlateQuest progress! I've found ${selectedStates.length} out of 50 state license plates.`,
-                    url: window.location.href
-                };
-                navigator.share(shareData);
-            }
         }
 
         function copyExport() {
@@ -1131,23 +2210,10 @@
         function updateGameTitle() {
             const title = document.getElementById('gameTitle');
             if (currentTrip && currentProfile) {
-                title.textContent = `${currentTrip} - ${currentProfile}`;
+                const mode = gameModes[currentGameMode];
+                title.textContent = `${currentTrip} - ${mode.name}`;
             } else {
                 title.textContent = 'PlateQuest Adventure';
-            }
-        }
-
-        // Initialize dark mode from saved preference
-        if (localStorage.getItem('platequest_dark_mode') === 'true') {
-            document.body.classList.add('dark');
-            document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
-        }
-
-        // Auto-detect system dark mode preference
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            if (!localStorage.getItem('platequest_dark_mode')) {
-                document.body.classList.add('dark');
-                document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
             }
         }
     </script>
