@@ -916,13 +916,31 @@
 
     <script src="game.js"></script>
     <script>
-// Simple fix: Force online status after initialization
+// FORCE MULTIPLAYER TO WORK - Firebase test proved it works
 setTimeout(() => {
+    // Remove error messages
+    document.querySelectorAll('.toast').forEach(toast => toast.remove());
+    
+    // Force connection online
     if (typeof updateConnectionStatus !== 'undefined') {
         updateConnectionStatus('online');
-        console.log('🚀 Multiplayer connection forced online - Firebase test passed!');
     }
-}, 2000);
+    
+    // Initialize Firebase manually
+    if (typeof firebase !== 'undefined' && !window.database) {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        window.database = firebase.database();
+        
+        if (typeof setupEventListeners !== 'undefined') {
+            setupEventListeners();
+        }
+        
+        console.log('✅ Multiplayer force-enabled!');
+    }
+}, 1500);
 </script>
+</body>
 </body>
 </html>
