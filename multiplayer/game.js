@@ -70,10 +70,6 @@ let currentPlayer = null;
 let currentGameCode = null;
 let gameData = null;
 let playersData = null;
-let connectionEstablished = false;
-let connectionRetryCount = 0;
-let maxRetries = 5;
-let gameInitialized = false;
 
 // DOM elements
 const splash = document.getElementById('splash');
@@ -83,266 +79,92 @@ const gameActive = document.getElementById('gameActive');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const gameCodeHeader = document.getElementById('gameCodeHeader');
 
-// Initialize Firebase and start the app with improved error handling
+// Initialize Firebase and start the app
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎮 PlateQuest Multiplayer starting...');
-    
-    // Add loading state immediately
-    updateConnectionStatus('connecting');
-    
-    // Initialize Firebase with proper error handling
-    initializeFirebaseWithRetry();
+    initializeApp();
 });
 
-async function initializeFirebaseWithRetry() {
+function initializeApp() {
     try {
-        showLoading('Initializing multiplayer connection...');
-        
-        // Check if Firebase SDK is loaded
-        if (typeof firebase === 'undefined') {
-            throw new Error('Firebase SDK not loaded. Please check your internet connection.');
-        }
-        
-        // Initialize Firebase if not already done
+        // Initialize Firebase
         if (!firebase.apps.length) {
-            console.log('🔥 Initializing Firebase...');
             firebase.initializeApp(firebaseConfig);
-        } else {
-            console.log('🔥 Firebase already initialized');
         }
-        
-        // Get database instance
         database = firebase.database();
         
-        // Test connection with timeout
-        console.log('🔌 Testing database connection...');
-        const connected = await testDatabaseConnection();
+        updateConnectionStatus('connecting');
         
-        if (connected) {
-            connectionEstablished = true;
-            updateConnectionStatus('online');
-            setupEventListeners();
-            hideLoading();
-            showToast('🐺 Multiplayer ready! Create or join a pack.', 'success');
-            console.log('✅ Multiplayer initialized successfully');
-        } else {
-            throw new Error('Database connection test failed');
-        }
+        // Simple connection test
+        database.ref('.info/connected').on('value', function(snapshot) {
+            if (snapshot.val() === true) {
+                updateConnectionStatus('online');
+                if (!document.querySelector('.events-setup')) {
+                    setupEventListeners();
+                }
+            } else {
+                updateConnectionStatus('offline');
+            }
+        });
         
     } catch (error) {
-        console.error('❌ Firebase initialization error:', error);
-        
-        if (connectionRetryCount < maxRetries) {
-            connectionRetryCount++;
-            console.log(`🔄 Retrying connection (${connectionRetryCount}/${maxRetries})...`);
-            
-            showLoading(`Connection failed. Retrying... (${connectionRetryCount}/${maxRetries})`);
-            
-            setTimeout(() => {
-                initializeFirebaseWithRetry();
-            }, 2000 * connectionRetryCount); // Exponential backoff
-        } else {
-            handleConnectionFailure(error);
-        }
+        console.error('Firebase initialization failed:', error);
+        updateConnectionStatus('offline');
+        // Still setup event listeners for offline functionality
+        setupEventListeners();
     }
-}
-
-async function testDatabaseConnection() {
-    return new Promise((resolve) => {
-        try {
-            // Set a timeout for the connection test
-            const timeout = setTimeout(() => {
-                resolve(false);
-            }, 10000); // 10 second timeout
-            
-            // Try to read the connection state
-            const connectedRef = database.ref('.info/connected');
-            
-            connectedRef.once('value', (snapshot) => {
-                clearTimeout(timeout);
-                const connected = snapshot.val() === true;
-                console.log('🔌 Connection test result:', connected);
-                resolve(connected);
-            }, (error) => {
-                clearTimeout(timeout);
-                console.error('🔌 Connection test error:', error);
-                resolve(false);
-            });
-            
-        } catch (error) {
-            console.error('🔌 Connection test exception:', error);
-            resolve(false);
-        }
-    });
-}
-
-function handleConnectionFailure(error) {
-    hideLoading();
-    updateConnectionStatus('offline');
-    
-    const errorMessage = getErrorMessage(error);
-    showToast(errorMessage, 'error');
-    
-    // Show retry option
-    setTimeout(() => {
-        if (!connectionEstablished) {
-            showRetryOption();
-        }
-    }, 2000);
-}
-
-function getErrorMessage(error) {
-    if (error.message.includes('Firebase SDK')) {
-        return '❌ Internet connection required for multiplayer mode';
-    } else if (error.message.includes('connection')) {
-        return '❌ Unable to connect to multiplayer servers';
-    } else if (error.code === 'permission-denied') {
-        return '❌ Multiplayer access denied. Please try again.';
-    } else {
-        return '❌ Multiplayer temporarily unavailable';
-    }
-}
-
-function showRetryOption() {
-    const retryToast = document.createElement('div');
-    retryToast.className = 'toast info';
-    retryToast.innerHTML = `
-        <div>Connection failed. Want to try again?</div>
-        <button onclick="retryConnection()" style="margin-left: 10px; padding: 5px 10px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            🔄 Retry
-        </button>
-    `;
-    
-    document.getElementById('toastContainer').appendChild(retryToast);
-    
-    // Auto remove after 10 seconds
-    setTimeout(() => {
-        if (retryToast.parentNode) {
-            retryToast.remove();
-        }
-    }, 10000);
-}
-
-function retryConnection() {
-    // Clear any existing toasts
-    document.getElementById('toastContainer').innerHTML = '';
-    
-    connectionRetryCount = 0;
-    connectionEstablished = false;
-    initializeFirebaseWithRetry();
 }
 
 function setupEventListeners() {
-    if (gameInitialized) {
-        console.log('⚠️  Event listeners already initialized');
-        return;
-    }
-    
-    gameInitialized = true;
-    console.log('🎮 Setting up game event listeners...');
+    // Mark as setup to prevent duplicate listeners
+    document.body.classList.add('events-setup');
     
     // Main navigation
-    const startBtn = document.getElementById('startBtn');
-    if (startBtn) {
-        startBtn.addEventListener('click', startGame);
-    }
+    document.getElementById('startBtn').addEventListener('click', startGame);
     
     // Player setup
-    const setNameBtn = document.getElementById('setNameBtn');
-    const playerNameInput = document.getElementById('playerNameInput');
-    
-    if (setNameBtn) {
-        setNameBtn.addEventListener('click', setPlayerName);
-    }
-    
-    if (playerNameInput) {
-        playerNameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') setPlayerName();
-        });
-    }
+    document.getElementById('setNameBtn').addEventListener('click', setPlayerName);
+    document.getElementById('playerNameInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') setPlayerName();
+    });
     
     // Game creation/joining
-    const createGameBtn = document.getElementById('createGameBtn');
-    const joinGameBtn = document.getElementById('joinGameBtn');
-    const newGameInput = document.getElementById('newGameInput');
-    const joinCodeInput = document.getElementById('joinCodeInput');
-    
-    if (createGameBtn) {
-        createGameBtn.addEventListener('click', createGame);
-    }
-    
-    if (joinGameBtn) {
-        joinGameBtn.addEventListener('click', joinGame);
-    }
-    
-    if (newGameInput) {
-        newGameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') createGame();
-        });
-    }
-    
-    if (joinCodeInput) {
-        joinCodeInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') joinGame();
-        });
-    }
+    document.getElementById('createGameBtn').addEventListener('click', createGame);
+    document.getElementById('joinGameBtn').addEventListener('click', joinGame);
+    document.getElementById('newGameInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') createGame();
+    });
+    document.getElementById('joinCodeInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') joinGame();
+    });
     
     // Game controls
-    const resetMyProgressBtn = document.getElementById('resetMyProgressBtn');
-    const leaveGameBtn = document.getElementById('leaveGameBtn');
-    const darkModeBtn = document.getElementById('darkModeBtn');
-    const copyCodeBtn = document.getElementById('copyCodeBtn');
-    const shareCodeBtn = document.getElementById('shareCodeBtn');
-    const inviteNewBtn = document.getElementById('inviteNewBtn');
-    
-    if (resetMyProgressBtn) {
-        resetMyProgressBtn.addEventListener('click', resetMyProgress);
-    }
-    
-    if (leaveGameBtn) {
-        leaveGameBtn.addEventListener('click', leaveGame);
-    }
-    
-    if (darkModeBtn) {
-        darkModeBtn.addEventListener('click', toggleDarkMode);
-    }
-    
-    if (copyCodeBtn) {
-        copyCodeBtn.addEventListener('click', copyGameCode);
-    }
-    
-    if (shareCodeBtn) {
-        shareCodeBtn.addEventListener('click', shareGameCode);
-    }
-    
-    if (inviteNewBtn) {
-        inviteNewBtn.addEventListener('click', inviteNewPlayer);
-    }
+    document.getElementById('resetMyProgressBtn').addEventListener('click', resetMyProgress);
+    document.getElementById('leaveGameBtn').addEventListener('click', leaveGame);
+    document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
+    document.getElementById('copyCodeBtn').addEventListener('click', copyGameCode);
+    document.getElementById('shareCodeBtn').addEventListener('click', shareGameCode);
+    document.getElementById('inviteNewBtn').addEventListener('click', inviteNewPlayer);
     
     // Check for saved player name
     const savedName = localStorage.getItem('platequest_player_name');
-    if (savedName && playerNameInput) {
-        playerNameInput.value = savedName;
+    if (savedName) {
+        document.getElementById('playerNameInput').value = savedName;
     }
     
     // Initialize dark mode
-    initializeDarkMode();
-    
-    console.log('✅ Event listeners set up successfully');
+    if (localStorage.getItem('platequest_dark_mode') === 'true') {
+        document.body.classList.add('dark');
+        document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
+    }
 }
 
 function startGame() {
-    if (!connectionEstablished) {
-        showToast('🔌 Connecting to multiplayer servers...', 'info');
-        return;
-    }
-    
     splash.style.display = 'none';
     game.style.display = 'block';
     
     // Auto-focus on name input if empty
     const nameInput = document.getElementById('playerNameInput');
-    if (nameInput && !nameInput.value.trim()) {
+    if (!nameInput.value.trim()) {
         nameInput.focus();
     }
 }
@@ -372,33 +194,17 @@ function setPlayerName() {
     showToast(`Welcome to the pack, ${name}! 🐺`, 'success');
     
     // Enable game mode cards
-    enableGameModeCards();
-}
-
-function enableGameModeCards() {
-    const createGameCard = document.getElementById('createGameCard');
-    const joinGameCard = document.getElementById('joinGameCard');
-    const newGameInput = document.getElementById('newGameInput');
-    const joinCodeInput = document.getElementById('joinCodeInput');
-    const createGameBtn = document.getElementById('createGameBtn');
-    const joinGameBtn = document.getElementById('joinGameBtn');
-    
-    if (createGameCard) createGameCard.style.opacity = '1';
-    if (joinGameCard) joinGameCard.style.opacity = '1';
-    if (newGameInput) newGameInput.disabled = false;
-    if (joinCodeInput) joinCodeInput.disabled = false;
-    if (createGameBtn) createGameBtn.disabled = false;
-    if (joinGameBtn) joinGameBtn.disabled = false;
+    document.getElementById('createGameCard').style.opacity = '1';
+    document.getElementById('joinGameCard').style.opacity = '1';
+    document.querySelector('#newGameInput').disabled = false;
+    document.querySelector('#joinCodeInput').disabled = false;
+    document.querySelector('#createGameBtn').disabled = false;
+    document.querySelector('#joinGameBtn').disabled = false;
 }
 
 async function createGame() {
     if (!currentPlayer) {
         showToast('Please set your name first! 👤', 'error');
-        return;
-    }
-    
-    if (!connectionEstablished) {
-        showToast('No connection to multiplayer servers 🔌', 'error');
         return;
     }
     
@@ -438,11 +244,11 @@ async function createGame() {
         showActiveGame();
         hideLoading();
         
-        showToast(`Pack "${gameName}" created! Share code: ${currentGameCode} 🐺`, 'success');
+        showToast(`Pack "${gameName}" created! 🐺`, 'success');
         
     } catch (error) {
         console.error('Error creating game:', error);
-        showToast('Failed to create pack. Please try again. ❌', 'error');
+        showToast('Failed to create pack. Please try again.', 'error');
         hideLoading();
     }
 }
@@ -450,11 +256,6 @@ async function createGame() {
 async function joinGame() {
     if (!currentPlayer) {
         showToast('Please set your name first! 👤', 'error');
-        return;
-    }
-    
-    if (!connectionEstablished) {
-        showToast('No connection to multiplayer servers 🔌', 'error');
         return;
     }
     
@@ -468,7 +269,7 @@ async function joinGame() {
     }
     
     if (code.length !== 6) {
-        showToast('Pack code must be 6 characters! 📝', 'error');
+        showToast('Pack code must be 6 characters!', 'error');
         return;
     }
     
@@ -481,7 +282,7 @@ async function joinGame() {
         // Check if game exists
         const snapshot = await currentGameRef.once('value');
         if (!snapshot.exists()) {
-            showToast('Pack not found! Please check the code. 🔍', 'error');
+            showToast('Pack not found! Please check the code.', 'error');
             hideLoading();
             return;
         }
@@ -491,7 +292,7 @@ async function joinGame() {
         // Check if game is full (max 8 players)
         const playerCount = Object.keys(game.players || {}).length;
         if (playerCount >= 8) {
-            showToast('Pack is full! Maximum 8 players allowed. 👥', 'error');
+            showToast('Pack is full! Maximum 8 players allowed.', 'error');
             hideLoading();
             return;
         }
@@ -499,7 +300,7 @@ async function joinGame() {
         // Check if name is already taken
         const existingPlayers = Object.values(game.players || {});
         if (existingPlayers.some(p => p.name === currentPlayer.name)) {
-            showToast('Name already taken in this pack! Please choose a different name. 🏷️', 'error');
+            showToast('Name already taken in this pack! Please choose a different name.', 'error');
             hideLoading();
             return;
         }
@@ -519,7 +320,7 @@ async function joinGame() {
         
     } catch (error) {
         console.error('Error joining game:', error);
-        showToast('Failed to join pack. Please try again. ❌', 'error');
+        showToast('Failed to join pack. Please try again.', 'error');
         hideLoading();
     }
 }
@@ -527,12 +328,10 @@ async function joinGame() {
 function setupGameListeners() {
     if (!currentGameRef) return;
     
-    console.log('🎮 Setting up game listeners...');
-    
     // Listen to game data changes
     currentGameRef.on('value', (snapshot) => {
         if (!snapshot.exists()) {
-            showToast('Pack was deleted by the host. 🚪', 'error');
+            showToast('Pack was deleted by the host.', 'error');
             returnToSetup();
             return;
         }
@@ -541,21 +340,6 @@ function setupGameListeners() {
         playersData = gameData.players || {};
         
         updateGameUI();
-    });
-    
-    // Listen to connection status
-    database.ref('.info/connected').on('value', (snapshot) => {
-        if (snapshot.val()) {
-            if (!connectionEstablished) {
-                connectionEstablished = true;
-                updateConnectionStatus('online');
-                showToast('🔌 Reconnected to multiplayer servers!', 'success');
-            }
-        } else {
-            connectionEstablished = false;
-            updateConnectionStatus('offline');
-            showToast('🔌 Lost connection to servers...', 'error');
-        }
     });
 }
 
@@ -671,11 +455,6 @@ function updateStatesDisplay() {
 async function toggleState(stateName, currentlySelected) {
     if (!currentGameRef || !currentPlayer) return;
     
-    if (!connectionEstablished) {
-        showToast('🔌 No connection - changes not saved', 'error');
-        return;
-    }
-    
     try {
         const myStatesRef = currentGameRef.child(`players/${currentPlayer.id}/states`);
         const currentStates = playersData[currentPlayer.id]?.states || [];
@@ -684,7 +463,6 @@ async function toggleState(stateName, currentlySelected) {
         if (currentlySelected) {
             // Remove state
             newStates = currentStates.filter(s => s !== stateName);
-            showToast(`Removed ${stateName} 📍`, 'info');
         } else {
             // Add state
             newStates = [...currentStates, stateName];
@@ -692,7 +470,7 @@ async function toggleState(stateName, currentlySelected) {
             
             // Check for completion
             if (newStates.length === 50) {
-                showToast('🏆 AMAZING! You found all 50 states! Pack champion! 🐺', 'success');
+                showToast('🏆 AMAZING! You found all 50 states!', 'success');
             }
         }
         
@@ -700,40 +478,34 @@ async function toggleState(stateName, currentlySelected) {
         
     } catch (error) {
         console.error('Error updating state:', error);
-        showToast('Failed to update progress. ❌', 'error');
+        showToast('Failed to update progress.', 'error');
     }
 }
 
 async function resetMyProgress() {
-    if (!confirm('Reset all your spotted plates? This cannot be undone. 🔄')) return;
-    
-    if (!connectionEstablished) {
-        showToast('🔌 No connection to servers', 'error');
-        return;
-    }
+    if (!confirm('Reset all your spotted plates? This cannot be undone.')) return;
     
     try {
         await currentGameRef.child(`players/${currentPlayer.id}/states`).set([]);
-        showToast('Your progress has been reset. 🔄', 'info');
+        showToast('Your progress has been reset.', 'info');
         
     } catch (error) {
         console.error('Error resetting progress:', error);
-        showToast('Failed to reset progress. ❌', 'error');
+        showToast('Failed to reset progress.', 'error');
     }
 }
 
 async function leaveGame() {
-    if (!confirm('Leave this pack? 🚪')) return;
+    if (!confirm('Leave this pack?')) return;
     
     try {
-        // Remove this player
         await currentGameRef.child(`players/${currentPlayer.id}`).remove();
-        showToast('Left the pack. 🚪', 'info');
+        showToast('Left the pack.', 'info');
         returnToSetup();
         
     } catch (error) {
         console.error('Error leaving game:', error);
-        showToast('Failed to leave pack. ❌', 'error');
+        showToast('Failed to leave pack.', 'error');
     }
 }
 
@@ -756,10 +528,8 @@ function returnToSetup() {
     gameActive.style.display = 'none';
     
     // Clear inputs
-    const newGameInput = document.getElementById('newGameInput');
-    const joinCodeInput = document.getElementById('joinCodeInput');
-    if (newGameInput) newGameInput.value = '';
-    if (joinCodeInput) joinCodeInput.value = '';
+    document.getElementById('newGameInput').value = '';
+    document.getElementById('joinCodeInput').value = '';
 }
 
 function copyGameCode() {
@@ -824,16 +594,6 @@ function toggleDarkMode() {
     localStorage.setItem('platequest_dark_mode', document.body.classList.contains('dark'));
 }
 
-function initializeDarkMode() {
-    const darkMode = localStorage.getItem('platequest_dark_mode') === 'true';
-    const btn = document.getElementById('darkModeBtn');
-    
-    if (darkMode) {
-        document.body.classList.add('dark');
-        if (btn) btn.textContent = '☀️ Light Mode';
-    }
-}
-
 function updateConnectionStatus(status) {
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
@@ -848,10 +608,10 @@ function updateConnectionStatus(status) {
                 statusText.textContent = 'Pack Connected 🐺';
                 break;
             case 'offline':
-                statusText.textContent = 'Disconnected ❌';
+                statusText.textContent = 'Disconnected';
                 break;
             case 'connecting':
-                statusText.textContent = 'Connecting... 🔌';
+                statusText.textContent = 'Connecting...';
                 break;
         }
     }
@@ -901,6 +661,3 @@ function generateGameCode() {
 function generatePlayerId() {
     return 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
-
-// Global retry function for the retry button
-window.retryConnection = retryConnection;
