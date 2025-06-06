@@ -317,6 +317,13 @@ function setupEventListeners() {
         document.getElementById('playerTagInput').value = savedTag;
     }
     
+    // Auto-restore identity if both name and tag are saved
+    if (savedName && savedTag) {
+        setTimeout(() => {
+            autoRestoreIdentity(savedName, savedTag);
+        }, 100);
+    }
+    
     // Initialize dark mode
     if (localStorage.getItem('platequest_dark_mode') === 'true') {
         document.body.classList.add('dark');
@@ -343,14 +350,19 @@ function startGame() {
     splash.style.display = 'none';
     game.style.display = 'block';
     
-    // Auto-focus on appropriate input if empty
-    const nameInput = document.getElementById('playerNameInput');
-    const tagInput = document.getElementById('playerTagInput');
+    // Update identity display
+    updateIdentityDisplay();
     
-    if (!nameInput.value.trim()) {
-        nameInput.focus();
-    } else if (!tagInput.value.trim()) {
-        tagInput.focus();
+    // Auto-focus on appropriate input if empty and no current player
+    if (!currentPlayer) {
+        const nameInput = document.getElementById('playerNameInput');
+        const tagInput = document.getElementById('playerTagInput');
+        
+        if (!nameInput.value.trim()) {
+            nameInput.focus();
+        } else if (!tagInput.value.trim()) {
+            tagInput.focus();
+        }
     }
 }
 
@@ -404,7 +416,38 @@ function setPlayerName() {
     localStorage.setItem('platequest_player_tag', tag);
     showToast(`Welcome to the pack, ${currentPlayer.displayName}! 🐺`, 'success');
     
-    // Enable game mode cards
+    // Enable game mode cards and update display
+    enableGameModeCards();
+    updateIdentityDisplay();
+}
+
+function autoRestoreIdentity(savedName, savedTag) {
+    // Validate the saved data
+    if (!savedName || !savedTag) return;
+    if (savedName.length > 20 || savedTag.length > 8) return;
+    if (!/^[a-zA-Z0-9]+$/.test(savedTag)) return;
+    
+    // Create unique identifier combining name and tag
+    const uniqueId = `${savedName.toLowerCase()}_${savedTag.toLowerCase()}`;
+    
+    currentPlayer = {
+        id: generatePlayerId(),
+        name: savedName,
+        tag: savedTag,
+        displayName: `${savedName} (${savedTag})`,
+        uniqueId: uniqueId,
+        joinedAt: Date.now()
+    };
+    
+    // Show welcome back message
+    showToast(`Welcome back, ${currentPlayer.displayName}! 🐺`, 'success');
+    
+    // Enable game mode cards and update display
+    enableGameModeCards();
+    updateIdentityDisplay();
+}
+
+function enableGameModeCards() {
     document.getElementById('createGameCard').style.opacity = '1';
     document.getElementById('joinGameCard').style.opacity = '1';
     document.querySelector('#newGameInput').disabled = false;
@@ -412,6 +455,79 @@ function setPlayerName() {
     document.querySelector('#createGameBtn').disabled = false;
     document.querySelector('#joinGameBtn').disabled = false;
 }
+
+function updateIdentityDisplay() {
+    const identityDisplay = document.getElementById('currentIdentityDisplay');
+    const identityText = document.getElementById('currentIdentityText');
+    const identityInputs = document.getElementById('identityInputs');
+    
+    if (currentPlayer) {
+        identityDisplay.style.display = 'block';
+        identityInputs.style.display = 'none';
+        identityText.textContent = currentPlayer.displayName;
+    } else {
+        identityDisplay.style.display = 'none';
+        identityInputs.style.display = 'flex';
+    }
+}
+
+window.changeIdentity = function() {
+    currentPlayer = null;
+    updateIdentityDisplay();
+    
+    // Reset game mode cards
+    document.getElementById('createGameCard').style.opacity = '0.5';
+    document.getElementById('joinGameCard').style.opacity = '0.5';
+    document.querySelector('#newGameInput').disabled = true;
+    document.querySelector('#joinCodeInput').disabled = true;
+    document.querySelector('#createGameBtn').disabled = true;
+    document.querySelector('#joinGameBtn').disabled = true;
+    
+    // Get current values from localStorage to pre-fill
+    const savedName = localStorage.getItem('platequest_player_name');
+    const savedTag = localStorage.getItem('platequest_player_tag');
+    
+    // Pre-fill inputs with current values for easy editing
+    document.getElementById('playerNameInput').value = savedName || '';
+    document.getElementById('playerTagInput').value = savedTag || '';
+    
+    // Focus on name input
+    document.getElementById('playerNameInput').focus();
+    
+    showToast('Modify your identity as needed 🐺', 'info');
+};
+
+window.clearStoredIdentity = function() {
+    if (!confirm('Clear your stored identity from this device? You\'ll need to enter it again next time.')) {
+        return;
+    }
+    
+    // Clear stored data
+    localStorage.removeItem('platequest_player_name');
+    localStorage.removeItem('platequest_player_tag');
+    localStorage.removeItem('platequest_active_session');
+    
+    // Reset current player
+    currentPlayer = null;
+    updateIdentityDisplay();
+    
+    // Reset game mode cards
+    document.getElementById('createGameCard').style.opacity = '0.5';
+    document.getElementById('joinGameCard').style.opacity = '0.5';
+    document.querySelector('#newGameInput').disabled = true;
+    document.querySelector('#joinCodeInput').disabled = true;
+    document.querySelector('#createGameBtn').disabled = true;
+    document.querySelector('#joinGameBtn').disabled = true;
+    
+    // Clear inputs
+    document.getElementById('playerNameInput').value = '';
+    document.getElementById('playerTagInput').value = '';
+    
+    // Focus on name input
+    document.getElementById('playerNameInput').focus();
+    
+    showToast('Identity cleared from device. Enter new identity to continue. 🐺', 'info');
+};
 
 async function createGame() {
     if (!currentPlayer) {
@@ -755,7 +871,7 @@ function returnToSetup() {
     currentGameCode = null;
     gameData = null;
     playersData = null;
-    currentPlayer = null; // Reset player identity
+    // Keep currentPlayer identity for next game
     
     // Clear session
     clearGameSession();
@@ -771,13 +887,20 @@ function returnToSetup() {
     document.getElementById('newGameInput').value = '';
     document.getElementById('joinCodeInput').value = '';
     
-    // Reset game mode cards since player identity is cleared
-    document.getElementById('createGameCard').style.opacity = '0.5';
-    document.getElementById('joinGameCard').style.opacity = '0.5';
-    document.querySelector('#newGameInput').disabled = true;
-    document.querySelector('#joinCodeInput').disabled = true;
-    document.querySelector('#createGameBtn').disabled = true;
-    document.querySelector('#joinGameBtn').disabled = true;
+    // Enable game mode cards if player identity exists
+    if (currentPlayer) {
+        enableGameModeCards();
+    } else {
+        document.getElementById('createGameCard').style.opacity = '0.5';
+        document.getElementById('joinGameCard').style.opacity = '0.5';
+        document.querySelector('#newGameInput').disabled = true;
+        document.querySelector('#joinCodeInput').disabled = true;
+        document.querySelector('#createGameBtn').disabled = true;
+        document.querySelector('#joinGameBtn').disabled = true;
+    }
+    
+    // Update identity display
+    updateIdentityDisplay();
 }
 
 function copyGameCode() {
