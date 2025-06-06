@@ -70,7 +70,6 @@ let currentPlayer = null;
 let currentGameCode = null;
 let gameData = null;
 let playersData = null;
-let sessionRecoveryAttempted = false;
 
 // DOM elements
 const splash = document.getElementById('splash');
@@ -103,11 +102,8 @@ function initializeApp() {
                     setupEventListeners();
                 }
                 
-                // Attempt session recovery once connected
-                if (!sessionRecoveryAttempted) {
-                    sessionRecoveryAttempted = true;
-                    attemptSessionRecovery();
-                }
+                // Try session recovery
+                attemptSessionRecovery();
             } else {
                 updateConnectionStatus('offline');
             }
@@ -116,162 +112,9 @@ function initializeApp() {
     } catch (error) {
         console.error('Firebase initialization failed:', error);
         updateConnectionStatus('offline');
-        // Still setup event listeners for offline functionality
         setupEventListeners();
     }
 }
-
-// Session Recovery Functions
-function saveGameSession() {
-    if (currentPlayer && currentGameCode) {
-        const sessionData = {
-            player: currentPlayer,
-            gameCode: currentGameCode,
-            timestamp: Date.now()
-        };
-        localStorage.setItem('platequest_active_session', JSON.stringify(sessionData));
-    }
-}
-
-function clearGameSession() {
-    localStorage.removeItem('platequest_active_session');
-}
-
-async function attemptSessionRecovery() {
-    const sessionData = localStorage.getItem('platequest_active_session');
-    if (!sessionData) return;
-    
-    try {
-        const session = JSON.parse(sessionData);
-        
-        // Check if session is recent (within last 24 hours)
-        const sessionAge = Date.now() - session.timestamp;
-        if (sessionAge > 24 * 60 * 60 * 1000) {
-            clearGameSession();
-            return;
-        }
-        
-        // Check if the game still exists
-        const gameRef = database.ref(`games/${session.gameCode}`);
-        const snapshot = await gameRef.once('value');
-        
-        if (!snapshot.exists()) {
-            clearGameSession();
-            showToast('Previous pack no longer exists.', 'info');
-            return;
-        }
-        
-        const gameData = snapshot.val();
-        
-        // Check if player is still in the game
-        if (gameData.players && gameData.players[session.player.id]) {
-            // Auto-recover the session
-            showSessionRecoveryPrompt(session);
-        } else if (session.player.uniqueId) {
-            // Check by uniqueId for newer sessions
-            const existingPlayer = Object.values(gameData.players || {}).find(p => p.uniqueId === session.player.uniqueId);
-            if (existingPlayer) {
-                // Update session with correct player ID
-                session.player.id = existingPlayer.id;
-                showSessionRecoveryPrompt(session);
-            } else {
-                clearGameSession();
-            }
-        } else {
-            clearGameSession();
-        }
-        
-    } catch (error) {
-        console.error('Session recovery error:', error);
-        clearGameSession();
-    }
-}
-
-function showSessionRecoveryPrompt(session) {
-    const modal = document.createElement('div');
-    modal.className = 'session-recovery-modal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: linear-gradient(145deg, #2c3e50, #34495e); border-radius: 15px; padding: 30px; max-width: 400px; width: 90%; color: white; text-align: center; border: 1px solid rgba(52, 152, 219, 0.3);">
-            <h3 style="margin-bottom: 20px; color: #3498db;">🐺 Welcome Back!</h3>
-            <p style="margin-bottom: 20px; color: #bdc3c7;">
-                Found your previous pack session:<br>
-                <strong style="color: #2ecc71;">${session.player.displayName || session.player.name}</strong> in pack <strong style="color: #2ecc71;">${session.gameCode}</strong>
-            </p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button onclick="recoverSession('${JSON.stringify(session).replace(/"/g, '&quot;')}')" 
-                        style="padding: 12px 20px; background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">
-                    🔄 Continue Pack
-                </button>
-                <button onclick="dismissRecovery()" 
-                        style="padding: 12px 20px; background: linear-gradient(145deg, #34495e, #2c3e50); color: #bdc3c7; border: 1px solid rgba(189, 195, 199, 0.3); border-radius: 10px; cursor: pointer;">
-                    ✖️ Start Fresh
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Auto-recover after 10 seconds if no action
-    setTimeout(() => {
-        if (document.body.contains(modal)) {
-            recoverSession(JSON.stringify(session));
-        }
-    }, 10000);
-}
-
-window.recoverSession = async function(sessionDataStr) {
-    const modal = document.querySelector('.session-recovery-modal');
-    if (modal) modal.remove();
-    
-    const session = JSON.parse(sessionDataStr.replace(/&quot;/g, '"'));
-    
-    showLoading('Reconnecting to your pack...');
-    
-    try {
-        // Restore session data
-        currentPlayer = session.player;
-        currentGameCode = session.gameCode;
-        currentGameRef = database.ref(`games/${currentGameCode}`);
-        
-        // Set up listeners
-        setupGameListeners();
-        
-        // Skip splash and go directly to game
-        splash.style.display = 'none';
-        game.style.display = 'block';
-        showActiveGame();
-        
-        hideLoading();
-        showToast(`Reconnected to pack ${currentGameCode}! 🐺`, 'success');
-        
-    } catch (error) {
-        console.error('Recovery failed:', error);
-        hideLoading();
-        showToast('Failed to reconnect. Please rejoin manually.', 'error');
-        clearGameSession();
-    }
-};
-
-window.dismissRecovery = function() {
-    const modal = document.querySelector('.session-recovery-modal');
-    if (modal) modal.remove();
-    clearGameSession();
-    showToast('Starting fresh session.', 'info');
-};
 
 function setupEventListeners() {
     // Mark as setup to prevent duplicate listeners
@@ -307,31 +150,14 @@ function setupEventListeners() {
     document.getElementById('shareCodeBtn').addEventListener('click', shareGameCode);
     document.getElementById('inviteNewBtn').addEventListener('click', inviteNewPlayer);
     
-    // Check for saved player name and tag
+    // Load saved name and tag
     const savedName = localStorage.getItem('platequest_player_name');
     const savedTag = localStorage.getItem('platequest_player_tag');
-    
-    console.log('Saved data found:', savedName, savedTag);
-    
     if (savedName) {
         document.getElementById('playerNameInput').value = savedName;
     }
     if (savedTag) {
         document.getElementById('playerTagInput').value = savedTag;
-    }
-    
-    // Auto-restore identity if both name and tag are saved
-    if (savedName && savedTag) {
-        console.log('Auto-restoring identity...');
-        setTimeout(() => {
-            autoRestoreIdentity(savedName, savedTag);
-        }, 100);
-    } else {
-        console.log('No complete identity to restore');
-        // Make sure inputs are shown
-        setTimeout(() => {
-            updateIdentityDisplay();
-        }, 100);
     }
     
     // Initialize dark mode
@@ -340,15 +166,13 @@ function setupEventListeners() {
         document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
     }
     
-    // Handle page visibility changes to save session
+    // Handle page visibility for session saving
     document.addEventListener('visibilitychange', function() {
         if (document.hidden && currentPlayer && currentGameCode) {
-            // Page is being hidden, save the session
             saveGameSession();
         }
     });
     
-    // Save session before page unload
     window.addEventListener('beforeunload', function() {
         if (currentPlayer && currentGameCode) {
             saveGameSession();
@@ -357,30 +181,14 @@ function setupEventListeners() {
 }
 
 function startGame() {
-    console.log('Starting game...');
     splash.style.display = 'none';
     game.style.display = 'block';
     
-    // Update identity display
-    setTimeout(() => {
-        updateIdentityDisplay();
-    }, 50);
-    
-    // Auto-focus on appropriate input if empty and no current player
-    if (!currentPlayer) {
-        setTimeout(() => {
-            const nameInput = document.getElementById('playerNameInput');
-            const tagInput = document.getElementById('playerTagInput');
-            
-            if (!nameInput.value.trim()) {
-                nameInput.focus();
-            } else if (!tagInput.value.trim()) {
-                tagInput.focus();
-            }
-        }, 100);
+    // Auto-focus on name input if empty
+    const nameInput = document.getElementById('playerNameInput');
+    if (!nameInput.value.trim()) {
+        nameInput.focus();
     }
-    
-    console.log('Game started, currentPlayer:', currentPlayer);
 }
 
 function setPlayerName() {
@@ -417,207 +225,30 @@ function setPlayerName() {
         return;
     }
     
-    try {
-        // Create unique identifier combining name and tag
-        const uniqueId = `${name.toLowerCase()}_${tag.toLowerCase()}`;
-        
-        currentPlayer = {
-            id: generatePlayerId(),
-            name: name,
-            tag: tag,
-            displayName: `${name} (${tag})`,
-            uniqueId: uniqueId,
-            joinedAt: Date.now()
-        };
-        
-        localStorage.setItem('platequest_player_name', name);
-        localStorage.setItem('platequest_player_tag', tag);
-        
-        console.log('Player created:', currentPlayer);
-        
-        showToast(`Welcome to the pack, ${currentPlayer.displayName}! 🐺`, 'success');
-        
-        // Enable game mode cards and update display
-        enableGameModeCards();
-        updateIdentityDisplay();
-        
-        console.log('Identity setup complete');
-        
-    } catch (error) {
-        console.error('Error setting player name:', error);
-        showToast('Error setting identity. Please try again.', 'error');
-    }
+    // Create unique identifier combining name and tag
+    const uniqueId = `${name.toLowerCase()}_${tag.toLowerCase()}`;
+    
+    currentPlayer = {
+        id: generatePlayerId(),
+        name: name,
+        tag: tag,
+        displayName: `${name} (${tag})`,
+        uniqueId: uniqueId,
+        joinedAt: Date.now()
+    };
+    
+    localStorage.setItem('platequest_player_name', name);
+    localStorage.setItem('platequest_player_tag', tag);
+    showToast(`Welcome to the pack, ${currentPlayer.displayName}! 🐺`, 'success');
+    
+    // Enable game mode cards
+    document.getElementById('createGameCard').style.opacity = '1';
+    document.getElementById('joinGameCard').style.opacity = '1';
+    document.querySelector('#newGameInput').disabled = false;
+    document.querySelector('#joinCodeInput').disabled = false;
+    document.querySelector('#createGameBtn').disabled = false;
+    document.querySelector('#joinGameBtn').disabled = false;
 }
-
-function autoRestoreIdentity(savedName, savedTag) {
-    console.log('Attempting to auto-restore identity:', savedName, savedTag);
-    
-    // Validate the saved data
-    if (!savedName || !savedTag) {
-        console.log('Missing saved name or tag');
-        return;
-    }
-    if (savedName.length > 20 || savedTag.length > 8) {
-        console.log('Saved data exceeds length limits');
-        return;
-    }
-    if (!/^[a-zA-Z0-9]+$/.test(savedTag)) {
-        console.log('Invalid tag format');
-        return;
-    }
-    
-    try {
-        // Create unique identifier combining name and tag
-        const uniqueId = `${savedName.toLowerCase()}_${savedTag.toLowerCase()}`;
-        
-        currentPlayer = {
-            id: generatePlayerId(),
-            name: savedName,
-            tag: savedTag,
-            displayName: `${savedName} (${savedTag})`,
-            uniqueId: uniqueId,
-            joinedAt: Date.now()
-        };
-        
-        console.log('Auto-restored player:', currentPlayer);
-        
-        // Show welcome back message
-        showToast(`Welcome back, ${currentPlayer.displayName}! 🐺`, 'success');
-        
-        // Enable game mode cards and update display
-        enableGameModeCards();
-        updateIdentityDisplay();
-        
-        console.log('Auto-restore complete');
-        
-    } catch (error) {
-        console.error('Error in auto-restore:', error);
-    }
-}
-
-function enableGameModeCards() {
-    try {
-        const createCard = document.getElementById('createGameCard');
-        const joinCard = document.getElementById('joinGameCard');
-        const newGameInput = document.querySelector('#newGameInput');
-        const joinCodeInput = document.querySelector('#joinCodeInput');
-        const createBtn = document.querySelector('#createGameBtn');
-        const joinBtn = document.querySelector('#joinGameBtn');
-        
-        console.log('Enabling game mode cards...');
-        
-        if (createCard) {
-            createCard.style.opacity = '1';
-            console.log('Create card enabled');
-        }
-        if (joinCard) {
-            joinCard.style.opacity = '1';
-            console.log('Join card enabled');
-        }
-        if (newGameInput) {
-            newGameInput.disabled = false;
-            console.log('New game input enabled');
-        }
-        if (joinCodeInput) {
-            joinCodeInput.disabled = false;
-            console.log('Join code input enabled');
-        }
-        if (createBtn) {
-            createBtn.disabled = false;
-            console.log('Create button enabled');
-        }
-        if (joinBtn) {
-            joinBtn.disabled = false;
-            console.log('Join button enabled');
-        }
-        
-        console.log('Game mode cards enabled successfully');
-        
-    } catch (error) {
-        console.error('Error enabling game mode cards:', error);
-    }
-}
-
-function updateIdentityDisplay() {
-    const identityDisplay = document.getElementById('currentIdentityDisplay');
-    const identityText = document.getElementById('currentIdentityText');
-    const identityInputs = document.getElementById('identityInputs');
-    
-    console.log('Updating identity display, currentPlayer:', currentPlayer);
-    
-    if (currentPlayer && identityDisplay && identityText && identityInputs) {
-        // Show identity display, hide inputs
-        identityDisplay.style.display = 'block';
-        identityInputs.style.display = 'none';
-        identityText.textContent = currentPlayer.displayName;
-        console.log('Identity display shown:', currentPlayer.displayName);
-    } else if (identityDisplay && identityInputs) {
-        // Hide identity display, show inputs
-        identityDisplay.style.display = 'none';
-        identityInputs.style.display = 'flex';
-        console.log('Identity inputs shown');
-    } else {
-        console.error('Identity display elements not found');
-    }
-}
-
-window.changeIdentity = function() {
-    currentPlayer = null;
-    updateIdentityDisplay();
-    
-    // Reset game mode cards
-    document.getElementById('createGameCard').style.opacity = '0.5';
-    document.getElementById('joinGameCard').style.opacity = '0.5';
-    document.querySelector('#newGameInput').disabled = true;
-    document.querySelector('#joinCodeInput').disabled = true;
-    document.querySelector('#createGameBtn').disabled = true;
-    document.querySelector('#joinGameBtn').disabled = true;
-    
-    // Get current values from localStorage to pre-fill
-    const savedName = localStorage.getItem('platequest_player_name');
-    const savedTag = localStorage.getItem('platequest_player_tag');
-    
-    // Pre-fill inputs with current values for easy editing
-    document.getElementById('playerNameInput').value = savedName || '';
-    document.getElementById('playerTagInput').value = savedTag || '';
-    
-    // Focus on name input
-    document.getElementById('playerNameInput').focus();
-    
-    showToast('Modify your identity as needed 🐺', 'info');
-};
-
-window.clearStoredIdentity = function() {
-    if (!confirm('Clear your stored identity from this device? You\'ll need to enter it again next time.')) {
-        return;
-    }
-    
-    // Clear stored data
-    localStorage.removeItem('platequest_player_name');
-    localStorage.removeItem('platequest_player_tag');
-    localStorage.removeItem('platequest_active_session');
-    
-    // Reset current player
-    currentPlayer = null;
-    updateIdentityDisplay();
-    
-    // Reset game mode cards
-    document.getElementById('createGameCard').style.opacity = '0.5';
-    document.getElementById('joinGameCard').style.opacity = '0.5';
-    document.querySelector('#newGameInput').disabled = true;
-    document.querySelector('#joinCodeInput').disabled = true;
-    document.querySelector('#createGameBtn').disabled = true;
-    document.querySelector('#joinGameBtn').disabled = true;
-    
-    // Clear inputs
-    document.getElementById('playerNameInput').value = '';
-    document.getElementById('playerTagInput').value = '';
-    
-    // Focus on name input
-    document.getElementById('playerNameInput').focus();
-    
-    showToast('Identity cleared from device. Enter new identity to continue. 🐺', 'info');
-};
 
 async function createGame() {
     if (!currentPlayer) {
@@ -722,17 +353,9 @@ async function joinGame() {
         const existingPlayer = existingPlayers.find(p => p.uniqueId === currentPlayer.uniqueId);
         
         if (existingPlayer) {
-            // Check if this might be a reconnection attempt
-            const timeDiff = Date.now() - existingPlayer.joinedAt;
-            if (timeDiff < 24 * 60 * 60 * 1000) { // Within 24 hours
-                // Attempt to reconnect to existing player
-                currentPlayer.id = existingPlayer.id;
-                showToast(`Reconnecting as ${currentPlayer.displayName}...`, 'info');
-            } else {
-                showToast(`Identity "${currentPlayer.displayName}" already taken! Please use a different tag.`, 'error');
-                hideLoading();
-                return;
-            }
+            // This is a reconnection - use existing player ID
+            currentPlayer.id = existingPlayer.id;
+            showToast(`Reconnecting as ${currentPlayer.displayName}...`, 'info');
         } else {
             // Add new player to game
             await currentGameRef.child(`players/${currentPlayer.id}`).set({
@@ -742,7 +365,7 @@ async function joinGame() {
             });
         }
         
-        // Save session for recovery (for both new and reconnected players)
+        // Save session for recovery
         saveGameSession();
         
         setupGameListeners();
@@ -764,7 +387,7 @@ function setupGameListeners() {
     // Listen to game data changes
     currentGameRef.on('value', (snapshot) => {
         if (!snapshot.exists()) {
-            clearGameSession(); // Clear session when game is deleted
+            clearGameSession();
             showToast('Pack was deleted by the host.', 'error');
             returnToSetup();
             return;
@@ -941,7 +564,7 @@ async function leaveGame() {
     
     try {
         await currentGameRef.child(`players/${currentPlayer.id}`).remove();
-        clearGameSession(); // Clear saved session
+        clearGameSession();
         showToast('Left the pack.', 'info');
         returnToSetup();
         
@@ -961,7 +584,6 @@ function returnToSetup() {
     currentGameCode = null;
     gameData = null;
     playersData = null;
-    // Keep currentPlayer identity for next game
     
     // Clear session
     clearGameSession();
@@ -977,21 +599,169 @@ function returnToSetup() {
     document.getElementById('newGameInput').value = '';
     document.getElementById('joinCodeInput').value = '';
     
-    // Enable game mode cards if player identity exists
+    // Reset game mode cards but keep player identity if set
     if (currentPlayer) {
-        enableGameModeCards();
-    } else {
-        document.getElementById('createGameCard').style.opacity = '0.5';
-        document.getElementById('joinGameCard').style.opacity = '0.5';
-        document.querySelector('#newGameInput').disabled = true;
-        document.querySelector('#joinCodeInput').disabled = true;
-        document.querySelector('#createGameBtn').disabled = true;
-        document.querySelector('#joinGameBtn').disabled = true;
+        document.getElementById('createGameCard').style.opacity = '1';
+        document.getElementById('joinGameCard').style.opacity = '1';
+        document.querySelector('#newGameInput').disabled = false;
+        document.querySelector('#joinCodeInput').disabled = false;
+        document.querySelector('#createGameBtn').disabled = false;
+        document.querySelector('#joinGameBtn').disabled = false;
     }
-    
-    // Update identity display
-    updateIdentityDisplay();
 }
+
+// Session Recovery Functions
+function saveGameSession() {
+    if (currentPlayer && currentGameCode) {
+        const sessionData = {
+            player: currentPlayer,
+            gameCode: currentGameCode,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('platequest_active_session', JSON.stringify(sessionData));
+    }
+}
+
+function clearGameSession() {
+    localStorage.removeItem('platequest_active_session');
+}
+
+async function attemptSessionRecovery() {
+    const sessionData = localStorage.getItem('platequest_active_session');
+    if (!sessionData) return;
+    
+    try {
+        const session = JSON.parse(sessionData);
+        
+        // Check if session is recent (within last 24 hours)
+        const sessionAge = Date.now() - session.timestamp;
+        if (sessionAge > 24 * 60 * 60 * 1000) {
+            clearGameSession();
+            return;
+        }
+        
+        // Check if the game still exists
+        const gameRef = database.ref(`games/${session.gameCode}`);
+        const snapshot = await gameRef.once('value');
+        
+        if (!snapshot.exists()) {
+            clearGameSession();
+            showToast('Previous pack no longer exists.', 'info');
+            return;
+        }
+        
+        const gameData = snapshot.val();
+        
+        // Check if player is still in the game (by uniqueId if available, otherwise by id)
+        let existingPlayer = null;
+        if (session.player.uniqueId) {
+            existingPlayer = Object.values(gameData.players || {}).find(p => p.uniqueId === session.player.uniqueId);
+        } else {
+            existingPlayer = gameData.players[session.player.id];
+        }
+        
+        if (existingPlayer) {
+            // Show recovery prompt
+            showSessionRecoveryPrompt(session);
+        } else {
+            clearGameSession();
+        }
+        
+    } catch (error) {
+        console.error('Session recovery error:', error);
+        clearGameSession();
+    }
+}
+
+function showSessionRecoveryPrompt(session) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: linear-gradient(145deg, #2c3e50, #34495e); border-radius: 15px; padding: 30px; max-width: 400px; width: 90%; color: white; text-align: center; border: 1px solid rgba(52, 152, 219, 0.3);">
+            <h3 style="margin-bottom: 20px; color: #3498db;">🐺 Welcome Back!</h3>
+            <p style="margin-bottom: 20px; color: #bdc3c7;">
+                Found your previous pack session:<br>
+                <strong style="color: #2ecc71;">${session.player.displayName || session.player.name}</strong><br>
+                in pack <strong style="color: #2ecc71;">${session.gameCode}</strong>
+            </p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button onclick="recoverSession()" 
+                        style="padding: 12px 20px; background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">
+                    🔄 Continue Pack
+                </button>
+                <button onclick="dismissRecovery()" 
+                        style="padding: 12px 20px; background: linear-gradient(145deg, #34495e, #2c3e50); color: #bdc3c7; border: 1px solid rgba(189, 195, 199, 0.3); border-radius: 10px; cursor: pointer;">
+                    ✖️ Start Fresh
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Store session data for recovery
+    window.pendingRecoverySession = session;
+    
+    // Auto-recover after 10 seconds if no action
+    setTimeout(() => {
+        if (document.body.contains(modal)) {
+            recoverSession();
+        }
+    }, 10000);
+}
+
+window.recoverSession = async function() {
+    const modal = document.querySelector('[style*="position: fixed"]');
+    if (modal) modal.remove();
+    
+    const session = window.pendingRecoverySession;
+    if (!session) return;
+    
+    showLoading('Reconnecting to your pack...');
+    
+    try {
+        // Restore session data
+        currentPlayer = session.player;
+        currentGameCode = session.gameCode;
+        currentGameRef = database.ref(`games/${currentGameCode}`);
+        
+        // Set up listeners
+        setupGameListeners();
+        
+        // Skip splash and go directly to game
+        splash.style.display = 'none';
+        game.style.display = 'block';
+        showActiveGame();
+        
+        hideLoading();
+        showToast(`Reconnected to pack ${currentGameCode}! 🐺`, 'success');
+        
+    } catch (error) {
+        console.error('Recovery failed:', error);
+        hideLoading();
+        showToast('Failed to reconnect. Please rejoin manually.', 'error');
+        clearGameSession();
+    }
+};
+
+window.dismissRecovery = function() {
+    const modal = document.querySelector('[style*="position: fixed"]');
+    if (modal) modal.remove();
+    clearGameSession();
+    showToast('Starting fresh session.', 'info');
+};
 
 function copyGameCode() {
     if (!currentGameCode) return;
@@ -1122,37 +892,3 @@ function generateGameCode() {
 function generatePlayerId() {
     return 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
-
-// Debug function for troubleshooting (can be called from browser console)
-window.debugPlateQuest = function() {
-    console.log('=== PlateQuest Debug Info ===');
-    console.log('currentPlayer:', currentPlayer);
-    console.log('savedName:', localStorage.getItem('platequest_player_name'));
-    console.log('savedTag:', localStorage.getItem('platequest_player_tag'));
-    console.log('database connected:', database ? 'yes' : 'no');
-    console.log('currentGameCode:', currentGameCode);
-    console.log('gameData:', gameData);
-    
-    const identityDisplay = document.getElementById('currentIdentityDisplay');
-    const identityInputs = document.getElementById('identityInputs');
-    const createCard = document.getElementById('createGameCard');
-    const joinCard = document.getElementById('joinGameCard');
-    
-    console.log('DOM elements:');
-    console.log('- identityDisplay:', identityDisplay ? 'found' : 'missing');
-    console.log('- identityInputs:', identityInputs ? 'found' : 'missing');
-    console.log('- createCard:', createCard ? 'found' : 'missing');
-    console.log('- joinCard:', joinCard ? 'found' : 'missing');
-    
-    if (identityDisplay) {
-        console.log('- identityDisplay style:', identityDisplay.style.display);
-    }
-    if (identityInputs) {
-        console.log('- identityInputs style:', identityInputs.style.display);
-    }
-    if (createCard) {
-        console.log('- createCard opacity:', createCard.style.opacity);
-    }
-    
-    console.log('=== End Debug Info ===');
-};
