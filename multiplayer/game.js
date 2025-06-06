@@ -310,6 +310,9 @@ function setupEventListeners() {
     // Check for saved player name and tag
     const savedName = localStorage.getItem('platequest_player_name');
     const savedTag = localStorage.getItem('platequest_player_tag');
+    
+    console.log('Saved data found:', savedName, savedTag);
+    
     if (savedName) {
         document.getElementById('playerNameInput').value = savedName;
     }
@@ -319,8 +322,15 @@ function setupEventListeners() {
     
     // Auto-restore identity if both name and tag are saved
     if (savedName && savedTag) {
+        console.log('Auto-restoring identity...');
         setTimeout(() => {
             autoRestoreIdentity(savedName, savedTag);
+        }, 100);
+    } else {
+        console.log('No complete identity to restore');
+        // Make sure inputs are shown
+        setTimeout(() => {
+            updateIdentityDisplay();
         }, 100);
     }
     
@@ -347,23 +357,30 @@ function setupEventListeners() {
 }
 
 function startGame() {
+    console.log('Starting game...');
     splash.style.display = 'none';
     game.style.display = 'block';
     
     // Update identity display
-    updateIdentityDisplay();
+    setTimeout(() => {
+        updateIdentityDisplay();
+    }, 50);
     
     // Auto-focus on appropriate input if empty and no current player
     if (!currentPlayer) {
-        const nameInput = document.getElementById('playerNameInput');
-        const tagInput = document.getElementById('playerTagInput');
-        
-        if (!nameInput.value.trim()) {
-            nameInput.focus();
-        } else if (!tagInput.value.trim()) {
-            tagInput.focus();
-        }
+        setTimeout(() => {
+            const nameInput = document.getElementById('playerNameInput');
+            const tagInput = document.getElementById('playerTagInput');
+            
+            if (!nameInput.value.trim()) {
+                nameInput.focus();
+            } else if (!tagInput.value.trim()) {
+                tagInput.focus();
+            }
+        }, 100);
     }
+    
+    console.log('Game started, currentPlayer:', currentPlayer);
 }
 
 function setPlayerName() {
@@ -400,60 +417,125 @@ function setPlayerName() {
         return;
     }
     
-    // Create unique identifier combining name and tag
-    const uniqueId = `${name.toLowerCase()}_${tag.toLowerCase()}`;
-    
-    currentPlayer = {
-        id: generatePlayerId(),
-        name: name,
-        tag: tag,
-        displayName: `${name} (${tag})`,
-        uniqueId: uniqueId,
-        joinedAt: Date.now()
-    };
-    
-    localStorage.setItem('platequest_player_name', name);
-    localStorage.setItem('platequest_player_tag', tag);
-    showToast(`Welcome to the pack, ${currentPlayer.displayName}! 🐺`, 'success');
-    
-    // Enable game mode cards and update display
-    enableGameModeCards();
-    updateIdentityDisplay();
+    try {
+        // Create unique identifier combining name and tag
+        const uniqueId = `${name.toLowerCase()}_${tag.toLowerCase()}`;
+        
+        currentPlayer = {
+            id: generatePlayerId(),
+            name: name,
+            tag: tag,
+            displayName: `${name} (${tag})`,
+            uniqueId: uniqueId,
+            joinedAt: Date.now()
+        };
+        
+        localStorage.setItem('platequest_player_name', name);
+        localStorage.setItem('platequest_player_tag', tag);
+        
+        console.log('Player created:', currentPlayer);
+        
+        showToast(`Welcome to the pack, ${currentPlayer.displayName}! 🐺`, 'success');
+        
+        // Enable game mode cards and update display
+        enableGameModeCards();
+        updateIdentityDisplay();
+        
+        console.log('Identity setup complete');
+        
+    } catch (error) {
+        console.error('Error setting player name:', error);
+        showToast('Error setting identity. Please try again.', 'error');
+    }
 }
 
 function autoRestoreIdentity(savedName, savedTag) {
+    console.log('Attempting to auto-restore identity:', savedName, savedTag);
+    
     // Validate the saved data
-    if (!savedName || !savedTag) return;
-    if (savedName.length > 20 || savedTag.length > 8) return;
-    if (!/^[a-zA-Z0-9]+$/.test(savedTag)) return;
+    if (!savedName || !savedTag) {
+        console.log('Missing saved name or tag');
+        return;
+    }
+    if (savedName.length > 20 || savedTag.length > 8) {
+        console.log('Saved data exceeds length limits');
+        return;
+    }
+    if (!/^[a-zA-Z0-9]+$/.test(savedTag)) {
+        console.log('Invalid tag format');
+        return;
+    }
     
-    // Create unique identifier combining name and tag
-    const uniqueId = `${savedName.toLowerCase()}_${savedTag.toLowerCase()}`;
-    
-    currentPlayer = {
-        id: generatePlayerId(),
-        name: savedName,
-        tag: savedTag,
-        displayName: `${savedName} (${savedTag})`,
-        uniqueId: uniqueId,
-        joinedAt: Date.now()
-    };
-    
-    // Show welcome back message
-    showToast(`Welcome back, ${currentPlayer.displayName}! 🐺`, 'success');
-    
-    // Enable game mode cards and update display
-    enableGameModeCards();
-    updateIdentityDisplay();
+    try {
+        // Create unique identifier combining name and tag
+        const uniqueId = `${savedName.toLowerCase()}_${savedTag.toLowerCase()}`;
+        
+        currentPlayer = {
+            id: generatePlayerId(),
+            name: savedName,
+            tag: savedTag,
+            displayName: `${savedName} (${savedTag})`,
+            uniqueId: uniqueId,
+            joinedAt: Date.now()
+        };
+        
+        console.log('Auto-restored player:', currentPlayer);
+        
+        // Show welcome back message
+        showToast(`Welcome back, ${currentPlayer.displayName}! 🐺`, 'success');
+        
+        // Enable game mode cards and update display
+        enableGameModeCards();
+        updateIdentityDisplay();
+        
+        console.log('Auto-restore complete');
+        
+    } catch (error) {
+        console.error('Error in auto-restore:', error);
+    }
 }
 
 function enableGameModeCards() {
-    document.getElementById('createGameCard').style.opacity = '1';
-    document.getElementById('joinGameCard').style.opacity = '1';
-    document.querySelector('#newGameInput').disabled = false;
-    document.querySelector('#joinCodeInput').disabled = false;
-    document.querySelector('#createGameBtn').disabled = false;
-    document.querySelector('#joinGameBtn').disabled = false;
+    try {
+        const createCard = document.getElementById('createGameCard');
+        const joinCard = document.getElementById('joinGameCard');
+        const newGameInput = document.querySelector('#newGameInput');
+        const joinCodeInput = document.querySelector('#joinCodeInput');
+        const createBtn = document.querySelector('#createGameBtn');
+        const joinBtn = document.querySelector('#joinGameBtn');
+        
+        console.log('Enabling game mode cards...');
+        
+        if (createCard) {
+            createCard.style.opacity = '1';
+            console.log('Create card enabled');
+        }
+        if (joinCard) {
+            joinCard.style.opacity = '1';
+            console.log('Join card enabled');
+        }
+        if (newGameInput) {
+            newGameInput.disabled = false;
+            console.log('New game input enabled');
+        }
+        if (joinCodeInput) {
+            joinCodeInput.disabled = false;
+            console.log('Join code input enabled');
+        }
+        if (createBtn) {
+            createBtn.disabled = false;
+            console.log('Create button enabled');
+        }
+        if (joinBtn) {
+            joinBtn.disabled = false;
+            console.log('Join button enabled');
+        }
+        
+        console.log('Game mode cards enabled successfully');
+        
+    } catch (error) {
+        console.error('Error enabling game mode cards:', error);
+    }
 }
 
 function updateIdentityDisplay() {
@@ -461,13 +543,21 @@ function updateIdentityDisplay() {
     const identityText = document.getElementById('currentIdentityText');
     const identityInputs = document.getElementById('identityInputs');
     
-    if (currentPlayer) {
+    console.log('Updating identity display, currentPlayer:', currentPlayer);
+    
+    if (currentPlayer && identityDisplay && identityText && identityInputs) {
+        // Show identity display, hide inputs
         identityDisplay.style.display = 'block';
         identityInputs.style.display = 'none';
         identityText.textContent = currentPlayer.displayName;
-    } else {
+        console.log('Identity display shown:', currentPlayer.displayName);
+    } else if (identityDisplay && identityInputs) {
+        // Hide identity display, show inputs
         identityDisplay.style.display = 'none';
         identityInputs.style.display = 'flex';
+        console.log('Identity inputs shown');
+    } else {
+        console.error('Identity display elements not found');
     }
 }
 
@@ -1032,3 +1122,37 @@ function generateGameCode() {
 function generatePlayerId() {
     return 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
+
+// Debug function for troubleshooting (can be called from browser console)
+window.debugPlateQuest = function() {
+    console.log('=== PlateQuest Debug Info ===');
+    console.log('currentPlayer:', currentPlayer);
+    console.log('savedName:', localStorage.getItem('platequest_player_name'));
+    console.log('savedTag:', localStorage.getItem('platequest_player_tag'));
+    console.log('database connected:', database ? 'yes' : 'no');
+    console.log('currentGameCode:', currentGameCode);
+    console.log('gameData:', gameData);
+    
+    const identityDisplay = document.getElementById('currentIdentityDisplay');
+    const identityInputs = document.getElementById('identityInputs');
+    const createCard = document.getElementById('createGameCard');
+    const joinCard = document.getElementById('joinGameCard');
+    
+    console.log('DOM elements:');
+    console.log('- identityDisplay:', identityDisplay ? 'found' : 'missing');
+    console.log('- identityInputs:', identityInputs ? 'found' : 'missing');
+    console.log('- createCard:', createCard ? 'found' : 'missing');
+    console.log('- joinCard:', joinCard ? 'found' : 'missing');
+    
+    if (identityDisplay) {
+        console.log('- identityDisplay style:', identityDisplay.style.display);
+    }
+    if (identityInputs) {
+        console.log('- identityInputs style:', identityInputs.style.display);
+    }
+    if (createCard) {
+        console.log('- createCard opacity:', createCard.style.opacity);
+    }
+    
+    console.log('=== End Debug Info ===');
+};
