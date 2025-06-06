@@ -425,6 +425,9 @@ function renderStates() {
             card.classList.add('selected-by-other');
         }
         
+        // Try to load flag image, fallback to abbreviation
+        const flagImg = `../flags/${state.abbr.toLowerCase()}.png`;
+        
         card.innerHTML = `
             <div class="license-plate-header">LICENSE PLATE</div>
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; height: calc(100% - 40px);">
@@ -432,8 +435,10 @@ function renderStates() {
                     <div style="font-size: 20px; font-weight: bold; margin-bottom: 8px;">${state.name}</div>
                     <div style="font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">${state.abbr}</div>
                 </div>
-                <div style="width: 50px; height: 35px; border-radius: 8px; background: linear-gradient(145deg, #95a5a6, #7f8c8d); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #2c3e50; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); border: 1px solid rgba(52, 152, 219, 0.2);">
-                    ${state.abbr}
+                <div class="state-flag" style="width: 50px; height: 35px; border-radius: 8px; background: linear-gradient(145deg, #95a5a6, #7f8c8d); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #2c3e50; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); border: 1px solid rgba(52, 152, 219, 0.2); overflow: hidden; position: relative;">
+                    <img src="${flagImg}" alt="${state.abbr} flag" 
+                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;"
+                         onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';">
                 </div>
             </div>
             ${foundByOther ? `<div style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; background: #f39c12; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${foundByOther.charAt(0)}</div>` : ''}
