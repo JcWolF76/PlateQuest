@@ -845,12 +845,16 @@
             <!-- Player Setup -->
             <div class="setup-section steel-texture" id="setupSection">
                 <div class="control-group">
-                    <label>👤 Your Name</label>
+                    <label>👤 Your Identity</label>
                     <div class="input-row">
-                        <input type="text" id="playerNameInput" placeholder="Enter your name..." style="flex: 1;">
-                        <button class="btn btn-primary" id="setNameBtn">Set Name</button>
+                        <input type="text" id="playerNameInput" placeholder="Your name (e.g. Mike)..." style="flex: 2;">
+                        <input type="text" id="playerTagInput" placeholder="Tag (Dad, MW, Jr)..." style="flex: 1;" maxlength="8">
+                        <button class="btn btn-primary" id="setNameBtn">Set Identity</button>
                     </div>
-                    <p style="font-size: 14px; color: #bdc3c7; margin-top: 8px;">Choose any name you like - everyone can create their own adventures! 🐺</p>
+                    <p style="font-size: 14px; color: #bdc3c7; margin-top: 8px;">
+                        Name + Tag lets multiple people with the same name play together! 🐺<br>
+                        <strong>Examples:</strong> "Sarah + Mom", "Mike + Dad", "Alex + Jr" (Tag: letters/numbers only)
+                    </p>
                 </div>
 
                 <div class="game-mode-selector">
@@ -915,32 +919,5 @@
     </div>
 
     <script src="game.js"></script>
-    <script>
-// FORCE MULTIPLAYER TO WORK - Firebase test proved it works
-setTimeout(() => {
-    // Remove error messages
-    document.querySelectorAll('.toast').forEach(toast => toast.remove());
-    
-    // Force connection online
-    if (typeof updateConnectionStatus !== 'undefined') {
-        updateConnectionStatus('online');
-    }
-    
-    // Initialize Firebase manually
-    if (typeof firebase !== 'undefined' && !window.database) {
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        window.database = firebase.database();
-        
-        if (typeof setupEventListeners !== 'undefined') {
-            setupEventListeners();
-        }
-        
-        console.log('✅ Multiplayer force-enabled!');
-    }
-}, 1500);
-</script>
-</body>
 </body>
 </html>
