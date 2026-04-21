@@ -358,6 +358,10 @@ function getPackUniqueStatesCount() {
     return uniqueStates.size;
 }
 
+function getStateClaim(stateName) {
+    return gameData?.claimedStates?.[stateName] || null;
+}
+
 function buildPlayerRoomRecord(player, options = {}) {
     const now = firebase.database.ServerValue.TIMESTAMP;
     return {
@@ -424,12 +428,15 @@ function findStateOwner(stateName) {
 }
 
 function buildStateSignature() {
-    const snapshot = Object.values(playersData).map((player) => ({
-        key: player.playerKey,
-        count: stateMapToCount(player.states),
-        connected: Boolean(player.connected),
-        states: Object.keys(player.states || {}).sort()
-    }));
+    const snapshot = {
+        players: Object.values(playersData).map((player) => ({
+            key: player.playerKey,
+            count: stateMapToCount(player.states),
+            connected: Boolean(player.connected),
+            states: Object.keys(player.states || {}).sort()
+        })),
+        claims: Object.keys(gameData?.claimedStates || {}).sort()
+    };
     return JSON.stringify(snapshot);
 }
 
@@ -718,6 +725,7 @@ async function createGame() {
             hostPlayerKey: currentPlayer.playerKey,
             createdAt: firebase.database.ServerValue.TIMESTAMP,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
+            claimedStates: {},
             players: {
                 [currentPlayer.playerKey]: buildPlayerRoomRecord(currentPlayer, { isHost: true })
             }
@@ -1095,6 +1103,7 @@ function renderStates() {
         const foundByMe = Boolean(myStates[state.name]);
         const owner = findStateOwner(state.name);
         const foundByOther = owner && owner.playerKey !== currentPlayer.playerKey ? owner : null;
+        const claim = getStateClaim(state.name);
 
         if (foundByMe) {
             card.classList.add('selected');
@@ -1117,7 +1126,7 @@ function renderStates() {
                          onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';">
                 </div>
             </div>
-            ${foundByOther ? `<div style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; background: #f39c12; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="Found by ${foundByOther.displayName}">${foundByOther.name.charAt(0).toUpperCase()}</div>` : ''}
+            ${claim ? `<div style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; background: #f39c12; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="First found by ${claim.displayName}">${claim.tag}</div>` : ''}
         `;
 
         card.addEventListener('click', () => toggleState(state.name, foundByMe));
@@ -1130,10 +1139,24 @@ async function toggleState(stateName, currentlySelected) {
     if (!currentGameRef || !currentPlayer) return;
 
     const playerStatesRef = currentGameRef.child(`players/${currentPlayer.playerKey}/states`);
+    const stateClaimRef = currentGameRef.child(`claimedStates/${stateName}`);
+
     try {
         if (currentlySelected) {
             await playerStatesRef.child(stateName).remove();
         } else {
+            await stateClaimRef.transaction((existingClaim) => {
+                if (existingClaim) return existingClaim;
+                return {
+                    state: stateName,
+                    playerKey: currentPlayer.playerKey,
+                    name: currentPlayer.name,
+                    tag: currentPlayer.tag,
+                    displayName: currentPlayer.displayName,
+                    claimedAt: firebase.database.ServerValue.TIMESTAMP
+                };
+            });
+
             await playerStatesRef.child(stateName).set({
                 state: stateName,
                 foundAt: firebase.database.ServerValue.TIMESTAMP,
