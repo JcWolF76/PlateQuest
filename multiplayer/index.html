@@ -13,7 +13,7 @@
         html { -webkit-text-size-adjust: 100%; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%); min-height: 100vh; color: #ecf0f1; position: relative; overflow-x: hidden; padding-bottom: env(safe-area-inset-bottom, 0px); }
         body.dark { background: linear-gradient(135deg, #111827 0%, #0f172a 50%, #111827 100%); color: #f8fafc; }
-        body.dark #game, body.dark .welcome-text, body.dark .mode-card, body.dark .state-card, body.dark input, body.dark select, body.dark .btn-secondary, body.dark .diagnostics-panel, body.dark .diagnostic-card, body.dark .play-area-panel, body.dark .play-area-chip, body.dark .setup-inline-card { background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)); color: #f8fafc; }
+        body.dark #game, body.dark .welcome-text, body.dark .mode-card, body.dark .state-card, body.dark input, body.dark select, body.dark .btn-secondary, body.dark .diagnostics-panel, body.dark .diagnostic-card, body.dark .play-area-panel, body.dark .play-area-chip, body.dark .setup-inline-card, body.dark .creator-games-panel, body.dark .creator-game-card { background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)); color: #f8fafc; }
         body.dark .game-header, body.dark .license-plate-header { background: linear-gradient(45deg, #0f172a, #1e293b); }
         body.dark .connection-status { background: rgba(15, 23, 42, 0.75); border-color: rgba(96, 165, 250, 0.35); }
         body.dark .game-code-display { background: rgba(15, 23, 42, 0.35); }
@@ -89,6 +89,15 @@
         .play-area-chip.selected { background: linear-gradient(45deg, #3498db, #2980b9); border-color: #5dade2; color: white; box-shadow: 0 4px 14px rgba(52, 152, 219, 0.35); }
         .play-area-chip.route { background: linear-gradient(45deg, #27ae60, #2ecc71); border-color: #58d68d; }
         .setup-hint { font-size: 12px; color: #95a5a6; margin-top: 8px; line-height: 1.4; }
+        .creator-games-panel { background: rgba(255,255,255,0.06); border: 1px solid rgba(52, 152, 219, 0.25); border-radius: 14px; padding: 16px; margin-top: 16px; text-align: left; }
+        .creator-games-list { display: grid; gap: 10px; }
+        .creator-game-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(52, 152, 219, 0.18); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+        .creator-game-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .creator-game-name { font-weight: 800; color: #ecf0f1; }
+        .creator-game-meta { font-size: 12px; color: #bdc3c7; line-height: 1.35; }
+        .creator-game-code { font-family: 'Courier New', monospace; letter-spacing: 2px; font-weight: 800; color: #5dade2; }
+        .creator-game-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .creator-empty { font-size: 13px; color: #95a5a6; }
         .live-scores { background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; padding: 25px; margin: 20px 0; border-radius: 15px; position: relative; }
         .live-scores::before { content: '🏆 🐺'; position: absolute; top: 15px; right: 20px; font-size: 20px; opacity: 0.7; }
         .live-scores h3 { text-align: center; margin-bottom: 20px; font-size: 24px; }
@@ -247,5 +256,220 @@
     </div>
 
     <script src="game.js?v=20260421d"></script>
+    <script>
+    (function() {
+        const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
+        const pendingCreateMeta = { gameName: null };
+
+        function normalizeCode(value) {
+            return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+        }
+
+        function getSavedIdentity() {
+            try {
+                return JSON.parse(localStorage.getItem('platequest_player_identity_v2') || 'null');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getCreatorKey() {
+            return window.currentPlayer?.playerKey || getSavedIdentity()?.playerKey || null;
+        }
+
+        function getCreatorLibrary() {
+            const creatorKey = getCreatorKey();
+            if (!creatorKey) return [];
+            try {
+                return JSON.parse(localStorage.getItem(LIBRARY_KEY_PREFIX + creatorKey) || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveCreatorLibrary(list) {
+            const creatorKey = getCreatorKey();
+            if (!creatorKey) return;
+            localStorage.setItem(LIBRARY_KEY_PREFIX + creatorKey, JSON.stringify(list.slice(0, 25)));
+        }
+
+        function upsertCreatedGame(entry) {
+            if (!entry || !entry.code) return;
+            const normalizedCode = normalizeCode(entry.code);
+            if (!normalizedCode) return;
+            const list = getCreatorLibrary();
+            const idx = list.findIndex((item) => normalizeCode(item.code) === normalizedCode);
+            const merged = {
+                code: normalizedCode,
+                name: entry.name || entry.gameName || 'Untitled Pack',
+                createdAt: entry.createdAt || Date.now(),
+                lastOpenedAt: Date.now(),
+                playRegion: entry.playRegion || '',
+                playAreaStates: entry.playAreaStates || []
+            };
+            if (idx >= 0) {
+                list[idx] = { ...list[idx], ...merged, createdAt: list[idx].createdAt || merged.createdAt };
+            } else {
+                list.unshift(merged);
+            }
+            list.sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
+            saveCreatorLibrary(list);
+            renderCreatedGamesLibrary();
+        }
+
+        function removeCreatedGame(code) {
+            const normalizedCode = normalizeCode(code);
+            saveCreatorLibrary(getCreatorLibrary().filter((item) => normalizeCode(item.code) !== normalizedCode));
+            renderCreatedGamesLibrary();
+        }
+
+        function ensureCreatedGamesPanel() {
+            const createCard = document.getElementById('createGameCard');
+            if (!createCard) return null;
+            let panel = document.getElementById('creatorGamesPanel');
+            if (panel) return panel;
+            panel = document.createElement('div');
+            panel.id = 'creatorGamesPanel';
+            panel.className = 'creator-games-panel';
+            panel.innerHTML = `
+                <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                    <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">📚 My Created Games</label>
+                    <span class="setup-hint">Quickly reopen packs you created.</span>
+                </div>
+                <div id="creatorGamesList" class="creator-games-list"></div>
+            `;
+            createCard.appendChild(panel);
+            return panel;
+        }
+
+        function formatWhen(ts) {
+            if (!ts) return '—';
+            const d = new Date(ts);
+            return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        }
+
+        function renderCreatedGamesLibrary() {
+            const panel = ensureCreatedGamesPanel();
+            if (!panel) return;
+            const listEl = document.getElementById('creatorGamesList');
+            const creatorKey = getCreatorKey();
+            if (!creatorKey) {
+                listEl.innerHTML = '<div class="creator-empty">Set your identity to keep a reusable list of packs you created.</div>';
+                return;
+            }
+            const items = getCreatorLibrary();
+            if (!items.length) {
+                listEl.innerHTML = '<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>';
+                return;
+            }
+            listEl.innerHTML = items.map((item) => {
+                const region = item.playRegion ? item.playRegion.replace(/_/g, ' ') : 'custom';
+                const playAreaCount = Array.isArray(item.playAreaStates) ? item.playAreaStates.length : 0;
+                return `
+                    <div class="creator-game-card">
+                        <div class="creator-game-top">
+                            <div>
+                                <div class="creator-game-name">${item.name || 'Untitled Pack'}</div>
+                                <div class="creator-game-meta">Created ${formatWhen(item.createdAt)} • Last opened ${formatWhen(item.lastOpenedAt)}</div>
+                            </div>
+                            <div class="creator-game-code">${item.code}</div>
+                        </div>
+                        <div class="creator-game-meta">Region: ${region} • Trip area: ${playAreaCount} state${playAreaCount === 1 ? '' : 's'}</div>
+                        <div class="creator-game-actions">
+                            <button class="btn btn-secondary btn-small" type="button" data-action="play" data-code="${item.code}">▶️ Play</button>
+                            <button class="btn btn-secondary btn-small" type="button" data-action="copy" data-code="${item.code}">📋 Copy Code</button>
+                            <button class="btn btn-secondary btn-small" type="button" data-action="remove" data-code="${item.code}">🗑️ Remove</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            listEl.querySelectorAll('button[data-action]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const action = btn.dataset.action;
+                    const code = btn.dataset.code;
+                    if (action === 'remove') {
+                        removeCreatedGame(code);
+                        return;
+                    }
+                    if (action === 'copy') {
+                        if (typeof copyToClipboard === 'function') copyToClipboard(code, 'Pack code copied! 📋');
+                        return;
+                    }
+                    if (action === 'play') {
+                        const joinInput = document.getElementById('joinCodeInput');
+                        if (joinInput) joinInput.value = code;
+                        if (typeof startGame === 'function' && document.getElementById('game')?.style.display !== 'block') startGame();
+                        if (!window.currentPlayer) {
+                            if (typeof showToast === 'function') showToast('Set your identity first, then tap Play again.', 'info');
+                            return;
+                        }
+                        if (typeof joinGame === 'function') await joinGame(code);
+                    }
+                });
+            });
+        }
+
+        function attachMonkeyPatches() {
+            if (typeof window.setPlayerName === 'function' && !window.setPlayerName.__creatorWrapped) {
+                const original = window.setPlayerName;
+                window.setPlayerName = function(...args) {
+                    const result = original.apply(this, args);
+                    setTimeout(renderCreatedGamesLibrary, 0);
+                    return result;
+                };
+                window.setPlayerName.__creatorWrapped = true;
+            }
+
+            if (typeof window.createGame === 'function' && !window.createGame.__creatorWrapped) {
+                const original = window.createGame;
+                window.createGame = async function(...args) {
+                    pendingCreateMeta.gameName = document.getElementById('newGameInput')?.value?.trim() || null;
+                    return await original.apply(this, args);
+                };
+                window.createGame.__creatorWrapped = true;
+            }
+
+            if (typeof window.connectToGame === 'function' && !window.connectToGame.__creatorWrapped) {
+                const original = window.connectToGame;
+                window.connectToGame = async function(...args) {
+                    const result = await original.apply(this, args);
+                    try {
+                        const room = window.gameData || null;
+                        if (room && window.currentPlayer && room.hostPlayerKey === window.currentPlayer.playerKey) {
+                            upsertCreatedGame({
+                                code: window.currentGameCode,
+                                name: room.name || pendingCreateMeta.gameName || 'Untitled Pack',
+                                createdAt: room.createdAt || Date.now(),
+                                playRegion: room.settings?.playRegion || '',
+                                playAreaStates: room.settings?.playAreaStates || []
+                            });
+                        }
+                    } catch (e) {}
+                    pendingCreateMeta.gameName = null;
+                    return result;
+                };
+                window.connectToGame.__creatorWrapped = true;
+            }
+
+            if (typeof window.returnToSetup === 'function' && !window.returnToSetup.__creatorWrapped) {
+                const original = window.returnToSetup;
+                window.returnToSetup = function(...args) {
+                    const result = original.apply(this, args);
+                    setTimeout(renderCreatedGamesLibrary, 0);
+                    return result;
+                };
+                window.returnToSetup.__creatorWrapped = true;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            ensureCreatedGamesPanel();
+            attachMonkeyPatches();
+            setTimeout(renderCreatedGamesLibrary, 50);
+            setTimeout(renderCreatedGamesLibrary, 600);
+        });
+        window.renderCreatedGamesLibrary = renderCreatedGamesLibrary;
+    })();
+    </script>
 </body>
 </html>
