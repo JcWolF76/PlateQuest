@@ -1,6 +1,6 @@
 // PlateQuest Multiplayer v2
 // Durable room membership, stable player identity, silent rejoin,
-// first-finder tags, and host-configured trip play area.
+// first-finder tags, host-configured trip play area, and optional Canada support.
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -12,20 +12,36 @@ const firebaseConfig = {
     appId: "1:109596979102:web:586740c408daec71af708f"
 };
 
-const statesData = [
-    { name: "Alabama", abbr: "AL" }, { name: "Alaska", abbr: "AK" }, { name: "Arizona", abbr: "AZ" }, { name: "Arkansas", abbr: "AR" },
-    { name: "California", abbr: "CA" }, { name: "Colorado", abbr: "CO" }, { name: "Connecticut", abbr: "CT" }, { name: "Delaware", abbr: "DE" },
-    { name: "Florida", abbr: "FL" }, { name: "Georgia", abbr: "GA" }, { name: "Hawaii", abbr: "HI" }, { name: "Idaho", abbr: "ID" },
-    { name: "Illinois", abbr: "IL" }, { name: "Indiana", abbr: "IN" }, { name: "Iowa", abbr: "IA" }, { name: "Kansas", abbr: "KS" },
-    { name: "Kentucky", abbr: "KY" }, { name: "Louisiana", abbr: "LA" }, { name: "Maine", abbr: "ME" }, { name: "Maryland", abbr: "MD" },
-    { name: "Massachusetts", abbr: "MA" }, { name: "Michigan", abbr: "MI" }, { name: "Minnesota", abbr: "MN" }, { name: "Mississippi", abbr: "MS" },
-    { name: "Missouri", abbr: "MO" }, { name: "Montana", abbr: "MT" }, { name: "Nebraska", abbr: "NE" }, { name: "Nevada", abbr: "NV" },
-    { name: "New Hampshire", abbr: "NH" }, { name: "New Jersey", abbr: "NJ" }, { name: "New Mexico", abbr: "NM" }, { name: "New York", abbr: "NY" },
-    { name: "North Carolina", abbr: "NC" }, { name: "North Dakota", abbr: "ND" }, { name: "Ohio", abbr: "OH" }, { name: "Oklahoma", abbr: "OK" },
-    { name: "Oregon", abbr: "OR" }, { name: "Pennsylvania", abbr: "PA" }, { name: "Rhode Island", abbr: "RI" }, { name: "South Carolina", abbr: "SC" },
-    { name: "South Dakota", abbr: "SD" }, { name: "Tennessee", abbr: "TN" }, { name: "Texas", abbr: "TX" }, { name: "Utah", abbr: "UT" },
-    { name: "Vermont", abbr: "VT" }, { name: "Virginia", abbr: "VA" }, { name: "Washington", abbr: "WA" }, { name: "West Virginia", abbr: "WV" },
-    { name: "Wisconsin", abbr: "WI" }, { name: "Wyoming", abbr: "WY" }
+const US_PLATES = [
+    { name: "Alabama", abbr: "AL", category: "us" }, { name: "Alaska", abbr: "AK", category: "us" }, { name: "Arizona", abbr: "AZ", category: "us" }, { name: "Arkansas", abbr: "AR", category: "us" },
+    { name: "California", abbr: "CA", category: "us" }, { name: "Colorado", abbr: "CO", category: "us" }, { name: "Connecticut", abbr: "CT", category: "us" }, { name: "Delaware", abbr: "DE", category: "us" },
+    { name: "Florida", abbr: "FL", category: "us" }, { name: "Georgia", abbr: "GA", category: "us" }, { name: "Hawaii", abbr: "HI", category: "us" }, { name: "Idaho", abbr: "ID", category: "us" },
+    { name: "Illinois", abbr: "IL", category: "us" }, { name: "Indiana", abbr: "IN", category: "us" }, { name: "Iowa", abbr: "IA", category: "us" }, { name: "Kansas", abbr: "KS", category: "us" },
+    { name: "Kentucky", abbr: "KY", category: "us" }, { name: "Louisiana", abbr: "LA", category: "us" }, { name: "Maine", abbr: "ME", category: "us" }, { name: "Maryland", abbr: "MD", category: "us" },
+    { name: "Massachusetts", abbr: "MA", category: "us" }, { name: "Michigan", abbr: "MI", category: "us" }, { name: "Minnesota", abbr: "MN", category: "us" }, { name: "Mississippi", abbr: "MS", category: "us" },
+    { name: "Missouri", abbr: "MO", category: "us" }, { name: "Montana", abbr: "MT", category: "us" }, { name: "Nebraska", abbr: "NE", category: "us" }, { name: "Nevada", abbr: "NV", category: "us" },
+    { name: "New Hampshire", abbr: "NH", category: "us" }, { name: "New Jersey", abbr: "NJ", category: "us" }, { name: "New Mexico", abbr: "NM", category: "us" }, { name: "New York", abbr: "NY", category: "us" },
+    { name: "North Carolina", abbr: "NC", category: "us" }, { name: "North Dakota", abbr: "ND", category: "us" }, { name: "Ohio", abbr: "OH", category: "us" }, { name: "Oklahoma", abbr: "OK", category: "us" },
+    { name: "Oregon", abbr: "OR", category: "us" }, { name: "Pennsylvania", abbr: "PA", category: "us" }, { name: "Rhode Island", abbr: "RI", category: "us" }, { name: "South Carolina", abbr: "SC", category: "us" },
+    { name: "South Dakota", abbr: "SD", category: "us" }, { name: "Tennessee", abbr: "TN", category: "us" }, { name: "Texas", abbr: "TX", category: "us" }, { name: "Utah", abbr: "UT", category: "us" },
+    { name: "Vermont", abbr: "VT", category: "us" }, { name: "Virginia", abbr: "VA", category: "us" }, { name: "Washington", abbr: "WA", category: "us" }, { name: "West Virginia", abbr: "WV", category: "us" },
+    { name: "Wisconsin", abbr: "WI", category: "us" }, { name: "Wyoming", abbr: "WY", category: "us" }
+];
+
+const CANADA_PLATES = [
+    { name: "Alberta", abbr: "AB", category: "canada" },
+    { name: "British Columbia", abbr: "BC", category: "canada" },
+    { name: "Manitoba", abbr: "MB", category: "canada" },
+    { name: "New Brunswick", abbr: "NB", category: "canada" },
+    { name: "Newfoundland and Labrador", abbr: "NL", category: "canada" },
+    { name: "Northwest Territories", abbr: "NT", category: "canada" },
+    { name: "Nova Scotia", abbr: "NS", category: "canada" },
+    { name: "Nunavut", abbr: "NU", category: "canada" },
+    { name: "Ontario", abbr: "ON", category: "canada" },
+    { name: "Prince Edward Island", abbr: "PE", category: "canada" },
+    { name: "Quebec", abbr: "QC", category: "canada" },
+    { name: "Saskatchewan", abbr: "SK", category: "canada" },
+    { name: "Yukon", abbr: "YT", category: "canada" }
 ];
 
 const PRIMARY_REGIONS = {
@@ -93,6 +109,19 @@ function setPendingJoinReload(code) { try { sessionStorage.setItem(SESSION_KEYS.
 function getPendingJoinReload() { try { return normalizeCodeInput(sessionStorage.getItem(SESSION_KEYS.joinReloadCode) || ''); } catch { return ''; } }
 function clearPendingJoinReload() { try { sessionStorage.removeItem(SESSION_KEYS.joinReloadCode); } catch {} }
 function reloadForJoin(code) { setPendingJoinReload(code); const url = new URL(window.location.href); url.searchParams.set('game', code); url.searchParams.set('joinrefresh', '1'); window.location.replace(url.toString()); }
+
+function getPlateScope(scopeOverride = null) {
+    if (scopeOverride) return scopeOverride;
+    return gameData?.settings?.plateScope || document.getElementById('plateScopeSelect')?.value || 'us_only';
+}
+
+function getActivePlateEntries(scopeOverride = null) {
+    return getPlateScope(scopeOverride) === 'us_canada' ? [...US_PLATES, ...CANADA_PLATES] : US_PLATES;
+}
+
+function getUsStateEntries() {
+    return US_PLATES;
+}
 
 async function ensureDatabaseReady(actionLabel = 'continue') {
     if (database) { firebaseReady = true; return true; }
@@ -176,7 +205,7 @@ function clearGameSession() { localStorage.removeItem(STORAGE_KEYS.session); upd
 function getSavedSession() { return safeParseStorage(STORAGE_KEYS.session); }
 
 function setSetupControlsDisabled(disabled) {
-    ['newGameInput','joinCodeInput','createGameBtn','joinGameBtn','primaryRegionSelect','presetNortheastBtn','presetMidwestBtn','presetWestBtn','clearPlayAreaBtn']
+    ['newGameInput','joinCodeInput','createGameBtn','joinGameBtn','primaryRegionSelect','plateScopeSelect','presetNortheastBtn','presetMidwestBtn','presetWestBtn','clearPlayAreaBtn']
         .forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = disabled; });
     document.querySelectorAll('.play-area-chip').forEach((chip) => { chip.disabled = disabled; });
 }
@@ -201,7 +230,7 @@ function renderPlayAreaSelector() {
     const map = document.getElementById('playAreaMap');
     if (!map) return;
     map.innerHTML = '';
-    statesData.forEach((state) => {
+    getUsStateEntries().forEach((state) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'play-area-chip';
@@ -223,7 +252,7 @@ function togglePlayAreaState(stateName) {
 
 function applyPlayAreaPreset(presetKey) {
     (PLAY_AREA_PRESETS[presetKey] || []).forEach((abbr) => {
-        const state = statesData.find((item) => item.abbr === abbr);
+        const state = getUsStateEntries().find((item) => item.abbr === abbr);
         if (state) selectedPlayAreaStates.add(state.name);
     });
     renderPlayAreaSelector();
@@ -236,7 +265,7 @@ function updatePlayAreaSummary() {
     const summary = document.getElementById('playAreaSummary');
     if (!summary) return;
     const states = getSelectedPlayAreaStates();
-    summary.textContent = states.length ? `${states.length} state${states.length === 1 ? '' : 's'} selected: ${states.join(', ')}` : 'Select the states included in this pack’s travel area.';
+    summary.textContent = states.length ? `${states.length} state${states.length === 1 ? '' : 's'} selected: ${states.join(', ')}` : 'Select the U.S. states included in this pack’s travel area.';
 }
 
 function buildPlayerRoomRecord(player, options = {}) {
@@ -386,6 +415,7 @@ async function createGame() {
     if (!(await ensureDatabaseReady('create a pack'))) return;
     const gameName = document.getElementById('newGameInput').value.trim();
     const playRegion = document.getElementById('primaryRegionSelect')?.value || '';
+    const plateScope = document.getElementById('plateScopeSelect')?.value || 'us_only';
     const playAreaStates = getSelectedPlayAreaStates();
     if (!gameName) { showToast('Please enter a pack name! 🎮', 'error'); document.getElementById('newGameInput').focus(); return; }
     if (!playRegion) { showToast('Please choose a primary play region. 🧭', 'error'); document.getElementById('primaryRegionSelect')?.focus(); return; }
@@ -399,7 +429,7 @@ async function createGame() {
             name: gameName,
             code,
             status: 'active',
-            settings: { maxPlayers: MAX_PLAYERS, playRegion, playAreaStates },
+            settings: { maxPlayers: MAX_PLAYERS, playRegion, plateScope, playAreaStates },
             hostPlayerKey: currentPlayer.playerKey,
             createdAt: firebase.database.ServerValue.TIMESTAMP,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -537,7 +567,8 @@ function updateSetupSubtitle() {
     if (!subtitle) return;
     const regionLabel = PRIMARY_REGIONS[gameData?.settings?.playRegion]?.label;
     const playAreaCount = gameData?.settings?.playAreaStates?.length || 0;
-    subtitle.textContent = regionLabel ? `${regionLabel} • ${playAreaCount} trip-area states` : 'Live adventure with your pack!';
+    const scopeLabel = gameData?.settings?.plateScope === 'us_canada' ? 'US + Canada' : 'US only';
+    subtitle.textContent = regionLabel ? `${regionLabel} • ${scopeLabel} • ${playAreaCount} trip-area states` : 'Live adventure with your pack!';
 }
 
 function updateConnectionBadgeText() {
@@ -555,7 +586,8 @@ function updateScores() {
     const scoresContainer = document.getElementById('scoresContainer');
     if (!scoresContainer) return;
     scoresContainer.innerHTML = '';
-    const scores = Object.values(playersData).map((player) => ({ ...player, count: stateMapToCount(player.states), percentage: Math.round((stateMapToCount(player.states) / 50) * 100) })).sort((a, b) => { if (b.count !== a.count) return b.count - a.count; return (a.joinedAt || 0) - (b.joinedAt || 0); });
+    const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
+    const scores = Object.values(playersData).map((player) => ({ ...player, count: stateMapToCount(player.states), percentage: Math.round((stateMapToCount(player.states) / totalPlates) * 100) })).sort((a, b) => { if (b.count !== a.count) return b.count - a.count; return (a.joinedAt || 0) - (b.joinedAt || 0); });
     scores.forEach((player, index) => {
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card ${index === 0 && player.count > 0 ? 'leader' : ''}`;
@@ -567,12 +599,32 @@ function updateScores() {
     });
 }
 
+function createSectionHeader(title) {
+    const header = document.createElement('div');
+    header.style.gridColumn = '1 / -1';
+    header.style.padding = '8px 4px 2px';
+    header.style.fontSize = '18px';
+    header.style.fontWeight = '800';
+    header.style.color = '#5dade2';
+    header.style.letterSpacing = '0.5px';
+    header.textContent = title;
+    return header;
+}
+
 function renderStates() {
     const statesGrid = document.getElementById('statesGrid');
     if (!statesGrid || !currentPlayer) return;
     statesGrid.innerHTML = '';
     const myStates = getMyStatesMap();
-    statesData.forEach((state, index) => {
+    const plateEntries = getActivePlateEntries(gameData?.settings?.plateScope);
+    let canadaHeaderAdded = false;
+
+    plateEntries.forEach((state, index) => {
+        if (state.category === 'canada' && !canadaHeaderAdded) {
+            statesGrid.appendChild(createSectionHeader('🇨🇦 Canadian Provinces & Territories'));
+            canadaHeaderAdded = true;
+        }
+
         const card = document.createElement('div');
         card.className = 'state-card';
         const foundByMe = Boolean(myStates[state.name]);
@@ -581,7 +633,8 @@ function renderStates() {
         const claim = getStateClaim(state.name);
         if (foundByMe) card.classList.add('selected'); else if (foundByOther) card.classList.add('selected-by-other');
         const flagImg = `../flags/${state.abbr.toLowerCase()}.png`;
-        card.innerHTML = `<div class="license-plate-header">LICENSE PLATE</div><div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; height: calc(100% - 40px);"><div style="flex: 1;"><div style="font-size: 20px; font-weight: bold; margin-bottom: 8px;">${state.name}</div><div style="font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">${state.abbr}</div></div><div class="state-flag" style="width: 50px; height: 35px; border-radius: 8px; background: linear-gradient(145deg, #95a5a6, #7f8c8d); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #2c3e50; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); border: 1px solid rgba(52, 152, 219, 0.2); overflow: hidden; position: relative;"><img src="${flagImg}" alt="${state.abbr} flag" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';"></div></div>${claim ? `<div style="position: absolute; top: 8px; right: 8px; min-width: 24px; height: 24px; padding:0 6px; background: #f39c12; color: white; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="First found by ${claim.displayName}">${claim.tag}</div>` : ''}`;
+        const plateType = state.category === 'canada' ? 'PROVINCE PLATE' : 'LICENSE PLATE';
+        card.innerHTML = `<div class="license-plate-header">${plateType}</div><div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; height: calc(100% - 40px);"><div style="flex: 1;"><div style="font-size: 20px; font-weight: bold; margin-bottom: 8px;">${state.name}</div><div style="font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">${state.abbr}</div></div><div class="state-flag" style="width: 50px; height: 35px; border-radius: 8px; background: linear-gradient(145deg, #95a5a6, #7f8c8d); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #2c3e50; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); border: 1px solid rgba(52, 152, 219, 0.2); overflow: hidden; position: relative;"><img src="${flagImg}" alt="${state.abbr} flag" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';"></div></div>${claim ? `<div style="position: absolute; top: 8px; right: 8px; min-width: 24px; height: 24px; padding:0 6px; background: #f39c12; color: white; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="First found by ${claim.displayName}">${claim.tag}</div>` : ''}`;
         card.addEventListener('click', () => toggleState(state.name, foundByMe));
         card.style.animationDelay = `${index * 0.02}s`;
         statesGrid.appendChild(card);
@@ -603,7 +656,7 @@ async function toggleState(stateName, currentlySelected) {
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
         lastSyncAt = Date.now();
         const myCount = currentlySelected ? stateMapToCount(getMyStatesMap()) - 1 : stateMapToCount(getMyStatesMap()) + 1;
-        if (!currentlySelected && myCount === 50) showToast('🏆 AMAZING! You found all 50 states!', 'success');
+        if (!currentlySelected && myCount === getActivePlateEntries(gameData?.settings?.plateScope).length) showToast('🏆 AMAZING! You found every available plate!', 'success');
         updateDiagnosticsPanel();
     } catch (error) {
         console.error('Error updating state:', error);
