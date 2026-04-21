@@ -1600,6 +1600,42 @@
             cardElement.appendChild(badge);
         }
 
+        function showContributorPicker(contributors) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.style.position = 'fixed';
+                modal.style.inset = '0';
+                modal.style.zIndex = '10001';
+                modal.style.display = 'flex';
+                modal.style.alignItems = 'center';
+                modal.style.justifyContent = 'center';
+                modal.innerHTML = `
+                    <div style="position:absolute; inset:0; background:rgba(0,0,0,0.7);"></div>
+                    <div style="position:relative; z-index:1; width:min(92vw, 420px); background:linear-gradient(145deg, #2c3e50, #34495e); border-radius:18px; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,0.4); border:1px solid rgba(52,152,219,0.25);">
+                        <div style="font-size:24px; font-weight:800; margin-bottom:10px; color:#ecf0f1;">Who found this state?</div>
+                        <div style="font-size:14px; color:#bdc3c7; margin-bottom:14px;">Choose a family contributor.</div>
+                        <select id="contributorPickerSelect" style="width:100%; margin-bottom:16px;">
+                            ${contributors.map(name => `<option value="${name.replace(/"/g, '&quot;')}">${name}</option>`).join('')}
+                        </select>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                            <button id="contributorPickerCancel" class="btn btn-secondary" style="flex:1; min-width:120px;">Cancel</button>
+                            <button id="contributorPickerOk" class="btn btn-primary" style="flex:1; min-width:120px;">Use Selected</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                const cleanup = (value) => {
+                    modal.remove();
+                    resolve(value);
+                };
+                modal.querySelector('#contributorPickerCancel').addEventListener('click', () => cleanup(null));
+                modal.querySelector('#contributorPickerOk').addEventListener('click', () => {
+                    cleanup(modal.querySelector('#contributorPickerSelect').value);
+                });
+                modal.firstElementChild.addEventListener('click', () => cleanup(null));
+            });
+        }
+
         function renderStates() {
             statesGrid.innerHTML = '';
             const states = currentTripData?.states || {};
@@ -1637,17 +1673,16 @@
             });
         }
 
-        function getCurrentContributor() {
+        async function getCurrentContributor() {
             if (currentGameMode !== 'collab') {
                 return getCurrentProfile()?.name || 'Player';
             }
             const contributors = getContributors();
             if (contributors.length === 1) return contributors[0];
-            const contributor = prompt(`Who found this state?\n\nContributors: ${contributors.join(', ')}`);
-            return contributor && contributors.includes(contributor) ? contributor : contributors[0];
+            return await showContributorPicker(contributors);
         }
 
-        function toggleState(stateName, cardElement) {
+        async function toggleState(stateName, cardElement) {
             if (!currentTripData) {
                 alert('Please create or select a trip first!');
                 return;
@@ -1660,7 +1695,8 @@
                 const badge = cardElement.querySelector('.contributor-badge');
                 if (badge) badge.remove();
             } else {
-                const contributor = getCurrentContributor();
+                const contributor = await getCurrentContributor();
+                if (!contributor) return;
                 states[stateName] = {
                     state: stateName,
                     foundBy: contributor,
@@ -1674,7 +1710,7 @@
                 }
                 cardElement.classList.add('celebrating');
                 setTimeout(() => cardElement.classList.remove('celebrating'), 800);
-                const count = getSelectedStatesCount();
+                const count = Object.keys(states).length;
                 if ([10, 25, 50].includes(count)) celebrateAchievement(count);
             }
 
