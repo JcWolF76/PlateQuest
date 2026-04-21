@@ -244,6 +244,7 @@
                     <div class="states-grid" id="statesGrid"></div>
                 </div>
                 <div style="padding: 25px; border-top: 1px solid rgba(52, 152, 219, 0.2); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
                     <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
                     <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
@@ -594,16 +595,31 @@
             }
         }
 
+        function bindBackToSetupButton() {
+            const btn = document.getElementById('backToSetupBtn');
+            if (!btn || btn.dataset.bound === 'true') return;
+            btn.dataset.bound = 'true';
+            btn.addEventListener('click', () => {
+                if (typeof window.returnToSetup === 'function') {
+                    window.returnToSetup(false);
+                    if (typeof showToast === 'function') showToast('Returned to setup. Your current pack was not deleted.', 'info');
+                }
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             ensureCreatedGamesPanel();
             attachMonkeyPatches();
+            bindBackToSetupButton();
             setTimeout(() => {
                 startCreatorLibrarySync();
                 renderCreatedGamesLibrary();
+                bindBackToSetupButton();
             }, 50);
             setTimeout(() => {
                 startCreatorLibrarySync();
                 renderCreatedGamesLibrary();
+                bindBackToSetupButton();
             }, 600);
         });
         window.renderCreatedGamesLibrary = renderCreatedGamesLibrary;
