@@ -1,6 +1,6 @@
 // PlateQuest Multiplayer v2
 // Rebuilt around durable room membership, stable player identity, silent rejoin,
-// legacy migration, and visible diagnostics.
+// legacy migration, visible diagnostics, and mobile-first input/resume behavior.
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -125,6 +125,14 @@ function safeParseStorage(key) {
     }
 }
 
+function normalizeTagInput(value) {
+    return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8);
+}
+
+function normalizeCodeInput(value) {
+    return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+}
+
 function getOrCreateDeviceId() {
     const identity = safeParseStorage(STORAGE_KEYS.player);
     if (identity && identity.deviceId) {
@@ -135,7 +143,8 @@ function getOrCreateDeviceId() {
 
 function buildPlayerFromInputs() {
     const name = document.getElementById('playerNameInput').value.trim();
-    const tag = document.getElementById('playerTagInput').value.trim();
+    const tag = normalizeTagInput(document.getElementById('playerTagInput').value);
+    document.getElementById('playerTagInput').value = tag;
 
     if (!name) {
         showToast('Please enter your name! 👤', 'error');
@@ -154,12 +163,7 @@ function buildPlayerFromInputs() {
         return null;
     }
 
-    if (tag.length > 8) {
-        showToast('Tag must be 8 characters or less.', 'error');
-        return null;
-    }
-
-    if (!/^[a-zA-Z0-9]+$/.test(tag)) {
+    if (!/^[A-Z0-9]+$/.test(tag)) {
         showToast('Tag can only contain letters and numbers.', 'error');
         return null;
     }
@@ -179,13 +183,14 @@ function buildPlayerFromInputs() {
 }
 
 function buildPlayerIdentity(name, tag, extras = {}) {
+    const normalizedTag = normalizeTagInput(tag);
     return {
-        playerKey: `${slugify(name)}__${slugify(tag)}`,
+        playerKey: `${slugify(name)}__${slugify(normalizedTag)}`,
         deviceId: extras.deviceId || getOrCreateDeviceId(),
         name,
-        tag,
-        displayName: `${name} (${tag})`,
-        colorSeed: slugify(`${name}_${tag}`),
+        tag: normalizedTag,
+        displayName: `${name} (${normalizedTag})`,
+        colorSeed: slugify(`${name}_${normalizedTag}`),
         updatedAtLocal: Date.now(),
         legacyPlayerId: extras.legacyPlayerId || null
     };
@@ -219,7 +224,7 @@ function migrateLegacyStorage() {
         const player = migratedIdentity || safeParseStorage(STORAGE_KEYS.player);
         if (player && player.playerKey) {
             localStorage.setItem(STORAGE_KEYS.session, JSON.stringify({
-                gameCode: legacySession.gameCode,
+                gameCode: normalizeCodeInput(legacySession.gameCode),
                 playerKey: player.playerKey,
                 savedAt: legacySession.savedAt || Date.now()
             }));
@@ -232,11 +237,11 @@ function restoreIdentity() {
     const savedName = localStorage.getItem(STORAGE_KEYS.name);
     const savedTag = localStorage.getItem(STORAGE_KEYS.tag);
     if (savedName) document.getElementById('playerNameInput').value = savedName;
-    if (savedTag) document.getElementById('playerTagInput').value = savedTag;
+    if (savedTag) document.getElementById('playerTagInput').value = normalizeTagInput(savedTag);
 
     const savedPlayer = safeParseStorage(STORAGE_KEYS.player);
     if (savedPlayer && savedPlayer.playerKey) {
-        currentPlayer = savedPlayer;
+        currentPlayer = { ...savedPlayer, tag: normalizeTagInput(savedPlayer.tag) };
         enableGameCards();
     }
     updateDiagnosticsPanel();
@@ -321,10 +326,12 @@ function normalizePlayers(rawPlayers = {}) {
             states = converted;
         }
 
+        const normalizedTag = normalizeTagInput(player.tag || '');
         normalized[playerKey] = {
             ...player,
             playerKey,
-            displayName: player.displayName || (player.name && player.tag ? `${player.name} (${player.tag})` : (player.name || playerKey)),
+            tag: normalizedTag,
+            displayName: player.displayName || (player.name && normalizedTag ? `${player.name} (${normalizedTag})` : (player.name || playerKey)),
             states
         };
     });
@@ -450,21 +457,50 @@ function bindEventListeners() {
     if (eventsBound) return;
     eventsBound = true;
 
+    const playerNameInput = document.getElementById('playerNameInput');
+    const playerTagInput = document.getElementById('playerTagInput');
+    const newGameInput = document.getElementById('newGameInput');
+    const joinCodeInput = document.getElementById('joinCodeInput');
+
     document.getElementById('startBtn').addEventListener('click', startGame);
     document.getElementById('setNameBtn').addEventListener('click', setPlayerName);
-    document.getElementById('playerNameInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') setPlayerName();
+
+    playerNameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            if (!playerTagInput.value.trim()) {
+                playerTagInput.focus();
+            } else {
+                setPlayerName();
+            }
+        }
     });
-    document.getElementById('playerTagInput').addEventListener('keypress', (e) => {
+
+    playerTagInput.addEventListener('input', () => {
+        playerTagInput.value = normalizeTagInput(playerTagInput.value);
+    });
+
+    playerTagInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') setPlayerName();
     });
 
     document.getElementById('createGameBtn').addEventListener('click', createGame);
     document.getElementById('joinGameBtn').addEventListener('click', joinGame);
-    document.getElementById('newGameInput').addEventListener('keypress', (e) => {
+
+    newGameInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') createGame();
     });
-    document.getElementById('joinCodeInput').addEventListener('keypress', (e) => {
+
+    joinCodeInput.addEventListener('input', () => {
+        joinCodeInput.value = normalizeCodeInput(joinCodeInput.value);
+    });
+
+    joinCodeInput.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        joinCodeInput.value = normalizeCodeInput(pasted);
+    });
+
+    joinCodeInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') joinGame();
     });
 
@@ -480,6 +516,16 @@ function bindEventListeners() {
             saveGameSession();
         } else if (currentGameCode && currentPlayer && currentConnectionState === 'online') {
             setupPresence();
+            updateDiagnosticsPanel();
+        }
+    });
+
+    window.addEventListener('pageshow', async (event) => {
+        if (event.persisted && currentPlayer && !currentGameCode) {
+            await attemptAutoResume();
+        } else if (event.persisted && currentGameCode && currentPlayer && currentConnectionState === 'online') {
+            setupPresence();
+            updateDiagnosticsPanel();
         }
     });
 
@@ -505,7 +551,7 @@ function initializeDarkMode() {
 function readGameCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('game') || params.get('code');
-    return code ? code.trim().toUpperCase() : null;
+    return code ? normalizeCodeInput(code) : null;
 }
 
 function writeGameCodeToUrl(code) {
@@ -549,7 +595,7 @@ function setPlayerName() {
 }
 
 async function generateUniqueGameCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     for (let attempt = 0; attempt < 12; attempt += 1) {
         let code = '';
@@ -614,7 +660,8 @@ async function joinGame(codeOverride = null) {
         return;
     }
 
-    const code = (codeOverride || document.getElementById('joinCodeInput').value || '').trim().toUpperCase();
+    const code = normalizeCodeInput(codeOverride || document.getElementById('joinCodeInput').value || '');
+    document.getElementById('joinCodeInput').value = code;
     if (!code || code.length !== 6) {
         showToast('Pack code must be 6 characters.', 'error');
         document.getElementById('joinCodeInput').focus();
