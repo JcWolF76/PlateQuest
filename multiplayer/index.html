@@ -255,11 +255,13 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260421d"></script>
+    <script src="game.js?v=20260421e"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
+        const FIREBASE_CREATOR_GAMES_PATH = 'creatorGames';
         const pendingCreateMeta = { gameName: null };
+        let currentCreatorListener = null;
 
         function normalizeCode(value) {
             return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
@@ -274,10 +276,24 @@
         }
 
         function getCreatorKey() {
-            return window.currentPlayer?.playerKey || getSavedIdentity()?.playerKey || null;
+            return getSavedIdentity()?.playerKey || null;
         }
 
-        function getCreatorLibrary() {
+        function getFirebaseDb() {
+            try {
+                if (typeof firebase === 'undefined') return null;
+                if (!firebase.apps || !firebase.apps.length) return null;
+                return firebase.database();
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getCreatorLibraryPath(creatorKey) {
+            return `${FIREBASE_CREATOR_GAMES_PATH}/${creatorKey}`;
+        }
+
+        function getLocalCreatorLibrary() {
             const creatorKey = getCreatorKey();
             if (!creatorKey) return [];
             try {
@@ -287,39 +303,110 @@
             }
         }
 
-        function saveCreatorLibrary(list) {
+        function saveLocalCreatorLibrary(list) {
             const creatorKey = getCreatorKey();
             if (!creatorKey) return;
             localStorage.setItem(LIBRARY_KEY_PREFIX + creatorKey, JSON.stringify(list.slice(0, 25)));
         }
 
-        function upsertCreatedGame(entry) {
+        function mergeGameLists(primary, fallback) {
+            const mergedMap = new Map();
+            [...(primary || []), ...(fallback || [])].forEach((item) => {
+                if (!item || !item.code) return;
+                const code = normalizeCode(item.code);
+                if (!code) return;
+                const existing = mergedMap.get(code);
+                if (!existing || (item.lastOpenedAt || 0) > (existing.lastOpenedAt || 0)) {
+                    mergedMap.set(code, { ...existing, ...item, code });
+                }
+            });
+            return Array.from(mergedMap.values()).sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
+        }
+
+        async function readFirebaseCreatorLibrary() {
+            const creatorKey = getCreatorKey();
+            const db = getFirebaseDb();
+            if (!creatorKey || !db) return [];
+            const snap = await db.ref(getCreatorLibraryPath(creatorKey)).once('value');
+            if (!snap.exists()) return [];
+            const raw = snap.val() || {};
+            return Object.values(raw).map((item) => ({
+                code: normalizeCode(item.code),
+                name: item.name || 'Untitled Pack',
+                createdAt: item.createdAt || 0,
+                lastOpenedAt: item.lastOpenedAt || item.createdAt || 0,
+                playRegion: item.playRegion || '',
+                playAreaStates: item.playAreaStates || []
+            })).filter((item) => item.code);
+        }
+
+        async function writeFirebaseCreatorGame(entry) {
+            const creatorKey = getCreatorKey();
+            const db = getFirebaseDb();
+            if (!creatorKey || !db || !entry?.code) return;
+            const code = normalizeCode(entry.code);
+            const ref = db.ref(`${getCreatorLibraryPath(creatorKey)}/${code}`);
+            const existingSnap = await ref.once('value');
+            const existing = existingSnap.val() || {};
+            const payload = {
+                code,
+                name: entry.name || entry.gameName || existing.name || 'Untitled Pack',
+                createdAt: existing.createdAt || entry.createdAt || Date.now(),
+                lastOpenedAt: Date.now(),
+                playRegion: entry.playRegion || existing.playRegion || '',
+                playAreaStates: entry.playAreaStates || existing.playAreaStates || [],
+                creatorKey,
+                updatedAt: Date.now()
+            };
+            await ref.set(payload);
+        }
+
+        async function removeFirebaseCreatorGame(code) {
+            const creatorKey = getCreatorKey();
+            const db = getFirebaseDb();
+            if (!creatorKey || !db) return;
+            await db.ref(`${getCreatorLibraryPath(creatorKey)}/${normalizeCode(code)}`).remove();
+        }
+
+        function cacheCreatedGameLocally(entry) {
             if (!entry || !entry.code) return;
-            const normalizedCode = normalizeCode(entry.code);
-            if (!normalizedCode) return;
-            const list = getCreatorLibrary();
-            const idx = list.findIndex((item) => normalizeCode(item.code) === normalizedCode);
+            const code = normalizeCode(entry.code);
+            if (!code) return;
+            const list = getLocalCreatorLibrary();
+            const idx = list.findIndex((item) => normalizeCode(item.code) === code);
             const merged = {
-                code: normalizedCode,
+                code,
                 name: entry.name || entry.gameName || 'Untitled Pack',
                 createdAt: entry.createdAt || Date.now(),
                 lastOpenedAt: Date.now(),
                 playRegion: entry.playRegion || '',
                 playAreaStates: entry.playAreaStates || []
             };
-            if (idx >= 0) {
-                list[idx] = { ...list[idx], ...merged, createdAt: list[idx].createdAt || merged.createdAt };
-            } else {
-                list.unshift(merged);
-            }
+            if (idx >= 0) list[idx] = { ...list[idx], ...merged, createdAt: list[idx].createdAt || merged.createdAt };
+            else list.unshift(merged);
             list.sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
-            saveCreatorLibrary(list);
+            saveLocalCreatorLibrary(list);
+        }
+
+        async function upsertCreatedGame(entry) {
+            if (!entry || !entry.code) return;
+            cacheCreatedGameLocally(entry);
+            try {
+                await writeFirebaseCreatorGame(entry);
+            } catch (e) {
+                console.warn('Failed to sync creator game to Firebase:', e);
+            }
             renderCreatedGamesLibrary();
         }
 
-        function removeCreatedGame(code) {
+        async function removeCreatedGame(code) {
             const normalizedCode = normalizeCode(code);
-            saveCreatorLibrary(getCreatorLibrary().filter((item) => normalizeCode(item.code) !== normalizedCode));
+            saveLocalCreatorLibrary(getLocalCreatorLibrary().filter((item) => normalizeCode(item.code) !== normalizedCode));
+            try {
+                await removeFirebaseCreatorGame(normalizedCode);
+            } catch (e) {
+                console.warn('Failed to remove creator game from Firebase:', e);
+            }
             renderCreatedGamesLibrary();
         }
 
@@ -334,7 +421,7 @@
             panel.innerHTML = `
                 <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
                     <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">📚 My Created Games</label>
-                    <span class="setup-hint">Quickly reopen packs you created.</span>
+                    <span class="setup-hint">Cross-device list of packs you created.</span>
                 </div>
                 <div id="creatorGamesList" class="creator-games-list"></div>
             `;
@@ -348,16 +435,29 @@
             return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
         }
 
-        function renderCreatedGamesLibrary() {
+        async function getResolvedCreatorLibrary() {
+            const localItems = getLocalCreatorLibrary();
+            try {
+                const firebaseItems = await readFirebaseCreatorLibrary();
+                const merged = mergeGameLists(firebaseItems, localItems);
+                saveLocalCreatorLibrary(merged);
+                return merged;
+            } catch (e) {
+                return localItems;
+            }
+        }
+
+        async function renderCreatedGamesLibrary() {
             const panel = ensureCreatedGamesPanel();
             if (!panel) return;
             const listEl = document.getElementById('creatorGamesList');
             const creatorKey = getCreatorKey();
             if (!creatorKey) {
-                listEl.innerHTML = '<div class="creator-empty">Set your identity to keep a reusable list of packs you created.</div>';
+                listEl.innerHTML = '<div class="creator-empty">Set your identity to keep and sync a reusable list of packs you created.</div>';
                 return;
             }
-            const items = getCreatorLibrary();
+            listEl.innerHTML = '<div class="creator-empty">Loading your created games…</div>';
+            const items = await getResolvedCreatorLibrary();
             if (!items.length) {
                 listEl.innerHTML = '<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>';
                 return;
@@ -388,7 +488,7 @@
                     const action = btn.dataset.action;
                     const code = btn.dataset.code;
                     if (action === 'remove') {
-                        removeCreatedGame(code);
+                        await removeCreatedGame(code);
                         return;
                     }
                     if (action === 'copy') {
@@ -399,7 +499,7 @@
                         const joinInput = document.getElementById('joinCodeInput');
                         if (joinInput) joinInput.value = code;
                         if (typeof startGame === 'function' && document.getElementById('game')?.style.display !== 'block') startGame();
-                        if (!window.currentPlayer) {
+                        if (!getSavedIdentity()) {
                             if (typeof showToast === 'function') showToast('Set your identity first, then tap Play again.', 'info');
                             return;
                         }
@@ -409,12 +509,40 @@
             });
         }
 
+        function startCreatorLibrarySync() {
+            const creatorKey = getCreatorKey();
+            const db = getFirebaseDb();
+            if (!creatorKey || !db) return;
+            stopCreatorLibrarySync();
+            currentCreatorListener = db.ref(getCreatorLibraryPath(creatorKey));
+            currentCreatorListener.on('value', async () => {
+                await renderCreatedGamesLibrary();
+            });
+        }
+
+        function stopCreatorLibrarySync() {
+            if (currentCreatorListener) {
+                currentCreatorListener.off();
+                currentCreatorListener = null;
+            }
+        }
+
+        async function fetchRoomMetaByCode(code) {
+            const db = getFirebaseDb();
+            if (!db) return null;
+            const snap = await db.ref(`games/${normalizeCode(code)}`).once('value');
+            return snap.exists() ? snap.val() : null;
+        }
+
         function attachMonkeyPatches() {
             if (typeof window.setPlayerName === 'function' && !window.setPlayerName.__creatorWrapped) {
                 const original = window.setPlayerName;
                 window.setPlayerName = function(...args) {
                     const result = original.apply(this, args);
-                    setTimeout(renderCreatedGamesLibrary, 0);
+                    setTimeout(() => {
+                        startCreatorLibrarySync();
+                        renderCreatedGamesLibrary();
+                    }, 0);
                     return result;
                 };
                 window.setPlayerName.__creatorWrapped = true;
@@ -432,19 +560,23 @@
             if (typeof window.connectToGame === 'function' && !window.connectToGame.__creatorWrapped) {
                 const original = window.connectToGame;
                 window.connectToGame = async function(...args) {
+                    const codeArg = args[0];
                     const result = await original.apply(this, args);
                     try {
-                        const room = window.gameData || null;
-                        if (room && window.currentPlayer && room.hostPlayerKey === window.currentPlayer.playerKey) {
-                            upsertCreatedGame({
-                                code: window.currentGameCode,
+                        const identity = getSavedIdentity();
+                        const room = await fetchRoomMetaByCode(codeArg);
+                        if (room && identity && room.hostPlayerKey === identity.playerKey) {
+                            await upsertCreatedGame({
+                                code: room.code || codeArg,
                                 name: room.name || pendingCreateMeta.gameName || 'Untitled Pack',
                                 createdAt: room.createdAt || Date.now(),
                                 playRegion: room.settings?.playRegion || '',
                                 playAreaStates: room.settings?.playAreaStates || []
                             });
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        console.warn('Creator library sync failed after join/create:', e);
+                    }
                     pendingCreateMeta.gameName = null;
                     return result;
                 };
@@ -465,8 +597,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             ensureCreatedGamesPanel();
             attachMonkeyPatches();
-            setTimeout(renderCreatedGamesLibrary, 50);
-            setTimeout(renderCreatedGamesLibrary, 600);
+            setTimeout(() => {
+                startCreatorLibrarySync();
+                renderCreatedGamesLibrary();
+            }, 50);
+            setTimeout(() => {
+                startCreatorLibrarySync();
+                renderCreatedGamesLibrary();
+            }, 600);
         });
         window.renderCreatedGamesLibrary = renderCreatedGamesLibrary;
     })();
