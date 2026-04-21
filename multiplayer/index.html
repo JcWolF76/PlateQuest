@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>PlateQuest Multiplayer - License Plate Adventure</title>
     
     <!-- Firebase SDK -->
@@ -14,6 +14,11 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
         }
 
         body {
@@ -23,6 +28,7 @@
             color: #ecf0f1;
             position: relative;
             overflow-x: hidden;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
         }
 
         body::before {
@@ -207,6 +213,7 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             position: relative;
+            touch-action: manipulation;
         }
 
         .start-btn:hover {
@@ -266,7 +273,7 @@
         .game-code-header {
             background: linear-gradient(45deg, #27ae60, #2ecc71);
             color: white;
-            padding: 15px 25px;
+            padding: max(15px, env(safe-area-inset-top, 0px)) 25px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -625,6 +632,7 @@
                 inset 0 1px 0 rgba(255,255,255,0.1);
             aspect-ratio: 2/1;
             min-height: 120px;
+            touch-action: manipulation;
         }
 
         .state-card::before {
@@ -696,6 +704,7 @@
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            touch-action: manipulation;
         }
 
         .btn-primary {
@@ -788,6 +797,7 @@
             animation: slideInToast 0.3s ease forwards;
             border: 1px solid rgba(52, 152, 219, 0.3);
             position: relative;
+            max-width: min(92vw, 360px);
         }
 
         .toast::before {
@@ -822,15 +832,38 @@
             }
         }
 
+        @media (max-width: 900px) {
+            .states-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+            .game-mode-selector { grid-template-columns: 1fr; }
+        }
+
         @media (max-width: 768px) {
             .container { padding: 10px; }
             .states-grid { grid-template-columns: 1fr; }
             .input-row { flex-direction: column; align-items: stretch; }
             .game-mode-selector { grid-template-columns: 1fr; }
-            .logo { width: 250px; }
-            .game-code-header { flex-direction: column; gap: 15px; text-align: center; }
-            .share-controls { justify-content: center; }
+            .logo { width: min(250px, 80vw); }
+            .game-code-header { flex-direction: column; gap: 12px; text-align: center; padding-left: 12px; padding-right: 12px; }
+            .share-controls { justify-content: center; width: 100%; flex-wrap: wrap; }
             .diagnostics-grid { grid-template-columns: 1fr 1fr; }
+            .diagnostics-panel { padding: 10px; }
+            .diagnostics-header span { font-size: 11px !important; }
+            .game-title { font-size: 24px; }
+            .game-subtitle { font-size: 15px; }
+            .game-code-display { font-size: 20px; letter-spacing: 2px; }
+            .welcome-text { padding: 28px 20px; }
+            .setup-section, .game-header, .live-scores, .game-active > div, .game-active > div:last-child { padding-left: 16px !important; padding-right: 16px !important; }
+            .btn { min-height: 46px; }
+            .mode-input { min-height: 48px; }
+            .toast-container { left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top, 0px)); }
+            .toast { max-width: none; width: 100%; margin-bottom: 8px; }
+        }
+
+        @media (max-width: 520px) {
+            .diagnostics-grid { grid-template-columns: 1fr; }
+            .share-controls .btn { flex: 1 1 30%; }
+            .game-code-info { flex-direction: column; gap: 8px; }
+            .state-card { min-height: 108px; }
         }
     </style>
 </head>
@@ -915,8 +948,8 @@
                 <div class="control-group">
                     <label>👤 Your Identity</label>
                     <div class="input-row">
-                        <input type="text" id="playerNameInput" placeholder="Your name (e.g. Mike)..." style="flex: 2;">
-                        <input type="text" id="playerTagInput" placeholder="Tag (Dad, MW, Jr)..." style="flex: 1;" maxlength="8">
+                        <input type="text" id="playerNameInput" placeholder="Your name (e.g. Mike)..." style="flex: 2;" autocomplete="name" autocapitalize="words" enterkeyhint="next">
+                        <input type="text" id="playerTagInput" placeholder="Tag (Dad, MW, Jr)..." style="flex: 1; text-transform: uppercase;" maxlength="8" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="done">
                         <button class="btn btn-primary" id="setNameBtn">Set Identity</button>
                     </div>
                     <p style="font-size: 14px; color: #bdc3c7; margin-top: 8px;">
@@ -930,7 +963,7 @@
                         <div class="mode-icon">🎮</div>
                         <h3>Create New Game</h3>
                         <p>Start a new adventure and invite your pack with a simple game code</p>
-                        <input type="text" id="newGameInput" placeholder="Game name..." class="mode-input" disabled>
+                        <input type="text" id="newGameInput" placeholder="Game name..." class="mode-input" disabled autocomplete="off" autocapitalize="words" enterkeyhint="done">
                         <button class="btn btn-primary" id="createGameBtn" disabled>Create Game</button>
                     </div>
 
@@ -938,7 +971,7 @@
                         <div class="mode-icon">🔗</div>
                         <h3>Join Game</h3>
                         <p>Enter a friend's 6-character game code to join their pack adventure</p>
-                        <input type="text" id="joinCodeInput" placeholder="Enter game code..." class="mode-input" maxlength="6" disabled>
+                        <input type="text" id="joinCodeInput" placeholder="Enter game code..." class="mode-input" maxlength="6" disabled autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" style="text-transform: uppercase; letter-spacing: 2px;">
                         <button class="btn btn-primary" id="joinGameBtn" disabled>Join Game</button>
                     </div>
                 </div>
