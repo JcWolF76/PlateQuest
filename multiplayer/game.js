@@ -350,6 +350,14 @@ function stateMapToCount(statesMap) {
     return Object.keys(statesMap || {}).length;
 }
 
+function getPackUniqueStatesCount() {
+    const uniqueStates = new Set();
+    Object.values(playersData || {}).forEach((player) => {
+        Object.keys(player?.states || {}).forEach((stateName) => uniqueStates.add(stateName));
+    });
+    return uniqueStates.size;
+}
+
 function buildPlayerRoomRecord(player, options = {}) {
     const now = firebase.database.ServerValue.TIMESTAMP;
     return {
@@ -1029,10 +1037,11 @@ function updateConnectionBadgeText() {
     }
 
     const me = playersData[currentPlayer.playerKey];
+    const packCount = getPackUniqueStatesCount();
     if (currentConnectionState !== 'online') {
         statusText.textContent = 'Offline - reconnecting…';
     } else if (me && me.connected) {
-        statusText.textContent = `Pack Connected • ${stateMapToCount(me.states)} plates`;
+        statusText.textContent = `Pack Connected • ${packCount} plates`;
     } else {
         statusText.textContent = 'Rejoining pack…';
     }
