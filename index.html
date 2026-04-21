@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlateQuest - License Plate Adventure</title>
     
-    <!-- Firebase SDK - FIXED for Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
@@ -52,7 +51,6 @@
             z-index: 2;
         }
 
-        /* Splash Screen */
         #splash {
             display: flex;
             flex-direction: column;
@@ -193,7 +191,6 @@
             box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
         }
 
-        /* Game Interface */
         #game {
             display: none;
             background: linear-gradient(145deg, rgba(44, 62, 80, 0.95), rgba(52, 73, 94, 0.95));
@@ -325,7 +322,6 @@
             color: #ecf0f1;
         }
 
-        /* Game Mode Selection */
         .mode-selection {
             display: flex;
             gap: 20px;
@@ -378,7 +374,6 @@
             left: 100%;
         }
 
-        /* Score Section */
         .score-section {
             background: linear-gradient(45deg, #27ae60, #2ecc71);
             color: white;
@@ -413,13 +408,12 @@
             box-shadow: 0 0 20px rgba(241, 196, 15, 0.5);
         }
 
-        /* Enhanced sections for game modes */
         .contributor-section, .challenge-section {
             background: linear-gradient(145deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.1));
             border: 1px solid rgba(39, 174, 96, 0.3);
             border-radius: 15px;
             padding: 20px;
-            margin: 20px 0;
+            margin: 20px 30px 0;
         }
 
         .contributor-badge {
@@ -457,7 +451,6 @@
             color: #3498db;
         }
 
-        /* States Grid */
         .states-section {
             padding: 30px;
         }
@@ -581,7 +574,6 @@
             border-radius: 6px;
         }
 
-        /* Action Buttons */
         .actions-section {
             padding: 30px;
             border-top: 1px solid rgba(52, 152, 219, 0.2);
@@ -591,7 +583,6 @@
             justify-content: center;
         }
 
-        /* Share Modal */
         .share-modal {
             position: fixed;
             top: 0;
@@ -720,7 +711,6 @@
             flex: 1;
         }
 
-        /* Share Section */
         .share-section {
             background: linear-gradient(145deg, rgba(44, 62, 80, 0.9), rgba(52, 73, 94, 0.9));
             padding: 30px;
@@ -744,7 +734,6 @@
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
         }
 
-        /* Loading overlay */
         #loadingOverlay {
             position: fixed;
             top: 0;
@@ -783,7 +772,6 @@
             animation: slideInToast 0.3s ease;
         }
 
-        /* Debug Panel */
         .debug-panel {
             position: fixed;
             top: 10px;
@@ -797,7 +785,6 @@
             border: 1px solid #3498db;
         }
 
-        /* Animations */
         @keyframes slideInUp {
             from {
                 transform: translateY(30px);
@@ -810,22 +797,10 @@
         }
 
         @keyframes celebrate {
-            0%, 100% { 
-                transform: scale(1) rotate(0deg);
-                filter: brightness(1);
-            }
-            25% { 
-                transform: scale(1.1) rotate(-3deg);
-                filter: brightness(1.2);
-            }
-            50% { 
-                transform: scale(1.15) rotate(0deg);
-                filter: brightness(1.3);
-            }
-            75% { 
-                transform: scale(1.1) rotate(3deg);
-                filter: brightness(1.2);
-            }
+            0%, 100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+            25% { transform: scale(1.1) rotate(-3deg); filter: brightness(1.2); }
+            50% { transform: scale(1.15) rotate(0deg); filter: brightness(1.3); }
+            75% { transform: scale(1.1) rotate(3deg); filter: brightness(1.2); }
         }
 
         @keyframes pulse {
@@ -855,7 +830,6 @@
             animation-delay: 0.2s;
         }
 
-        /* Responsive Design */
         @media (max-width: 768px) {
             .container {
                 padding: 15px;
@@ -905,7 +879,6 @@
             }
         }
 
-        /* Steel textures and effects */
         .steel-texture {
             background: 
                 linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.1) 50%, transparent 51%),
@@ -916,7 +889,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Splash Screen -->
         <div id="splash">
             <div class="logo-container">
                 <img src="platequest-final-logo.jpeg" alt="PlateQuest Logo" class="logo">
@@ -941,22 +913,18 @@
             <p style="margin-top: 30px; opacity: 0.7; font-style: italic;">Created by JcWoLF76</p>
         </div>
 
-        <!-- Game Interface -->
         <div id="game">
-            <!-- Header -->
             <div class="game-header">
                 <div class="game-title" id="gameTitle">PlateQuest Adventure</div>
                 <div class="game-subtitle">Find all 50 state license plates!</div>
             </div>
 
-            <!-- Controls -->
             <div class="controls-section steel-texture">
-                <!-- Profile Controls -->
                 <div class="control-group">
                     <label>👤 Player Profile</label>
                     <div class="input-row">
                         <select id="profileSelect" style="flex: 1; min-width: 200px;">
-                            <option>Select Profile...</option>
+                            <option value="">Select Profile...</option>
                         </select>
                         <input type="text" id="newProfileInput" placeholder="Create new profile..." style="flex: 1; min-width: 200px;">
                         <button class="btn btn-primary" id="createProfileBtn">Create</button>
@@ -964,19 +932,17 @@
                     </div>
                 </div>
 
-                <!-- Trip Controls -->
                 <div class="control-group">
                     <label>🗺️ Trip Adventure</label>
                     <div class="input-row">
                         <select id="tripSelect" style="flex: 1; min-width: 200px;">
-                            <option>Select Trip...</option>
+                            <option value="">Select Trip...</option>
                         </select>
                         <input type="text" id="newTripInput" placeholder="Name your adventure..." style="flex: 1; min-width: 200px;">
                         <button class="btn btn-primary" id="createTripBtn">Create</button>
                     </div>
                 </div>
 
-                <!-- Game Mode -->
                 <div class="control-group">
                     <label>🎮 Game Mode</label>
                     <div class="mode-selection">
@@ -1005,7 +971,6 @@
                 </div>
             </div>
 
-            <!-- Score Display -->
             <div class="score-section">
                 <div class="score-display" id="scoreDisplay">Found 0 of 50 plates (0%)</div>
                 <div class="progress-bar">
@@ -1013,16 +978,12 @@
                 </div>
             </div>
 
-            <!-- States Grid -->
             <div class="states-section">
                 <h3 style="margin-bottom: 15px; color: #3498db; font-size: 24px;">🗺️ State License Plates</h3>
                 <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">Tap any state when you spot their license plate!</p>
-                <div class="states-grid" id="statesGrid">
-                    <!-- States will be populated by JavaScript -->
-                </div>
+                <div class="states-grid" id="statesGrid"></div>
             </div>
 
-            <!-- Action Buttons -->
             <div class="actions-section">
                 <button class="btn btn-secondary" id="resetBtn">🔄 Reset Trip</button>
                 <button class="btn btn-primary" id="shareBtn">📤 Share Trip</button>
@@ -1031,7 +992,6 @@
                 <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
             </div>
 
-            <!-- Share Section -->
             <div class="share-section" id="shareSection" style="display: none;">
                 <h3 style="color: #3498db; margin-bottom: 15px;">📤 Export Your Adventure</h3>
                 <p style="color: #bdc3c7;">Copy this code to share or backup your progress:</p>
@@ -1043,14 +1003,12 @@
             </div>
         </div>
 
-        <!-- Loading Overlay -->
         <div id="loadingOverlay">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading...</div>
         </div>
     </div>
 
-    <!-- Debug Panel (remove after testing) -->
     <div id="debugPanel" class="debug-panel" style="display: none;">
         <div><strong>🔧 Firebase Debug</strong></div>
         <div>Firebase SDK: <span id="firebaseStatus">❓</span></div>
@@ -1061,7 +1019,6 @@
     </div>
 
     <script>
-        // Firebase Configuration - FIXED for Realtime Database
         const firebaseConfig = {
             apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
             authDomain: "platequest-multiplayer.firebaseapp.com",
@@ -1072,7 +1029,6 @@
             appId: "1:109596979102:web:586740c408daec71af708f"
         };
 
-        // State data with abbreviations for flag images
         const statesData = [
             { name: "Alabama", abbr: "AL" },
             { name: "Alaska", abbr: "AK" },
@@ -1126,42 +1082,26 @@
             { name: "Wyoming", abbr: "WY" }
         ];
 
-        // Game state
-        let currentProfile = null;
-        let currentTrip = null;
-        let selectedStates = [];
-        let currentGameMode = 'solo';
-        let database = null;  // CHANGED: using Realtime Database
-        let cloudEnabled = false;
-        let challengeStartTime = null;
-        let challengeTimer = null;
-
-        // Mode configurations
-        const gameModes = {
-            solo: {
-                name: "Solo Adventure",
-                description: "Track your personal progress",
-                allowMultipleContributors: false,
-                showPersonalStats: true,
-                trackBestTimes: false
-            },
-            collab: {
-                name: "Family Mode", 
-                description: "Everyone contributes to shared progress",
-                allowMultipleContributors: true,
-                showPersonalStats: false,
-                trackBestTimes: false
-            },
-            versus: {
-                name: "Challenge Mode",
-                description: "Track personal best and compete",
-                allowMultipleContributors: false,
-                showPersonalStats: true,
-                trackBestTimes: true
-            }
+        const STORAGE_KEYS = {
+            profiles: 'platequest_profiles_v2',
+            trips: 'platequest_trips_v2',
+            darkMode: 'platequest_dark_mode'
         };
 
-        // DOM elements
+        const gameModes = {
+            solo: { name: 'Solo Adventure', allowMultipleContributors: false, trackBestTimes: false },
+            collab: { name: 'Family Mode', allowMultipleContributors: true, trackBestTimes: false },
+            versus: { name: 'Challenge Mode', allowMultipleContributors: false, trackBestTimes: true }
+        };
+
+        let currentProfileId = null;
+        let currentTripId = null;
+        let currentGameMode = 'solo';
+        let database = null;
+        let cloudEnabled = false;
+        let currentTripData = null;
+        let challengeTimer = null;
+
         const splash = document.getElementById('splash');
         const game = document.getElementById('game');
         const profileSelect = document.getElementById('profileSelect');
@@ -1172,35 +1112,166 @@
         const shareSection = document.getElementById('shareSection');
         const exportBox = document.getElementById('exportBox');
 
-        // FIXED: Initialize Firebase for Realtime Database
-        function initializeCloudSharing() {
+        function readJSON(key, fallback) {
             try {
-                if (typeof firebase !== 'undefined') {
-                    if (!firebase.apps.length) {
-                        firebase.initializeApp(firebaseConfig);
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallback;
+            } catch (error) {
+                console.warn(`Could not read ${key}`, error);
+                return fallback;
+            }
+        }
+
+        function writeJSON(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+
+        function getProfiles() {
+            return readJSON(STORAGE_KEYS.profiles, []);
+        }
+
+        function saveProfiles(profiles) {
+            writeJSON(STORAGE_KEYS.profiles, profiles);
+        }
+
+        function getTrips() {
+            return readJSON(STORAGE_KEYS.trips, {});
+        }
+
+        function saveTrips(trips) {
+            writeJSON(STORAGE_KEYS.trips, trips);
+        }
+
+        function slugify(value) {
+            return String(value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .slice(0, 40);
+        }
+
+        function createId(prefix) {
+            return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        }
+
+        function getCurrentProfile() {
+            return getProfiles().find(profile => profile.id === currentProfileId) || null;
+        }
+
+        function getProfileTrips(profileId) {
+            const allTrips = getTrips();
+            return Object.values(allTrips)
+                .filter(trip => trip.profileId === profileId)
+                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        }
+
+        function normalizeTripRecord(trip) {
+            if (!trip) return null;
+
+            let states = trip.states || {};
+            if (Array.isArray(states)) {
+                const converted = {};
+                states.forEach((entry) => {
+                    if (typeof entry === 'string') {
+                        converted[entry] = {
+                            state: entry,
+                            foundBy: trip.profileName || 'Player',
+                            foundAt: new Date().toISOString(),
+                            mode: trip.mode || 'solo'
+                        };
+                    } else if (entry && entry.state) {
+                        converted[entry.state] = {
+                            state: entry.state,
+                            foundBy: entry.foundBy || trip.profileName || 'Player',
+                            foundAt: entry.foundAt || new Date().toISOString(),
+                            mode: entry.mode || trip.mode || 'solo'
+                        };
                     }
-                    database = firebase.database();  // CHANGED: using database() instead of firestore()
-                    
-                    // Test the connection
-                    testFirebaseConnection().then(connected => {
-                        if (connected) {
-                            cloudEnabled = true;
-                            showCloudFeatures();
-                            console.log('✅ Cloud sharing enabled with Realtime Database');
-                            updateDebugStatus();
-                        } else {
-                            cloudEnabled = false;
-                            showOfflineFeatures();
-                            console.warn('❌ Firebase connection failed');
-                            updateDebugStatus();
-                        }
-                    });
-                } else {
-                    console.warn('Firebase SDK not loaded');
+                });
+                states = converted;
+            }
+
+            if (typeof states === 'object' && !Array.isArray(states)) {
+                const normalizedStates = {};
+                Object.entries(states).forEach(([stateName, value]) => {
+                    normalizedStates[stateName] = {
+                        state: stateName,
+                        foundBy: value?.foundBy || trip.profileName || 'Player',
+                        foundAt: value?.foundAt || new Date().toISOString(),
+                        mode: value?.mode || trip.mode || 'solo'
+                    };
+                });
+                states = normalizedStates;
+            }
+
+            return {
+                id: trip.id,
+                profileId: trip.profileId,
+                name: trip.name,
+                mode: trip.mode || 'solo',
+                contributors: Array.isArray(trip.contributors) && trip.contributors.length ? trip.contributors : [trip.profileName || 'Player'],
+                states,
+                challengeStartTime: trip.challengeStartTime || null,
+                personalBestDays: trip.personalBestDays || null,
+                createdAt: trip.createdAt || Date.now(),
+                updatedAt: trip.updatedAt || Date.now(),
+                importedFrom: trip.importedFrom || null,
+                shareCode: trip.shareCode || null,
+                profileName: trip.profileName || ''
+            };
+        }
+
+        function persistCurrentTrip() {
+            if (!currentTripData || !currentTripId) return;
+            const trips = getTrips();
+            currentTripData.updatedAt = Date.now();
+            trips[currentTripId] = currentTripData;
+            saveTrips(trips);
+        }
+
+        function loadCurrentTrip() {
+            if (!currentTripId) {
+                currentTripData = null;
+                return;
+            }
+            const trips = getTrips();
+            currentTripData = normalizeTripRecord(trips[currentTripId]);
+            if (currentTripData) {
+                currentGameMode = currentTripData.mode || 'solo';
+            }
+        }
+
+        function getSelectedStatesCount() {
+            return Object.keys(currentTripData?.states || {}).length;
+        }
+
+        function updateDebugStatus() {
+            document.getElementById('firebaseStatus').textContent = typeof firebase !== 'undefined' ? '✅' : '❌';
+            document.getElementById('databaseStatus').textContent = database ? '✅' : '❌';
+            document.getElementById('connectionStatus').textContent = cloudEnabled ? '✅' : '❌';
+        }
+
+        function showDebugPanel() {
+            document.getElementById('debugPanel').style.display = 'block';
+            updateDebugStatus();
+        }
+
+        async function initializeCloudSharing() {
+            try {
+                if (typeof firebase === 'undefined') {
                     cloudEnabled = false;
-                    showOfflineFeatures();
                     updateDebugStatus();
+                    showOfflineFeatures();
+                    return;
                 }
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                database = firebase.database();
+                cloudEnabled = true;
+                showCloudFeatures();
+                updateDebugStatus();
             } catch (error) {
                 console.warn('Cloud sharing unavailable:', error);
                 cloudEnabled = false;
@@ -1209,163 +1280,199 @@
             }
         }
 
-        // Test function to verify connection
-        async function testFirebaseConnection() {
-            try {
-                const snapshot = await database.ref('.info/connected').once('value');
-                return snapshot.val() === true;
-            } catch (error) {
-                console.error('Firebase connection test failed:', error);
-                return false;
-            }
-        }
-
-        // Debug functions (remove after testing)
-        function showDebugPanel() {
-            document.getElementById('debugPanel').style.display = 'block';
-            updateDebugStatus();
-        }
-
-        function updateDebugStatus() {
-            document.getElementById('firebaseStatus').textContent = typeof firebase !== 'undefined' ? '✅' : '❌';
-            document.getElementById('databaseStatus').textContent = database ? '✅' : '❌';
-            
-            if (database) {
-                database.ref('.info/connected').once('value', (snapshot) => {
-                    document.getElementById('connectionStatus').textContent = snapshot.val() ? '✅' : '❌';
-                });
-            } else {
-                document.getElementById('connectionStatus').textContent = '❌';
-            }
-        }
-
         async function testConnection() {
             updateDebugStatus();
-            if (database) {
-                try {
-                    const snapshot = await database.ref('.info/connected').once('value');
-                    alert(`Connection test: ${snapshot.val() ? 'SUCCESS ✅' : 'FAILED ❌'}`);
-                } catch (error) {
-                    alert(`Connection test: FAILED ❌\n${error.message}`);
-                }
-            } else {
+            if (!database) {
                 alert('Database not initialized ❌');
+                return;
+            }
+            try {
+                await database.ref('_platequestHealthcheck').set({ checkedAt: Date.now() });
+                alert('Connection test: SUCCESS ✅');
+            } catch (error) {
+                alert(`Connection test: FAILED ❌\n${error.message}`);
             }
         }
-
-        // Initialize game
-        document.addEventListener('DOMContentLoaded', function() {
-            // Event listeners
-            document.getElementById('startBtn').addEventListener('click', startGame);
-            document.getElementById('createProfileBtn').addEventListener('click', createProfile);
-            document.getElementById('deleteProfileBtn').addEventListener('click', deleteProfile);
-            document.getElementById('createTripBtn').addEventListener('click', createTrip);
-            document.getElementById('resetBtn').addEventListener('click', resetTrip);
-            document.getElementById('shareBtn').addEventListener('click', shareTrip);
-            document.getElementById('importBtn').addEventListener('click', loadSharedTrip);
-            document.getElementById('exportBtn').addEventListener('click', showExport);
-            document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
-            document.getElementById('copyExportBtn').addEventListener('click', copyExport);
-            document.getElementById('hideShareBtn').addEventListener('click', hideShare);
-
-            profileSelect.addEventListener('change', selectProfile);
-            tripSelect.addEventListener('change', selectTrip);
-
-            // Game mode listeners
-            const modeInputs = document.querySelectorAll('input[name="mode"]');
-            modeInputs.forEach(input => {
-                input.addEventListener('change', function() {
-                    if (this.checked) {
-                        currentGameMode = this.value;
-                        updateGameModeUI();
-                        updateScore();
-                    }
-                });
-            });
-
-            // Initialize cloud features
-            setTimeout(initializeCloudSharing, 1000);
-            
-            // Show debug panel temporarily
-            setTimeout(showDebugPanel, 2000);
-            
-            // Check for shared trip in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('share')) {
-                setTimeout(() => loadSharedTrip(), 1500);
-            }
-
-            // Initialize dark mode from saved preference
-            if (localStorage.getItem('platequest_dark_mode') === 'true') {
-                document.body.classList.add('dark');
-                document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
-            }
-
-            // Auto-detect system dark mode preference
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                if (!localStorage.getItem('platequest_dark_mode')) {
-                    document.body.classList.add('dark');
-                    document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
-                }
-            }
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
-                if (e.ctrlKey || e.metaKey) {
-                    switch(e.key) {
-                        case 's':
-                            e.preventDefault();
-                            shareTrip();
-                            break;
-                        case 'l':
-                            e.preventDefault();
-                            loadSharedTrip();
-                            break;
-                        case 'r':
-                            e.preventDefault();
-                            if (confirm('Reset current trip?')) {
-                                resetTrip();
-                            }
-                            break;
-                    }
-                }
-            });
-        });
 
         function startGame() {
             splash.style.display = 'none';
             game.style.display = 'block';
-            loadProfiles();
+            loadProfilesIntoUI();
             renderStates();
         }
 
-        // Game Mode Functions
+        function loadProfilesIntoUI() {
+            const profiles = getProfiles();
+            profileSelect.innerHTML = '<option value="">Select Profile...</option>';
+            profiles.forEach(profile => {
+                profileSelect.add(new Option(profile.name, profile.id));
+            });
+
+            if (currentProfileId && profiles.some(profile => profile.id === currentProfileId)) {
+                profileSelect.value = currentProfileId;
+            } else if (profiles.length) {
+                currentProfileId = profiles[0].id;
+                profileSelect.value = currentProfileId;
+            } else {
+                currentProfileId = null;
+            }
+
+            loadTripsIntoUI();
+        }
+
+        function loadTripsIntoUI() {
+            tripSelect.innerHTML = '<option value="">Select Trip...</option>';
+            if (!currentProfileId) {
+                currentTripId = null;
+                currentTripData = null;
+                updateGameModeUI();
+                updateScore();
+                updateGameTitle();
+                renderStates();
+                return;
+            }
+
+            const trips = getProfileTrips(currentProfileId);
+            trips.forEach(trip => {
+                tripSelect.add(new Option(trip.name, trip.id));
+            });
+
+            if (currentTripId && trips.some(trip => trip.id === currentTripId)) {
+                tripSelect.value = currentTripId;
+            } else if (trips.length) {
+                currentTripId = trips[0].id;
+                tripSelect.value = currentTripId;
+            } else {
+                currentTripId = null;
+            }
+
+            loadCurrentTrip();
+            updateGameModeUI();
+            updateScore();
+            updateGameTitle();
+            renderStates();
+        }
+
+        function createProfile() {
+            const name = document.getElementById('newProfileInput').value.trim();
+            if (!name) {
+                alert('Please enter a profile name!');
+                return;
+            }
+
+            const profiles = getProfiles();
+            if (profiles.some(profile => profile.name.toLowerCase() === name.toLowerCase())) {
+                alert('That profile already exists.');
+                return;
+            }
+
+            const profile = { id: createId('profile'), name, createdAt: Date.now() };
+            profiles.push(profile);
+            saveProfiles(profiles);
+            currentProfileId = profile.id;
+            document.getElementById('newProfileInput').value = '';
+            loadProfilesIntoUI();
+            updateGameTitle();
+        }
+
+        function deleteProfile() {
+            if (!currentProfileId) {
+                alert('Please select a profile to delete!');
+                return;
+            }
+
+            const profile = getCurrentProfile();
+            if (!confirm(`Delete profile "${profile?.name}" and all their trips?`)) return;
+
+            const remainingProfiles = getProfiles().filter(item => item.id !== currentProfileId);
+            saveProfiles(remainingProfiles);
+
+            const trips = getTrips();
+            Object.keys(trips).forEach(tripId => {
+                if (trips[tripId].profileId === currentProfileId) {
+                    delete trips[tripId];
+                }
+            });
+            saveTrips(trips);
+
+            currentProfileId = null;
+            currentTripId = null;
+            currentTripData = null;
+            loadProfilesIntoUI();
+        }
+
+        function createTrip() {
+            if (!currentProfileId) {
+                alert('Please create or select a profile first!');
+                return;
+            }
+
+            const name = document.getElementById('newTripInput').value.trim();
+            if (!name) {
+                alert('Please enter a trip name!');
+                return;
+            }
+
+            const profile = getCurrentProfile();
+            const date = new Date();
+            const suffix = `_${date.getMonth() + 1}-${date.getDate()}-${String(date.getFullYear()).slice(-2)}`;
+            const fullName = name + suffix;
+            const tripId = createId(`trip_${slugify(fullName)}`);
+            currentTripData = normalizeTripRecord({
+                id: tripId,
+                profileId: currentProfileId,
+                profileName: profile?.name || '',
+                name: fullName,
+                mode: currentGameMode,
+                contributors: [profile?.name || 'Player'],
+                states: {},
+                challengeStartTime: currentGameMode === 'versus' ? Date.now() : null,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            });
+            currentTripId = tripId;
+            persistCurrentTrip();
+            document.getElementById('newTripInput').value = '';
+            loadTripsIntoUI();
+        }
+
+        function selectProfile() {
+            currentProfileId = profileSelect.value || null;
+            currentTripId = null;
+            currentTripData = null;
+            loadTripsIntoUI();
+        }
+
+        function selectTrip() {
+            currentTripId = tripSelect.value || null;
+            loadCurrentTrip();
+            updateGameModeUI();
+            updateScore();
+            updateGameTitle();
+            renderStates();
+        }
+
         function updateGameModeUI() {
-            const mode = gameModes[currentGameMode];
-            
-            // Update body class for styling
             document.body.className = document.body.className.replace(/\b\w+-mode-active\b/g, '');
             document.body.classList.add(`${currentGameMode}-mode-active`);
-            
-            // Update UI based on mode
-            if (mode.allowMultipleContributors) {
+
+            const modeRadio = document.querySelector(`input[name="mode"][value="${currentGameMode}"]`);
+            if (modeRadio) modeRadio.checked = true;
+
+            if (gameModes[currentGameMode].allowMultipleContributors) {
                 showCollaborativeFeatures();
             } else {
                 hideCollaborativeFeatures();
             }
-            
-            if (mode.trackBestTimes) {
+
+            if (gameModes[currentGameMode].trackBestTimes) {
                 showChallengeFeatures();
             } else {
                 hideChallengeFeatures();
             }
-            
-            // Update game title to reflect mode
-            updateGameTitle();
         }
 
         function showCollaborativeFeatures() {
-            // Add contributor tracking
             let contributorSection = document.getElementById('contributorSection');
             if (!contributorSection) {
                 contributorSection = document.createElement('div');
@@ -1376,25 +1483,17 @@
                     <div id="contributorList"></div>
                     <button class="btn btn-secondary" onclick="addContributor()" style="margin-top: 10px;">+ Add Family Member</button>
                 `;
-                
-                // Insert after score section
-                const scoreSection = document.querySelector('.score-section');
-                if (scoreSection) {
-                    scoreSection.insertAdjacentElement('afterend', contributorSection);
-                }
+                document.querySelector('.score-section').insertAdjacentElement('afterend', contributorSection);
             }
             updateContributorList();
         }
 
         function hideCollaborativeFeatures() {
             const contributorSection = document.getElementById('contributorSection');
-            if (contributorSection) {
-                contributorSection.remove();
-            }
+            if (contributorSection) contributorSection.remove();
         }
 
         function showChallengeFeatures() {
-            // Add challenge statistics
             let challengeSection = document.getElementById('challengeSection');
             if (!challengeSection) {
                 challengeSection = document.createElement('div');
@@ -1405,145 +1504,95 @@
                     <div class="challenge-stats">
                         <div class="stat-card">
                             <div class="stat-label">Personal Best</div>
-                            <div class="stat-value" id="personalBest">${getPersonalBest()}</div>
+                            <div class="stat-value" id="personalBest">None</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Current Time</div>
-                            <div class="stat-value" id="currentTime">${getCurrentTripTime()}</div>
+                            <div class="stat-value" id="currentTime">Not started</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">States/Day Avg</div>
-                            <div class="stat-value" id="dailyAverage">${getDailyAverage()}</div>
+                            <div class="stat-value" id="dailyAverage">0.0</div>
                         </div>
                     </div>
                 `;
-                
-                // Insert after score section
-                const scoreSection = document.querySelector('.score-section');
-                if (scoreSection) {
-                    scoreSection.insertAdjacentElement('afterend', challengeSection);
-                }
+                document.querySelector('.score-section').insertAdjacentElement('afterend', challengeSection);
             }
-            
-            // Start timing
-            startChallengeTimer();
+            ensureChallengeStartTime();
+            updateChallengeStats();
+            if (challengeTimer) clearInterval(challengeTimer);
+            challengeTimer = setInterval(updateChallengeStats, 60000);
         }
 
         function hideChallengeFeatures() {
             const challengeSection = document.getElementById('challengeSection');
-            if (challengeSection) {
-                challengeSection.remove();
-            }
-            stopChallengeTimer();
-        }
-
-        // Challenge mode timing functions
-        function startChallengeTimer() {
-            const tripKey = `profile_${currentProfile}_trip_${currentTrip}`;
-            const startTimeKey = `${tripKey}_startTime`;
-            
-            // Get or set start time
-            challengeStartTime = localStorage.getItem(startTimeKey);
-            if (!challengeStartTime) {
-                challengeStartTime = Date.now();
-                localStorage.setItem(startTimeKey, challengeStartTime);
-            } else {
-                challengeStartTime = parseInt(challengeStartTime);
-            }
-            
-            // Update timer every minute
-            challengeTimer = setInterval(updateChallengeTimer, 60000);
-            updateChallengeTimer(); // Initial update
-        }
-
-        function stopChallengeTimer() {
+            if (challengeSection) challengeSection.remove();
             if (challengeTimer) {
                 clearInterval(challengeTimer);
                 challengeTimer = null;
             }
         }
 
-        function updateChallengeTimer() {
-            const currentTimeElement = document.getElementById('currentTime');
-            if (currentTimeElement && challengeStartTime) {
-                const elapsed = Date.now() - challengeStartTime;
-                const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((elapsed % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                currentTimeElement.textContent = `${days}d ${hours}h`;
+        function ensureChallengeStartTime() {
+            if (!currentTripData) return;
+            if (!currentTripData.challengeStartTime) {
+                currentTripData.challengeStartTime = Date.now();
+                persistCurrentTrip();
             }
         }
 
-        function getPersonalBest() {
-            const bestKey = `profile_${currentProfile}_personalBest`;
-            const best = localStorage.getItem(bestKey);
-            return best ? `${best} days` : 'None';
-        }
+        function updateChallengeStats() {
+            if (!currentTripData) return;
+            const bestEl = document.getElementById('personalBest');
+            const currentEl = document.getElementById('currentTime');
+            const avgEl = document.getElementById('dailyAverage');
+            if (!bestEl || !currentEl || !avgEl) return;
 
-        function getCurrentTripTime() {
-            return challengeStartTime ? 'Tracking...' : 'Not started';
-        }
-
-        function getDailyAverage() {
-            if (!challengeStartTime) return '0';
-            const elapsed = Date.now() - challengeStartTime;
-            const days = elapsed / (1000 * 60 * 60 * 24);
-            const average = selectedStates.length / Math.max(days, 1);
-            return average.toFixed(1);
-        }
-
-        // Collaborative mode functions
-        function getCurrentContributor() {
-            // In collaborative mode, ask who found it
-            if (currentGameMode === 'collab') {
-                const contributors = getContributors();
-                if (contributors.length === 1) {
-                    return contributors[0];
-                }
-                
-                // Simple prompt for now - could be enhanced with a modal
-                const contributor = prompt(`Who found this state?\n\nContributors: ${contributors.join(', ')}`);
-                return contributor && contributors.includes(contributor) ? contributor : contributors[0];
+            bestEl.textContent = currentTripData.personalBestDays != null ? `${currentTripData.personalBestDays} days` : 'None';
+            if (!currentTripData.challengeStartTime) {
+                currentEl.textContent = 'Not started';
+                avgEl.textContent = '0.0';
+                return;
             }
-            return currentProfile;
+
+            const elapsed = Date.now() - currentTripData.challengeStartTime;
+            const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((elapsed % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            currentEl.textContent = `${days}d ${hours}h`;
+            const average = getSelectedStatesCount() / Math.max(elapsed / (1000 * 60 * 60 * 24), 1);
+            avgEl.textContent = average.toFixed(1);
         }
 
         function getContributors() {
-            const tripKey = `profile_${currentProfile}_trip_${currentTrip}_contributors`;
-            const contributors = localStorage.getItem(tripKey);
-            return contributors ? JSON.parse(contributors) : [currentProfile];
+            return Array.isArray(currentTripData?.contributors) && currentTripData.contributors.length
+                ? currentTripData.contributors
+                : [getCurrentProfile()?.name || 'Player'];
         }
 
         function addContributor() {
+            if (!currentTripData) {
+                alert('Please create or select a trip first!');
+                return;
+            }
             const name = prompt('Enter family member name:');
-            if (name && name.trim()) {
-                const contributors = getContributors();
-                if (!contributors.includes(name.trim())) {
-                    contributors.push(name.trim());
-                    const tripKey = `profile_${currentProfile}_trip_${currentTrip}_contributors`;
-                    localStorage.setItem(tripKey, JSON.stringify(contributors));
-                    updateContributorList();
-                }
+            if (!name || !name.trim()) return;
+            const cleaned = name.trim();
+            if (!currentTripData.contributors.includes(cleaned)) {
+                currentTripData.contributors.push(cleaned);
+                persistCurrentTrip();
+                updateContributorList();
             }
         }
 
         function updateContributorList() {
             const listElement = document.getElementById('contributorList');
-            if (listElement) {
-                const contributors = getContributors();
-                listElement.innerHTML = contributors.map(name => 
-                    `<span class="contributor-badge">${name}</span>`
-                ).join('');
-            }
+            if (!listElement) return;
+            listElement.innerHTML = getContributors().map(name => `<span class="contributor-badge">${name}</span>`).join('');
         }
 
         function addContributorBadge(cardElement, contributor) {
-            // Remove existing badge
             const existingBadge = cardElement.querySelector('.contributor-badge');
-            if (existingBadge) {
-                existingBadge.remove();
-            }
-            
-            // Add new badge
+            if (existingBadge) existingBadge.remove();
             const badge = document.createElement('div');
             badge.className = 'contributor-badge';
             badge.textContent = contributor.charAt(0).toUpperCase();
@@ -1551,303 +1600,97 @@
             cardElement.appendChild(badge);
         }
 
-        // Profile and trip management
-        function createProfile() {
-            const name = document.getElementById('newProfileInput').value.trim();
-            if (!name) {
-                alert('Please enter a profile name!');
-                return;
-            }
-            
-            const option = new Option(name, name);
-            profileSelect.add(option);
-            profileSelect.value = name;
-            currentProfile = name;
-            
-            document.getElementById('newProfileInput').value = '';
-            loadTrips();
-            updateGameTitle();
-        }
-
-        function deleteProfile() {
-            if (!currentProfile) {
-                alert('Please select a profile to delete!');
-                return;
-            }
-            
-            if (!confirm(`Delete profile "${currentProfile}" and all their trips?`)) return;
-            
-            // Remove all data for this profile
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith(`profile_${currentProfile}_`)) {
-                    localStorage.removeItem(key);
-                }
-            });
-            
-            loadProfiles();
-            selectedStates = [];
-            renderStates();
-            updateScore();
-        }
-
-        function createTrip() {
-            if (!currentProfile) {
-                alert('Please create or select a profile first!');
-                return;
-            }
-            
-            const name = document.getElementById('newTripInput').value.trim();
-            if (!name) {
-                alert('Please enter a trip name!');
-                return;
-            }
-            
-            // Add date suffix
-            const date = new Date();
-            const suffix = `_${date.getMonth()+1}-${date.getDate()}-${String(date.getFullYear()).slice(-2)}`;
-            const fullName = name + suffix;
-            
-            const option = new Option(fullName, fullName);
-            tripSelect.add(option);
-            tripSelect.value = fullName;
-            currentTrip = fullName;
-            
-            document.getElementById('newTripInput').value = '';
-            selectedStates = [];
-            saveStates();
-            renderStates();
-            updateScore();
-            updateGameTitle();
-            
-            // Initialize challenge timer if in challenge mode
-            if (currentGameMode === 'versus') {
-                startChallengeTimer();
-            }
-        }
-
-        function selectProfile() {
-            currentProfile = profileSelect.value;
-            loadTrips();
-            updateGameTitle();
-        }
-
-        function selectTrip() {
-            currentTrip = tripSelect.value;
-            loadStates();
-            updateGameTitle();
-        }
-
-        function loadProfiles() {
-            const profiles = new Set();
-            Object.keys(localStorage).forEach(key => {
-                const match = key.match(/^profile_(.*?)_trip_/);
-                if (match) profiles.add(match[1]);
-            });
-            
-            profileSelect.innerHTML = '<option value="">Select Profile...</option>';
-            profiles.forEach(profile => {
-                profileSelect.add(new Option(profile, profile));
-            });
-            
-            if (profiles.size) {
-                profileSelect.value = Array.from(profiles)[0];
-                currentProfile = profileSelect.value;
-                loadTrips();
-            }
-        }
-
-        function loadTrips() {
-            if (!currentProfile) return;
-            
-            const trips = new Set();
-            Object.keys(localStorage).forEach(key => {
-                const match = key.match(new RegExp(`^profile_${currentProfile}_trip_(.*?)$`));
-                if (match && !key.includes('_contributors') && !key.includes('_startTime')) {
-                    trips.add(match[1]);
-                }
-            });
-            
-            tripSelect.innerHTML = '<option value="">Select Trip...</option>';
-            trips.forEach(trip => {
-                tripSelect.add(new Option(trip, trip));
-            });
-            
-            if (trips.size) {
-                tripSelect.value = Array.from(trips)[0];
-                currentTrip = tripSelect.value;
-                loadStates();
-            }
-        }
-
-        function saveStates() {
-            if (!currentProfile || !currentTrip) return;
-            const key = `profile_${currentProfile}_trip_${currentTrip}`;
-            localStorage.setItem(key, JSON.stringify(selectedStates));
-        }
-
-        function loadStates() {
-            if (!currentProfile || !currentTrip) return;
-            const key = `profile_${currentProfile}_trip_${currentTrip}`;
-            const saved = localStorage.getItem(key);
-            selectedStates = saved ? JSON.parse(saved) : [];
-            renderStates();
-            updateScore();
-            updateGameModeUI();
-        }
-
         function renderStates() {
             statesGrid.innerHTML = '';
-            
+            const states = currentTripData?.states || {};
+
             statesData.forEach((state, index) => {
                 const card = document.createElement('div');
                 card.className = 'state-card';
-                
-                // Check if state is selected (handle both old string format and new object format)
-                let isSelected = false;
-                let foundBy = null;
-                
-                if (currentGameMode === 'collab' && Array.isArray(selectedStates) && selectedStates[0]?.state) {
-                    // New collaborative format
-                    const stateData = selectedStates.find(s => s.state === state.name);
-                    isSelected = !!stateData;
-                    foundBy = stateData?.foundBy;
-                } else {
-                    // Simple string array format
-                    isSelected = selectedStates.includes(state.name);
-                }
-                
+                const stateRecord = states[state.name];
+                const isSelected = Boolean(stateRecord);
+                const foundBy = stateRecord?.foundBy || null;
+
                 if (isSelected) {
                     card.classList.add('selected');
-                    if (currentGameMode === 'collab') {
-                        card.classList.add('collaborative');
-                    }
+                    if (currentGameMode === 'collab') card.classList.add('collaborative');
                 }
-                
-                // Try to load flag image, fallback to abbreviation
+
                 const flagImg = `flags/${state.abbr.toLowerCase()}.png`;
-                
                 card.innerHTML = `
                     <div class="state-info">
                         <div class="state-name">${state.name}</div>
                         <div class="state-abbr">${state.abbr}</div>
                     </div>
                     <div class="state-flag">
-                        <img src="${flagImg}" alt="${state.abbr} flag" 
-                             onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';">
+                        <img src="${flagImg}" alt="${state.abbr} flag" onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';">
                     </div>
                 `;
-                
-                // Add contributor badge if collaborative mode
+
                 if (currentGameMode === 'collab' && foundBy) {
                     addContributorBadge(card, foundBy);
                 }
-                
+
                 card.addEventListener('click', () => toggleState(state.name, card));
-                
-                // Add animation delay
                 card.style.animationDelay = `${index * 0.02}s`;
-                
                 statesGrid.appendChild(card);
             });
         }
 
-        function toggleState(stateName, cardElement) {
-            if (currentGameMode === 'collab') {
-                toggleStateCollaborative(stateName, cardElement);
-            } else {
-                // Original logic for solo/versus modes
-                const index = selectedStates.indexOf(stateName);
-                
-                if (index > -1) {
-                    selectedStates.splice(index, 1);
-                    cardElement.classList.remove('selected');
-                } else {
-                    selectedStates.push(stateName);
-                    cardElement.classList.add('selected');
-                    
-                    // Add celebration effect
-                    cardElement.classList.add('celebrating');
-                    setTimeout(() => cardElement.classList.remove('celebrating'), 800);
-                    
-                    // Check for milestones in challenge mode
-                    if (currentGameMode === 'versus') {
-                        checkChallengeAchievements();
-                    }
-                    
-                    // Check for milestone
-                    if (selectedStates.length === 10 || selectedStates.length === 25 || selectedStates.length === 50) {
-                        celebrateAchievement(selectedStates.length);
-                    }
-                }
-                
-                saveStates();
-                updateScore();
+        function getCurrentContributor() {
+            if (currentGameMode !== 'collab') {
+                return getCurrentProfile()?.name || 'Player';
             }
+            const contributors = getContributors();
+            if (contributors.length === 1) return contributors[0];
+            const contributor = prompt(`Who found this state?\n\nContributors: ${contributors.join(', ')}`);
+            return contributor && contributors.includes(contributor) ? contributor : contributors[0];
         }
 
-        function toggleStateCollaborative(stateName, cardElement) {
-            const index = selectedStates.findIndex(s => s.state === stateName);
-            
-            if (index > -1) {
-                // Remove state
-                selectedStates.splice(index, 1);
-                cardElement.classList.remove('selected', 'collaborative');
-                
-                // Remove contributor badge
+        function toggleState(stateName, cardElement) {
+            if (!currentTripData) {
+                alert('Please create or select a trip first!');
+                return;
+            }
+
+            const states = currentTripData.states || {};
+            if (states[stateName]) {
+                delete states[stateName];
+                cardElement.classList.remove('selected', 'collaborative', 'celebrating');
                 const badge = cardElement.querySelector('.contributor-badge');
                 if (badge) badge.remove();
             } else {
-                // Add state with contributor info
                 const contributor = getCurrentContributor();
-                if (!contributor) return; // User cancelled
-                
-                selectedStates.push({
+                states[stateName] = {
                     state: stateName,
                     foundBy: contributor,
                     foundAt: new Date().toISOString(),
                     mode: currentGameMode
-                });
-                cardElement.classList.add('selected', 'collaborative');
-                
-                // Add contributor badge
-                addContributorBadge(cardElement, contributor);
-                
-                // Celebration effect
+                };
+                cardElement.classList.add('selected');
+                if (currentGameMode === 'collab') {
+                    cardElement.classList.add('collaborative');
+                    addContributorBadge(cardElement, contributor);
+                }
                 cardElement.classList.add('celebrating');
                 setTimeout(() => cardElement.classList.remove('celebrating'), 800);
-                
-                // Check for milestone
-                if (selectedStates.length === 10 || selectedStates.length === 25 || selectedStates.length === 50) {
-                    celebrateAchievement(selectedStates.length);
-                }
+                const count = getSelectedStatesCount();
+                if ([10, 25, 50].includes(count)) celebrateAchievement(count);
             }
-            
-            saveStates();
-            updateScore();
-        }
 
-        function checkChallengeAchievements() {
-            const count = selectedStates.length;
-            
-            // Check for personal records
-            if (count === 50 && challengeStartTime) {
-                const elapsed = Date.now() - challengeStartTime;
-                const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
-                
-                const bestKey = `profile_${currentProfile}_personalBest`;
-                const currentBest = localStorage.getItem(bestKey);
-                
-                if (!currentBest || days < parseInt(currentBest)) {
-                    localStorage.setItem(bestKey, days.toString());
-                    alert(`🏆 NEW PERSONAL RECORD! Completed in ${days} days!`);
-                }
+            currentTripData.states = states;
+            if (currentGameMode === 'versus') {
+                ensureChallengeStartTime();
+                checkChallengeAchievements();
             }
+            persistCurrentTrip();
+            updateScore();
+            updateChallengeStats();
         }
 
         function updateScore() {
-            const count = selectedStates.length;
+            const count = getSelectedStatesCount();
             const percentage = Math.round((count / 50) * 100);
-            
             if (currentGameMode === 'collab') {
                 scoreDisplay.textContent = `Family Progress: ${count} of 50 plates (${percentage}%)`;
             } else if (currentGameMode === 'versus') {
@@ -1855,47 +1698,73 @@
             } else {
                 scoreDisplay.textContent = `Found ${count} of 50 plates (${percentage}%)`;
             }
-            
             progressFill.style.width = `${percentage}%`;
         }
 
         function celebrateAchievement(count) {
             const messages = {
-                10: "🎉 Great start! 10 states found!",
-                25: "🔥 Halfway there! 25 states down!",
-                50: "🏆 AMAZING! All 50 states complete!"
+                10: '🎉 Great start! 10 states found!',
+                25: '🔥 Halfway there! 25 states down!',
+                50: '🏆 AMAZING! All 50 states complete!'
             };
-            
-            if (messages[count]) {
-                setTimeout(() => alert(messages[count]), 300);
+            if (messages[count]) setTimeout(() => alert(messages[count]), 300);
+        }
+
+        function checkChallengeAchievements() {
+            if (!currentTripData || !currentTripData.challengeStartTime) return;
+            const count = getSelectedStatesCount();
+            if (count !== 50) return;
+            const elapsed = Date.now() - currentTripData.challengeStartTime;
+            const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+            if (currentTripData.personalBestDays == null || days < currentTripData.personalBestDays) {
+                currentTripData.personalBestDays = days;
+                persistCurrentTrip();
+                alert(`🏆 NEW PERSONAL RECORD! Completed in ${days} days!`);
             }
         }
 
         function resetTrip() {
+            if (!currentTripData) {
+                alert('Please select a trip first!');
+                return;
+            }
             if (!confirm('Reset all spotted plates for this trip?')) return;
-            
-            selectedStates = [];
-            saveStates();
+
+            currentTripData.states = {};
+            if (currentGameMode === 'versus') currentTripData.challengeStartTime = Date.now();
+            persistCurrentTrip();
             renderStates();
             updateScore();
-            
-            // Reset challenge timer if in challenge mode
-            if (currentGameMode === 'versus' && currentProfile && currentTrip) {
-                const tripKey = `profile_${currentProfile}_trip_${currentTrip}`;
-                const startTimeKey = `${tripKey}_startTime`;
-                localStorage.removeItem(startTimeKey);
-                challengeStartTime = null;
-                if (challengeTimer) {
-                    clearInterval(challengeTimer);
-                    challengeTimer = null;
-                }
-                showChallengeFeatures(); // Restart timer
+            updateChallengeStats();
+        }
+
+        function updateGameTitle() {
+            const title = document.getElementById('gameTitle');
+            const profile = getCurrentProfile();
+            if (currentTripData && profile) {
+                title.textContent = `${currentTripData.name} - ${gameModes[currentGameMode].name}`;
+            } else {
+                title.textContent = 'PlateQuest Adventure';
             }
         }
 
-        // FIXED: Cloud sharing functions for Realtime Database
+        function buildTripPayloadForShare() {
+            const profile = getCurrentProfile();
+            return {
+                version: 2,
+                profile: profile?.name || 'Player',
+                profileId: currentProfileId,
+                trip: currentTripData.name,
+                mode: currentGameMode,
+                contributors: getContributors(),
+                states: Object.values(currentTripData.states || {}),
+                totalStates: getSelectedStatesCount(),
+                exportedAt: new Date().toISOString()
+            };
+        }
+
         function generateShareCode() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let code = '';
             for (let i = 0; i < 6; i++) {
                 code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -1903,16 +1772,24 @@
             return code;
         }
 
+        async function generateUniqueShareCode() {
+            for (let attempt = 0; attempt < 12; attempt += 1) {
+                const code = generateShareCode();
+                if (!database) return code;
+                const snapshot = await database.ref(`sharedTrips/${code}`).once('value');
+                if (!snapshot.exists()) return code;
+            }
+            throw new Error('Unable to create a unique share code.');
+        }
+
         async function shareTrip() {
-            if (!currentProfile || !currentTrip) {
+            if (!currentTripData || !currentProfileId) {
                 alert('Please select a profile and trip first!');
                 return;
             }
-
             if (cloudEnabled) {
                 await shareToCloud();
             } else {
-                // Fallback to old method
                 showExport();
             }
         }
@@ -1920,45 +1797,24 @@
         async function shareToCloud() {
             try {
                 showLoading('Creating share link...');
-                
-                const shareCode = generateShareCode();
+                const shareCode = currentTripData.shareCode || await generateUniqueShareCode();
                 const tripData = {
-                    shareCode: shareCode,
-                    profile: currentProfile,
-                    trip: currentTrip,
-                    mode: currentGameMode,
-                    states: prepareStatesForSharing(),
-                    contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile],
-                    createdAt: firebase.database.ServerValue.TIMESTAMP,  // CHANGED: using ServerValue.TIMESTAMP
+                    ...buildTripPayloadForShare(),
+                    shareCode,
+                    createdAt: currentTripData.shareCode ? undefined : firebase.database.ServerValue.TIMESTAMP,
                     lastUpdated: firebase.database.ServerValue.TIMESTAMP,
-                    totalStates: selectedStates.length,
                     isPublic: true
                 };
-
-                await database.ref(`sharedTrips/${shareCode}`).set(tripData);  // CHANGED: using database.ref()
-                
+                if (tripData.createdAt === undefined) delete tripData.createdAt;
+                await database.ref(`sharedTrips/${shareCode}`).update(tripData);
+                currentTripData.shareCode = shareCode;
+                persistCurrentTrip();
                 hideLoading();
                 showShareSuccess(shareCode);
-                
             } catch (error) {
                 hideLoading();
                 console.error('Error sharing trip:', error);
                 alert('Failed to create share link. Please try again.');
-            }
-        }
-
-        function prepareStatesForSharing() {
-            if (currentGameMode === 'collab' && Array.isArray(selectedStates) && selectedStates[0]?.state) {
-                // Collaborative mode with detailed state info
-                return selectedStates;
-            } else {
-                // Simple string array - convert to detailed format
-                return selectedStates.map(state => ({
-                    state: typeof state === 'string' ? state : state.state,
-                    foundBy: currentProfile,
-                    foundAt: new Date().toISOString(),
-                    mode: currentGameMode
-                }));
             }
         }
 
@@ -1972,95 +1828,64 @@
                         <button class="close-btn" onclick="closeShareModal()">&times;</button>
                     </div>
                     <div class="share-body">
-                        <div class="share-code-display">
+                        <div>
                             <label>Share Code:</label>
                             <div class="code-box" onclick="copyShareCode('${shareCode}')">
                                 <span class="code">${shareCode}</span>
                                 <span class="copy-hint">📋 Click to copy</span>
                             </div>
                         </div>
-                        
-                        <div class="share-url-display">
+                        <div>
                             <label>Direct Link:</label>
                             <div class="url-box" onclick="copyShareUrl('${shareCode}')">
                                 <span class="url">${window.location.origin}${window.location.pathname}?share=${shareCode}</span>
                                 <span class="copy-hint">📋 Click to copy</span>
                             </div>
                         </div>
-                        
-                        <div class="qr-code-container">
-                            <div class="qr-placeholder">
-                                <div>QR Code for<br/>${shareCode}</div>
-                            </div>
-                            <p>Scan QR code to open on mobile</p>
-                        </div>
-                        
                         <div class="share-actions">
-                            <button class="btn btn-primary" onclick="shareViaSystem('${shareCode}')">
-                                📱 Share via Apps
-                            </button>
-                            <button class="btn btn-secondary" onclick="updateSharedTrip('${shareCode}')">
-                                🔄 Update Shared Trip
-                            </button>
+                            <button class="btn btn-primary" onclick="shareViaSystem('${shareCode}')">📱 Share via Apps</button>
+                            <button class="btn btn-secondary" onclick="updateSharedTrip('${shareCode}')">🔄 Update Shared Trip</button>
                         </div>
                     </div>
                 </div>
                 <div class="modal-backdrop" onclick="closeShareModal()"></div>
             `;
-            
             document.body.appendChild(modal);
         }
 
         async function loadSharedTrip() {
-            // Check URL for share parameter
             const urlParams = new URLSearchParams(window.location.search);
             const shareCode = urlParams.get('share');
-            
             if (shareCode) {
-                await loadTripByShareCode(shareCode);
+                await loadTripByShareCode(shareCode.toUpperCase());
                 return;
             }
-            
-            // Manual entry
             const code = prompt('Enter a 6-character share code:');
-            if (code && code.length === 6) {
-                await loadTripByShareCode(code.toUpperCase());
+            if (code && code.trim().length === 6) {
+                await loadTripByShareCode(code.trim().toUpperCase());
             }
         }
 
         async function loadTripByShareCode(shareCode) {
-            if (!cloudEnabled) {
+            if (!cloudEnabled || !database) {
                 alert('Cloud sharing is not available. Please check your internet connection.');
                 return;
             }
-            
             try {
                 showLoading('Loading shared trip...');
-                
-                const snapshot = await database.ref(`sharedTrips/${shareCode}`).once('value');  // CHANGED: using database.ref()
-                
+                const snapshot = await database.ref(`sharedTrips/${shareCode}`).once('value');
                 if (!snapshot.exists()) {
                     hideLoading();
                     alert('Share code not found. Please check the code and try again.');
                     return;
                 }
-                
                 const tripData = snapshot.val();
-                
-                // Import the trip data
-                await importSharedTripData(tripData);
-                
+                importSharedTripData(tripData);
                 hideLoading();
-                
-                // Show success message
-                alert(`Successfully loaded "${tripData.trip}" from ${tripData.profile}!\n` +
-                      `Found ${tripData.totalStates} states in ${tripData.mode} mode.`);
-                
-                // Clear the URL parameter
+                alert(`Successfully loaded "${tripData.trip}" from ${tripData.profile}!\nFound ${tripData.totalStates} states in ${tripData.mode} mode.`);
                 if (window.history && window.history.replaceState) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
-                
             } catch (error) {
                 hideLoading();
                 console.error('Error loading shared trip:', error);
@@ -2068,73 +1893,56 @@
             }
         }
 
-        async function importSharedTripData(tripData) {
-            // Create or select profile
-            let profileOption = Array.from(profileSelect.options).find(opt => opt.value === tripData.profile);
-            if (!profileOption) {
-                profileOption = new Option(tripData.profile, tripData.profile);
-                profileSelect.add(profileOption);
+        function importSharedTripData(tripData) {
+            const normalized = normalizeTripRecord({
+                id: createId('trip_imported'),
+                profileId: currentProfileId,
+                profileName: tripData.profile,
+                name: `${tripData.trip} (Imported ${new Date().toLocaleDateString()})`,
+                mode: tripData.mode || 'solo',
+                contributors: tripData.contributors || [tripData.profile || 'Player'],
+                states: tripData.states || {},
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                importedFrom: tripData.shareCode || null
+            });
+
+            let profile = getProfiles().find(item => item.name === tripData.profile);
+            if (!profile) {
+                profile = { id: createId('profile'), name: tripData.profile || 'Imported Player', createdAt: Date.now() };
+                const profiles = getProfiles();
+                profiles.push(profile);
+                saveProfiles(profiles);
             }
-            
-            profileSelect.value = tripData.profile;
-            currentProfile = tripData.profile;
-            loadTrips();
-            
-            // Create unique trip name to avoid conflicts
-            const timestamp = new Date().toLocaleDateString();
-            const importedTripName = `${tripData.trip} (Imported ${timestamp})`;
-            
-            let tripOption = new Option(importedTripName, importedTripName);
-            tripSelect.add(tripOption);
-            
-            tripSelect.value = importedTripName;
-            currentTrip = importedTripName;
-            
-            // Set game mode
-            currentGameMode = tripData.mode || 'solo';
-            const modeRadio = document.querySelector(`input[name="mode"][value="${currentGameMode}"]`);
-            if (modeRadio) {
-                modeRadio.checked = true;
-            }
-            
-            // Import states
-            selectedStates = tripData.states || [];
-            
-            // Import contributors if collaborative mode
-            if (tripData.mode === 'collab' && tripData.contributors) {
-                const tripKey = `profile_${currentProfile}_trip_${currentTrip}_contributors`;
-                localStorage.setItem(tripKey, JSON.stringify(tripData.contributors));
-            }
-            
-            // Save and update UI
-            saveStates();
-            renderStates();
-            updateScore();
+
+            normalized.profileId = profile.id;
+            normalized.profileName = profile.name;
+            currentProfileId = profile.id;
+            currentTripId = normalized.id;
+            currentTripData = normalized;
+            persistCurrentTrip();
+            loadProfilesIntoUI();
+            tripSelect.value = currentTripId;
             updateGameModeUI();
+            updateScore();
             updateGameTitle();
+            renderStates();
         }
 
         async function updateSharedTrip(shareCode) {
-            if (!cloudEnabled) {
+            if (!cloudEnabled || !database) {
                 alert('Cloud sharing is not available.');
                 return;
             }
-            
             try {
                 showLoading('Updating shared trip...');
-                
-                const updateData = {
-                    states: prepareStatesForSharing(),
-                    lastUpdated: firebase.database.ServerValue.TIMESTAMP,  // CHANGED: using ServerValue.TIMESTAMP
-                    totalStates: selectedStates.length,
-                    contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile]
-                };
-                
-                await database.ref(`sharedTrips/${shareCode}`).update(updateData);  // CHANGED: using database.ref()
-                
+                await database.ref(`sharedTrips/${shareCode}`).update({
+                    ...buildTripPayloadForShare(),
+                    shareCode,
+                    lastUpdated: firebase.database.ServerValue.TIMESTAMP
+                });
                 hideLoading();
                 alert('Shared trip updated successfully!');
-                
             } catch (error) {
                 hideLoading();
                 console.error('Error updating shared trip:', error);
@@ -2142,131 +1950,12 @@
             }
         }
 
-        // System sharing API
-        function shareViaSystem(shareCode) {
-            const url = `${window.location.origin}${window.location.pathname}?share=${shareCode}`;
-            const title = `PlateQuest: ${currentTrip}`;
-            const text = `Check out my license plate spotting progress! I've found ${selectedStates.length} out of 50 states.`;
-            
-            if (navigator.share) {
-                navigator.share({
-                    title: title,
-                    text: text,
-                    url: url
-                }).catch(console.error);
-            } else {
-                // Fallback: copy to clipboard
-                copyShareUrl(shareCode);
-                alert('Share link copied to clipboard!');
-            }
-        }
-
-        // Utility functions
-        function copyShareCode(shareCode) {
-            navigator.clipboard.writeText(shareCode).then(() => {
-                showToast('Share code copied!');
-            }).catch(() => {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = shareCode;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showToast('Share code copied!');
-            });
-        }
-
-        function copyShareUrl(shareCode) {
-            const url = `${window.location.origin}${window.location.pathname}?share=${shareCode}`;
-            navigator.clipboard.writeText(url).then(() => {
-                showToast('Share link copied!');
-            }).catch(() => {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = url;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showToast('Share link copied!');
-            });
-        }
-
-        function closeShareModal() {
-            const modal = document.querySelector('.share-modal');
-            if (modal) {
-                modal.remove();
-            }
-        }
-
-        function showCloudFeatures() {
-            // Update button text to indicate cloud features
-            const shareBtn = document.getElementById('shareBtn');
-            if (shareBtn) {
-                shareBtn.innerHTML = '☁️ Share Trip Online';
-            }
-            
-            const importBtn = document.getElementById('importBtn');
-            if (importBtn) {
-                importBtn.innerHTML = '☁️ Load Shared Trip';
-            }
-        }
-
-        function showOfflineFeatures() {
-            // Keep original offline functionality as fallback
-            const shareBtn = document.getElementById('shareBtn');
-            if (shareBtn) {
-                shareBtn.innerHTML = '📤 Share Trip';
-            }
-            
-            const importBtn = document.getElementById('importBtn');
-            if (importBtn) {
-                importBtn.innerHTML = '📥 Load Shared Trip';
-            }
-        }
-
-        function showToast(message) {
-            const toast = document.createElement('div');
-            toast.className = 'toast-notification';
-            toast.textContent = message;
-            
-            document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        function showLoading(message = 'Loading...') {
-            const overlay = document.getElementById('loadingOverlay');
-            overlay.querySelector('.loading-text').textContent = message;
-            overlay.style.display = 'flex';
-        }
-
-        function hideLoading() {
-            const overlay = document.getElementById('loadingOverlay');
-            overlay.style.display = 'none';
-        }
-
-        // Legacy export/import functions
         function showExport() {
-            if (!currentProfile || !currentTrip) {
+            if (!currentTripData || !currentProfileId) {
                 alert('Please select a profile and trip first!');
                 return;
             }
-            
-            const exportData = {
-                profile: currentProfile,
-                trip: currentTrip,
-                mode: currentGameMode,
-                states: selectedStates,
-                contributors: currentGameMode === 'collab' ? getContributors() : [currentProfile],
-                exportedAt: new Date().toISOString()
-            };
-            
-            exportBox.value = JSON.stringify(exportData, null, 2);
+            exportBox.value = JSON.stringify(buildTripPayloadForShare(), null, 2);
             shareSection.style.display = 'block';
         }
 
@@ -2284,32 +1973,149 @@
             shareSection.style.display = 'none';
         }
 
+        function closeShareModal() {
+            const modal = document.querySelector('.share-modal');
+            if (modal) modal.remove();
+        }
+
+        function showCloudFeatures() {
+            document.getElementById('shareBtn').innerHTML = '☁️ Share Trip Online';
+            document.getElementById('importBtn').innerHTML = '☁️ Load Shared Trip';
+        }
+
+        function showOfflineFeatures() {
+            document.getElementById('shareBtn').innerHTML = '📤 Share Trip';
+            document.getElementById('importBtn').innerHTML = '📥 Load Shared Trip';
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showLoading(message = 'Loading...') {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.querySelector('.loading-text').textContent = message;
+            overlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
         function toggleDarkMode() {
             document.body.classList.toggle('dark');
             const btn = document.getElementById('darkModeBtn');
             btn.textContent = document.body.classList.contains('dark') ? '☀️ Light Mode' : '🌙 Dark Mode';
-            
-            // Save preference
-            localStorage.setItem('platequest_dark_mode', document.body.classList.contains('dark'));
+            localStorage.setItem(STORAGE_KEYS.darkMode, document.body.classList.contains('dark'));
         }
 
-        function updateGameTitle() {
-            const title = document.getElementById('gameTitle');
-            if (currentTrip && currentProfile) {
-                const mode = gameModes[currentGameMode];
-                title.textContent = `${currentTrip} - ${mode.name}`;
+        function copyShareCode(shareCode) {
+            navigator.clipboard.writeText(shareCode).then(() => showToast('Share code copied!')).catch(() => fallbackCopy(shareCode));
+        }
+
+        function copyShareUrl(shareCode) {
+            const url = `${window.location.origin}${window.location.pathname}?share=${shareCode}`;
+            navigator.clipboard.writeText(url).then(() => showToast('Share link copied!')).catch(() => fallbackCopy(url));
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast('Copied!');
+        }
+
+        function shareViaSystem(shareCode) {
+            const url = `${window.location.origin}${window.location.pathname}?share=${shareCode}`;
+            const text = `Check out my PlateQuest trip! I've found ${getSelectedStatesCount()} out of 50 states.`;
+            if (navigator.share) {
+                navigator.share({ title: `PlateQuest: ${currentTripData?.name || 'Trip'}`, text, url }).catch(() => copyShareUrl(shareCode));
             } else {
-                title.textContent = 'PlateQuest Adventure';
+                copyShareUrl(shareCode);
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('createProfileBtn').addEventListener('click', createProfile);
+            document.getElementById('deleteProfileBtn').addEventListener('click', deleteProfile);
+            document.getElementById('createTripBtn').addEventListener('click', createTrip);
+            document.getElementById('resetBtn').addEventListener('click', resetTrip);
+            document.getElementById('shareBtn').addEventListener('click', shareTrip);
+            document.getElementById('importBtn').addEventListener('click', loadSharedTrip);
+            document.getElementById('exportBtn').addEventListener('click', showExport);
+            document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
+            document.getElementById('copyExportBtn').addEventListener('click', copyExport);
+            document.getElementById('hideShareBtn').addEventListener('click', hideShare);
+
+            profileSelect.addEventListener('change', selectProfile);
+            tripSelect.addEventListener('change', selectTrip);
+
+            document.querySelectorAll('input[name="mode"]').forEach(input => {
+                input.addEventListener('change', function() {
+                    if (!this.checked) return;
+                    currentGameMode = this.value;
+                    if (currentTripData) {
+                        currentTripData.mode = currentGameMode;
+                        if (currentGameMode === 'versus') ensureChallengeStartTime();
+                        persistCurrentTrip();
+                    }
+                    updateGameModeUI();
+                    updateScore();
+                    updateGameTitle();
+                    renderStates();
+                });
+            });
+
+            initializeCloudSharing();
+            setTimeout(showDebugPanel, 2000);
+
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('share')) {
+                setTimeout(() => {
+                    startGame();
+                    loadSharedTrip();
+                }, 800);
+            }
+
+            if (localStorage.getItem(STORAGE_KEYS.darkMode) === 'true') {
+                document.body.classList.add('dark');
+                document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
+            }
+
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && !localStorage.getItem(STORAGE_KEYS.darkMode)) {
+                document.body.classList.add('dark');
+                document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
+            }
+
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    switch (e.key) {
+                        case 's':
+                            e.preventDefault();
+                            shareTrip();
+                            break;
+                        case 'l':
+                            e.preventDefault();
+                            loadSharedTrip();
+                            break;
+                        case 'r':
+                            e.preventDefault();
+                            if (confirm('Reset current trip?')) resetTrip();
+                            break;
+                    }
+                }
+            });
+        });
     </script>
-    <script>
-// Force enable cloud features since Firebase test passed
-setTimeout(() => {
-    cloudEnabled = true;
-    showCloudFeatures();
-    console.log('🚀 Cloud features force-enabled - Firebase test passed!');
-}, 2000);
-</script>
 </body>
 </html>
