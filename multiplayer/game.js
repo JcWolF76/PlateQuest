@@ -1,5 +1,6 @@
+// PlateQuest Multiplayer v2
+// Rebuilt around durable room membership, stable player identity, and silent rejoin.
 
-// Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
     authDomain: "platequest-multiplayer.firebaseapp.com",
@@ -10,7 +11,6 @@ const firebaseConfig = {
     appId: "1:109596979102:web:586740c408daec71af708f"
 };
 
-// State data with abbreviations for flag images
 const statesData = [
     { name: "Alabama", abbr: "AL" },
     { name: "Alaska", abbr: "AK" },
@@ -65,23 +65,32 @@ const statesData = [
 ];
 
 const STORAGE_KEYS = {
-    PLAYER_PROFILE: 'platequest_player_profile',
-    ACTIVE_SESSION: 'platequest_active_session',
-    DARK_MODE: 'platequest_dark_mode'
+    name: 'platequest_player_name',
+    tag: 'platequest_player_tag',
+    player: 'platequest_player_identity_v2',
+    session: 'platequest_active_session_v2',
+    darkMode: 'platequest_dark_mode'
 };
+
+const ROOM_VERSION = 2;
+const MAX_PLAYERS = 8;
+const HEARTBEAT_MS = 30000;
 
 let database = null;
 let currentGameRef = null;
-let currentPlayer = null;
 let currentGameCode = null;
+let currentPlayer = null;
 let gameData = null;
 let playersData = {};
-let connectionOnline = false;
-let eventListenersBound = false;
-let sessionRecoveryAttempted = false;
-let presenceInitializedForGame = null;
+let gameListenerAttached = false;
+let eventsBound = false;
+let attemptedAutoResume = false;
+let currentConnectionState = 'connecting';
+let presenceCleanup = null;
+let heartbeatInterval = null;
+let pendingGameCodeFromUrl = null;
+let lastRenderedStateSignature = '';
 
-// DOM elements
 const splash = document.getElementById('splash');
 const game = document.getElementById('game');
 const setupSection = document.getElementById('setupSection');
@@ -89,50 +98,256 @@ const gameActive = document.getElementById('gameActive');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const gameCodeHeader = document.getElementById('gameCodeHeader');
 
+function slugify(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 40);
+}
+
+function getOrCreateDeviceId() {
+    let identity = null;
+    try {
+        identity = JSON.parse(localStorage.getItem(STORAGE_KEYS.player) || 'null');
+    } catch (error) {
+        identity = null;
+    }
+
+    if (identity && identity.deviceId) {
+        return identity.deviceId;
+    }
+
+    return `device_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function buildPlayerFromInputs() {
+    const name = document.getElementById('playerNameInput').value.trim();
+    const tag = document.getElementById('playerTagInput').value.trim();
+
+    if (!name) {
+        showToast('Please enter your name! 👤', 'error');
+        document.getElementById('playerNameInput').focus();
+        return null;
+    }
+
+    if (!tag) {
+        showToast('Please enter a player tag! 🏷️', 'error');
+        document.getElementById('playerTagInput').focus();
+        return null;
+    }
+
+    if (name.length > 20) {
+        showToast('Name must be 20 characters or less.', 'error');
+        return null;
+    }
+
+    if (tag.length > 8) {
+        showToast('Tag must be 8 characters or less.', 'error');
+        return null;
+    }
+
+    if (!/^[a-zA-Z0-9]+$/.test(tag)) {
+        showToast('Tag can only contain letters and numbers.', 'error');
+        return null;
+    }
+
+    const playerKey = `${slugify(name)}__${slugify(tag)}`;
+    const deviceId = getOrCreateDeviceId();
+
+    return {
+        playerKey,
+        deviceId,
+        name,
+        tag,
+        displayName: `${name} (${tag})`,
+        colorSeed: slugify(`${name}_${tag}`),
+        updatedAtLocal: Date.now()
+    };
+}
+
+function persistIdentity(player) {
+    localStorage.setItem(STORAGE_KEYS.name, player.name);
+    localStorage.setItem(STORAGE_KEYS.tag, player.tag);
+    localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(player));
+}
+
+function restoreIdentity() {
+    const savedName = localStorage.getItem(STORAGE_KEYS.name);
+    const savedTag = localStorage.getItem(STORAGE_KEYS.tag);
+    if (savedName) document.getElementById('playerNameInput').value = savedName;
+    if (savedTag) document.getElementById('playerTagInput').value = savedTag;
+
+    try {
+        const savedPlayer = JSON.parse(localStorage.getItem(STORAGE_KEYS.player) || 'null');
+        if (savedPlayer && savedPlayer.playerKey) {
+            currentPlayer = savedPlayer;
+            enableGameCards();
+        }
+    } catch (error) {
+        console.warn('Could not restore player identity.', error);
+    }
+}
+
+function saveGameSession() {
+    if (!currentPlayer || !currentGameCode) return;
+    localStorage.setItem(STORAGE_KEYS.session, JSON.stringify({
+        gameCode: currentGameCode,
+        playerKey: currentPlayer.playerKey,
+        savedAt: Date.now()
+    }));
+}
+
+function clearGameSession() {
+    localStorage.removeItem(STORAGE_KEYS.session);
+}
+
+function getSavedSession() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || 'null');
+    } catch (error) {
+        return null;
+    }
+}
+
+function enableGameCards() {
+    document.getElementById('createGameCard').style.opacity = '1';
+    document.getElementById('joinGameCard').style.opacity = '1';
+    document.getElementById('newGameInput').disabled = false;
+    document.getElementById('joinCodeInput').disabled = false;
+    document.getElementById('createGameBtn').disabled = false;
+    document.getElementById('joinGameBtn').disabled = false;
+}
+
+function disableGameCards() {
+    document.getElementById('createGameCard').style.opacity = '0.5';
+    document.getElementById('joinGameCard').style.opacity = '0.5';
+    document.getElementById('newGameInput').disabled = true;
+    document.getElementById('joinCodeInput').disabled = true;
+    document.getElementById('createGameBtn').disabled = true;
+    document.getElementById('joinGameBtn').disabled = true;
+}
+
+function stateMapToCount(statesMap) {
+    return Object.keys(statesMap || {}).length;
+}
+
+function buildPlayerRoomRecord(player, options = {}) {
+    const now = firebase.database.ServerValue.TIMESTAMP;
+    return {
+        playerKey: player.playerKey,
+        deviceId: player.deviceId,
+        name: player.name,
+        tag: player.tag,
+        displayName: player.displayName,
+        isHost: Boolean(options.isHost),
+        connected: true,
+        joinedAt: options.joinedAt || now,
+        lastSeen: now,
+        states: options.states || {},
+        role: options.isHost ? 'host' : 'player'
+    };
+}
+
+function normalizePlayers(rawPlayers = {}) {
+    const normalized = {};
+    Object.entries(rawPlayers).forEach(([key, player]) => {
+        if (!player) return;
+
+        const playerKey = player.playerKey || key;
+        let states = player.states || {};
+
+        if (Array.isArray(states)) {
+            const converted = {};
+            states.forEach((stateName) => {
+                converted[stateName] = {
+                    state: stateName,
+                    foundAt: player.joinedAt || Date.now(),
+                    foundBy: player.displayName || player.name || playerKey,
+                    foundByKey: playerKey
+                };
+            });
+            states = converted;
+        }
+
+        normalized[playerKey] = {
+            ...player,
+            playerKey,
+            displayName: player.displayName || (player.name && player.tag ? `${player.name} (${player.tag})` : (player.name || playerKey)),
+            states
+        };
+    });
+    return normalized;
+}
+
+function getMyStatesMap() {
+    if (!currentPlayer) return {};
+    return playersData[currentPlayer.playerKey]?.states || {};
+}
+
+function findStateOwner(stateName) {
+    let owner = null;
+    Object.values(playersData).forEach((player) => {
+        if (!owner && player.states && player.states[stateName]) {
+            owner = player;
+        }
+    });
+    return owner;
+}
+
+function buildStateSignature() {
+    const snapshot = Object.values(playersData).map((player) => ({
+        key: player.playerKey,
+        count: stateMapToCount(player.states),
+        connected: Boolean(player.connected),
+        states: Object.keys(player.states || {}).sort()
+    }));
+    return JSON.stringify(snapshot);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
 
 function initializeApp() {
-    applySavedIdentityToInputs();
-    applySavedDarkMode();
-    prefillInviteCodeFromUrl();
-    setupEventListeners();
-
     try {
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         database = firebase.database();
-
-        updateConnectionStatus('connecting');
+        bindEventListeners();
+        restoreIdentity();
+        initializeDarkMode();
+        pendingGameCodeFromUrl = readGameCodeFromUrl();
 
         database.ref('.info/connected').on('value', async (snapshot) => {
-            connectionOnline = snapshot.val() === true;
+            const isConnected = snapshot.val() === true;
+            currentConnectionState = isConnected ? 'online' : 'offline';
+            updateConnectionStatus(isConnected ? 'online' : 'offline');
 
-            if (connectionOnline) {
-                updateConnectionStatus('online');
-                if (!sessionRecoveryAttempted) {
-                    sessionRecoveryAttempted = true;
-                    await attemptSessionRecovery();
+            if (isConnected) {
+                if (!attemptedAutoResume) {
+                    attemptedAutoResume = true;
+                    await attemptAutoResume();
                 }
                 if (currentGameCode && currentPlayer) {
-                    maintainPresence();
+                    setupPresence();
                 }
-            } else {
-                updateConnectionStatus(currentGameCode ? 'connecting' : 'offline');
             }
         });
     } catch (error) {
         console.error('Firebase initialization failed:', error);
         updateConnectionStatus('offline');
-        showToast('Cloud connection failed. Multiplayer may not work right now.', 'error');
+        bindEventListeners();
+        restoreIdentity();
+        initializeDarkMode();
     }
 }
 
-function setupEventListeners() {
-    if (eventListenersBound) return;
-    eventListenersBound = true;
+function bindEventListeners() {
+    if (eventsBound) return;
+    eventsBound = true;
 
     document.getElementById('startBtn').addEventListener('click', startGame);
     document.getElementById('setNameBtn').addEventListener('click', setPlayerName);
@@ -160,212 +375,123 @@ function setupEventListeners() {
     document.getElementById('inviteNewBtn').addEventListener('click', inviteNewPlayer);
 
     document.addEventListener('visibilitychange', () => {
-        if (currentPlayer && currentGameCode) {
+        if (document.hidden) {
             saveGameSession();
+        } else if (currentGameCode && currentPlayer && currentConnectionState === 'online') {
+            setupPresence();
         }
     });
 
     window.addEventListener('beforeunload', () => {
-        if (currentPlayer && currentGameCode) {
-            saveGameSession();
-        }
+        saveGameSession();
     });
 }
 
-function applySavedIdentityToInputs() {
-    const profile = loadStoredProfile();
-    const nameInput = document.getElementById('playerNameInput');
-    const tagInput = document.getElementById('playerTagInput');
-
-    if (profile?.name) nameInput.value = profile.name;
-    if (profile?.tag) tagInput.value = profile.tag;
-    if (profile?.id && profile?.name && profile?.tag) {
-        currentPlayer = buildPlayerFromProfile(profile);
-        enableGameSetupCards();
-    }
-}
-
-function applySavedDarkMode() {
-    if (localStorage.getItem(STORAGE_KEYS.DARK_MODE) === 'true') {
+function initializeDarkMode() {
+    if (localStorage.getItem(STORAGE_KEYS.darkMode) === 'true') {
         document.body.classList.add('dark');
-        const btn = document.getElementById('darkModeBtn');
-        if (btn) btn.textContent = '☀️ Light Mode';
+        document.getElementById('darkModeBtn').textContent = '☀️ Light Mode';
     }
 }
 
-function prefillInviteCodeFromUrl() {
+function readGameCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    const gameCode = (params.get('game') || params.get('code') || '').toUpperCase();
-    if (gameCode) {
-        const joinInput = document.getElementById('joinCodeInput');
-        if (joinInput) {
-            joinInput.value = gameCode;
-        }
-    }
+    const code = params.get('game') || params.get('code');
+    return code ? code.trim().toUpperCase() : null;
+}
+
+function writeGameCodeToUrl(code) {
+    if (!window.history || !window.history.replaceState) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('game', code);
+    window.history.replaceState({}, document.title, url.toString());
+}
+
+function clearGameCodeFromUrl() {
+    if (!window.history || !window.history.replaceState) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('game');
+    url.searchParams.delete('code');
+    window.history.replaceState({}, document.title, url.pathname);
 }
 
 function startGame() {
     splash.style.display = 'none';
     game.style.display = 'block';
 
-    if (currentPlayer) {
-        showToast(`Welcome back, ${currentPlayer.displayName}! 🐺`, 'info');
-        enableGameSetupCards();
-    } else {
-        const nameInput = document.getElementById('playerNameInput');
-        if (nameInput && !nameInput.value.trim()) {
-            nameInput.focus();
-        }
-    }
-}
-
-function loadStoredProfile() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEYS.PLAYER_PROFILE);
-        return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-        console.warn('Failed to read stored player profile:', error);
-        return null;
-    }
-}
-
-function saveStoredProfile(profile) {
-    localStorage.setItem(STORAGE_KEYS.PLAYER_PROFILE, JSON.stringify(profile));
-}
-
-function buildPlayerFromProfile(profile) {
-    return {
-        id: profile.id,
-        name: profile.name,
-        tag: profile.tag,
-        displayName: `${profile.name} (${profile.tag})`,
-        uniqueId: `${profile.name.toLowerCase()}_${profile.tag.toLowerCase()}`,
-        joinedAt: profile.joinedAt || Date.now()
-    };
-}
-
-function ensurePlayerFromInputs() {
-    const name = document.getElementById('playerNameInput').value.trim();
-    const tag = document.getElementById('playerTagInput').value.trim();
-
-    if (!name) {
-        showToast('Please enter your name! 👤', 'error');
+    if (!currentPlayer) {
         document.getElementById('playerNameInput').focus();
-        return false;
     }
-
-    if (!tag) {
-        showToast('Please enter a player tag! 🏷️', 'error');
-        document.getElementById('playerTagInput').focus();
-        return false;
-    }
-
-    if (name.length > 20) {
-        showToast('Name must be 20 characters or less.', 'error');
-        return false;
-    }
-
-    if (tag.length > 8) {
-        showToast('Tag must be 8 characters or less.', 'error');
-        return false;
-    }
-
-    if (!/^[a-zA-Z0-9]+$/.test(tag)) {
-        showToast('Tag can only contain letters and numbers.', 'error');
-        return false;
-    }
-
-    let profile = loadStoredProfile();
-    if (!profile?.id) {
-        profile = { id: generatePlayerId() };
-    }
-
-    profile = {
-        ...profile,
-        name,
-        tag,
-        joinedAt: profile.joinedAt || Date.now()
-    };
-
-    saveStoredProfile(profile);
-    currentPlayer = buildPlayerFromProfile(profile);
-    return true;
 }
 
 function setPlayerName() {
-    if (!ensurePlayerFromInputs()) return;
+    const player = buildPlayerFromInputs();
+    if (!player) return;
 
-    enableGameSetupCards();
-    showToast(`Identity saved: ${currentPlayer.displayName} 🐺`, 'success');
+    currentPlayer = player;
+    persistIdentity(player);
+    enableGameCards();
+    showToast(`Welcome to the pack, ${player.displayName}! 🐺`, 'success');
 
-    if (currentGameCode && currentGameRef) {
-        currentGameRef.child(`players/${currentPlayer.id}`).update({
-            name: currentPlayer.name,
-            tag: currentPlayer.tag,
-            displayName: currentPlayer.displayName,
-            uniqueId: currentPlayer.uniqueId,
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
-        }).catch((error) => {
-            console.error('Failed to update identity:', error);
-        });
+    if (pendingGameCodeFromUrl && game.style.display === 'block') {
+        document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl;
     }
 }
 
-function enableGameSetupCards() {
-    document.getElementById('createGameCard').style.opacity = '1';
-    document.getElementById('joinGameCard').style.opacity = '1';
-    document.getElementById('newGameInput').disabled = false;
-    document.getElementById('joinCodeInput').disabled = false;
-    document.getElementById('createGameBtn').disabled = false;
-    document.getElementById('joinGameBtn').disabled = false;
+async function generateUniqueGameCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+        let code = '';
+        for (let i = 0; i < 6; i += 1) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const snapshot = await database.ref(`games/${code}`).once('value');
+        if (!snapshot.exists()) {
+            return code;
+        }
+    }
+
+    throw new Error('Unable to generate a unique game code.');
 }
 
 async function createGame() {
-    if (!ensurePlayerFromInputs()) return;
-    if (!database) {
-        showToast('Database is not ready yet. Try again in a moment.', 'error');
+    if (!currentPlayer) {
+        showToast('Please set your name first! 👤', 'error');
         return;
     }
 
-    const gameNameInput = document.getElementById('newGameInput');
-    const gameName = gameNameInput.value.trim();
-
+    const gameName = document.getElementById('newGameInput').value.trim();
     if (!gameName) {
         showToast('Please enter a pack name! 🎮', 'error');
-        gameNameInput.focus();
+        document.getElementById('newGameInput').focus();
         return;
     }
 
     showLoading('Creating pack...');
 
     try {
-        const code = await findAvailableGameCode();
+        const code = await generateUniqueGameCode();
         const roomRef = database.ref(`games/${code}`);
-
-        const payload = {
+        const roomData = {
+            version: ROOM_VERSION,
             name: gameName,
             code,
             status: 'active',
-            hostId: currentPlayer.id,
+            settings: {
+                maxPlayers: MAX_PLAYERS
+            },
+            hostPlayerKey: currentPlayer.playerKey,
             createdAt: firebase.database.ServerValue.TIMESTAMP,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
-            settings: {
-                maxPlayers: 8,
-                version: 2
-            },
             players: {
-                [currentPlayer.id]: buildPlayerRecord(currentPlayer, true)
+                [currentPlayer.playerKey]: buildPlayerRoomRecord(currentPlayer, { isHost: true })
             }
         };
 
-        await roomRef.set(payload);
-
-        currentGameCode = code;
-        currentGameRef = roomRef;
-        saveGameSession();
-        subscribeToCurrentGame();
-        showActiveGame();
-        showToast(`Pack "${gameName}" created! 🐺`, 'success');
+        await roomRef.set(roomData);
+        await connectToGame(code, { showJoinedToast: true, joinedMessage: `Pack "${gameName}" created! 🐺` });
     } catch (error) {
         console.error('Error creating game:', error);
         showToast('Failed to create pack. Please try again.', 'error');
@@ -374,245 +500,224 @@ async function createGame() {
     }
 }
 
-async function findAvailableGameCode() {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-        const code = generateGameCode();
-        const snapshot = await database.ref(`games/${code}`).once('value');
-        if (!snapshot.exists()) {
-            return code;
-        }
-    }
-    throw new Error('Unable to generate a unique game code.');
-}
-
-function buildPlayerRecord(player, isHost = false, existingStates = {}) {
-    return {
-        id: player.id,
-        name: player.name,
-        tag: player.tag,
-        displayName: player.displayName,
-        uniqueId: player.uniqueId,
-        isHost,
-        states: normalizeStatesRecord(existingStates),
-        connected: connectionOnline,
-        joinedAt: player.joinedAt || Date.now(),
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-    };
-}
-
-async function joinGame() {
-    if (!ensurePlayerFromInputs()) return;
-    if (!database) {
-        showToast('Database is not ready yet. Try again in a moment.', 'error');
+async function joinGame(codeOverride = null) {
+    if (!currentPlayer) {
+        showToast('Please set your name first! 👤', 'error');
         return;
     }
 
-    const codeInput = document.getElementById('joinCodeInput');
-    const code = codeInput.value.trim().toUpperCase();
-
+    const code = (codeOverride || document.getElementById('joinCodeInput').value || '').trim().toUpperCase();
     if (!code || code.length !== 6) {
         showToast('Pack code must be 6 characters.', 'error');
-        codeInput.focus();
+        document.getElementById('joinCodeInput').focus();
         return;
     }
 
     showLoading('Joining pack...');
 
     try {
-        const roomRef = database.ref(`games/${code}`);
-        const snapshot = await roomRef.once('value');
-
-        if (!snapshot.exists()) {
-            showToast('Pack not found. Please check the code.', 'error');
-            return;
-        }
-
-        const room = normalizeGameData(snapshot.val());
-        const playerList = Object.values(room.players || {});
-        const maxPlayers = room.settings?.maxPlayers || 8;
-
-        let playerRecord = room.players?.[currentPlayer.id] || null;
-
-        if (!playerRecord) {
-            const sameIdentity = playerList.find((player) => player.uniqueId === currentPlayer.uniqueId);
-            if (sameIdentity) {
-                playerRecord = sameIdentity;
-                currentPlayer.id = sameIdentity.id;
-
-                const stored = loadStoredProfile() || {};
-                saveStoredProfile({
-                    ...stored,
-                    id: currentPlayer.id,
-                    name: currentPlayer.name,
-                    tag: currentPlayer.tag,
-                    joinedAt: stored.joinedAt || Date.now()
-                });
-            }
-        }
-
-        if (!playerRecord && playerList.length >= maxPlayers) {
-            showToast('Pack is full. Maximum 8 players allowed.', 'error');
-            return;
-        }
-
-        if (playerRecord) {
-            await roomRef.child(`players/${currentPlayer.id}`).update({
-                name: currentPlayer.name,
-                tag: currentPlayer.tag,
-                displayName: currentPlayer.displayName,
-                uniqueId: currentPlayer.uniqueId,
-                connected: connectionOnline,
-                lastSeen: firebase.database.ServerValue.TIMESTAMP
-            });
-        } else {
-            await roomRef.child(`players/${currentPlayer.id}`).set(buildPlayerRecord(currentPlayer, false));
-        }
-
-        currentGameCode = code;
-        currentGameRef = roomRef;
-        saveGameSession();
-        subscribeToCurrentGame();
-        showActiveGame();
-        showToast(`Joined "${room.name}" pack! 🐺`, 'success');
+        await connectToGame(code, { showJoinedToast: true });
     } catch (error) {
         console.error('Error joining game:', error);
-        showToast('Failed to join pack. Please try again.', 'error');
+        showToast(error.message || 'Failed to join pack.', 'error');
     } finally {
         hideLoading();
     }
 }
 
-function subscribeToCurrentGame() {
-    if (!currentGameCode || !database) return;
+async function connectToGame(code, options = {}) {
+    const roomRef = database.ref(`games/${code}`);
+    const snapshot = await roomRef.once('value');
 
-    if (currentGameRef) {
-        currentGameRef.off();
+    if (!snapshot.exists()) {
+        throw new Error('Pack not found. Please check the code.');
     }
 
-    currentGameRef = database.ref(`games/${currentGameCode}`);
+    const room = snapshot.val();
+    const normalizedPlayers = normalizePlayers(room.players || {});
+    const existingPlayer = normalizedPlayers[currentPlayer.playerKey];
+
+    if (!existingPlayer && Object.keys(normalizedPlayers).length >= (room.settings?.maxPlayers || MAX_PLAYERS)) {
+        throw new Error('Pack is full. Maximum 8 players allowed.');
+    }
+
+    const playerRecord = buildPlayerRoomRecord(currentPlayer, {
+        isHost: existingPlayer?.isHost || room.hostPlayerKey === currentPlayer.playerKey,
+        joinedAt: existingPlayer?.joinedAt,
+        states: existingPlayer?.states || {}
+    });
+
+    await roomRef.child(`players/${currentPlayer.playerKey}`).update(playerRecord);
+    await roomRef.update({
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+
+    currentGameCode = code;
+    currentGameRef = roomRef;
+    saveGameSession();
+    writeGameCodeToUrl(code);
+
+    setupGameListeners();
+    setupPresence();
+    showActiveGame();
+
+    if (options.showJoinedToast) {
+        showToast(options.joinedMessage || `Joined "${room.name}" pack! 🐺`, 'success');
+    }
+}
+
+function teardownCurrentRoomListeners() {
+    if (currentGameRef && gameListenerAttached) {
+        currentGameRef.off();
+    }
+    gameListenerAttached = false;
+
+    if (presenceCleanup) {
+        presenceCleanup();
+        presenceCleanup = null;
+    }
+
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+}
+
+function setupGameListeners() {
+    if (!currentGameRef) return;
+
+    if (gameListenerAttached) {
+        currentGameRef.off();
+        gameListenerAttached = false;
+    }
+
     currentGameRef.on('value', (snapshot) => {
         if (!snapshot.exists()) {
-            showToast('This pack no longer exists.', 'error');
-            returnToSetup();
+            showToast('Pack no longer exists.', 'error');
+            returnToSetup(true);
             return;
         }
 
-        const normalized = normalizeGameData(snapshot.val());
-        gameData = normalized;
-        playersData = normalized.players || {};
+        gameData = snapshot.val();
+        playersData = normalizePlayers(gameData.players || {});
 
-        if (!playersData[currentPlayer?.id]) {
+        if (!playersData[currentPlayer.playerKey]) {
             showToast('You are no longer in this pack.', 'info');
-            returnToSetup();
+            returnToSetup(true);
             return;
         }
 
         updateGameUI();
-        maintainPresence();
-        saveGameSession();
-    });
-}
-
-function normalizeGameData(rawGame) {
-    const normalizedPlayers = {};
-    Object.entries(rawGame?.players || {}).forEach(([playerId, player]) => {
-        normalizedPlayers[playerId] = {
-            ...player,
-            id: player.id || playerId,
-            displayName: player.displayName || `${player.name || 'Player'}${player.tag ? ` (${player.tag})` : ''}`,
-            states: normalizeStatesRecord(player.states)
-        };
     });
 
-    return {
-        ...rawGame,
-        players: normalizedPlayers
-    };
+    gameListenerAttached = true;
 }
 
-function normalizeStatesRecord(states) {
-    if (!states) return {};
+function setupPresence() {
+    if (!database || !currentGameCode || !currentPlayer || currentConnectionState !== 'online') return;
 
-    if (Array.isArray(states)) {
-        return states.reduce((accumulator, stateName) => {
-            accumulator[stateName] = { foundAt: Date.now() };
-            return accumulator;
-        }, {});
+    if (presenceCleanup) {
+        presenceCleanup();
+        presenceCleanup = null;
+    }
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
     }
 
-    if (typeof states === 'object') {
-        const normalized = {};
-        Object.entries(states).forEach(([stateName, value]) => {
-            normalized[stateName] = typeof value === 'object' && value !== null
-                ? value
-                : { foundAt: Date.now() };
-        });
-        return normalized;
-    }
+    const playerRef = database.ref(`games/${currentGameCode}/players/${currentPlayer.playerKey}`);
+    const connectedRef = database.ref('.info/connected');
 
-    return {};
-}
+    const connectedListener = connectedRef.on('value', (snapshot) => {
+        if (snapshot.val() !== true) return;
 
-function getPlayerStateNames(player) {
-    return Object.keys(normalizeStatesRecord(player?.states));
-}
+        playerRef.child('connected').onDisconnect().set(false);
+        playerRef.child('lastSeen').onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+        playerRef.update({
+            connected: true,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP,
+            deviceId: currentPlayer.deviceId,
+            name: currentPlayer.name,
+            tag: currentPlayer.tag,
+            displayName: currentPlayer.displayName
+        }).catch((error) => console.warn('Presence update failed:', error));
+    });
 
-function getPlayerStateCount(player) {
-    return getPlayerStateNames(player).length;
-}
-
-function maintainPresence() {
-    if (!database || !currentGameCode || !currentPlayer?.id) return;
-    if (!connectionOnline) return;
-
-    const presenceKey = `${currentGameCode}:${currentPlayer.id}`;
-    if (presenceInitializedForGame === presenceKey) {
-        currentGameRef.child(`players/${currentPlayer.id}`).update({
+    heartbeatInterval = setInterval(() => {
+        playerRef.update({
             connected: true,
             lastSeen: firebase.database.ServerValue.TIMESTAMP
         }).catch(() => {});
+    }, HEARTBEAT_MS);
+
+    presenceCleanup = () => {
+        connectedRef.off('value', connectedListener);
+        playerRef.update({
+            connected: false,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        }).catch(() => {});
+    };
+}
+
+async function attemptAutoResume() {
+    if (!database) return;
+
+    const savedSession = getSavedSession();
+    const urlCode = pendingGameCodeFromUrl;
+
+    if (urlCode && game.style.display !== 'block') {
+        startGame();
+    }
+
+    if (!currentPlayer) {
+        if (urlCode) {
+            document.getElementById('joinCodeInput').value = urlCode;
+        }
         return;
     }
 
-    presenceInitializedForGame = presenceKey;
+    if (urlCode) {
+        document.getElementById('joinCodeInput').value = urlCode;
+        try {
+            await connectToGame(urlCode, { showJoinedToast: true, joinedMessage: `Rejoined pack ${urlCode}.` });
+            pendingGameCodeFromUrl = null;
+            return;
+        } catch (error) {
+            console.warn('URL join failed:', error);
+            showToast(error.message || 'Could not join the shared pack.', 'error');
+        }
+    }
 
-    const playerRef = database.ref(`games/${currentGameCode}/players/${currentPlayer.id}`);
-    playerRef.onDisconnect().update({
-        connected: false,
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-    }).catch((error) => {
-        console.warn('Failed to register disconnect handler:', error);
-    });
+    if (!savedSession || !savedSession.gameCode || savedSession.playerKey !== currentPlayer.playerKey) {
+        return;
+    }
 
-    playerRef.update({
-        connected: true,
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-    }).catch((error) => {
-        console.warn('Failed to update presence:', error);
-    });
+    const age = Date.now() - (savedSession.savedAt || 0);
+    if (age > 7 * 24 * 60 * 60 * 1000) {
+        clearGameSession();
+        return;
+    }
+
+    try {
+        await connectToGame(savedSession.gameCode, { showJoinedToast: true, joinedMessage: `Welcome back to pack ${savedSession.gameCode}!` });
+        if (game.style.display !== 'block') {
+            startGame();
+        }
+    } catch (error) {
+        console.warn('Auto resume failed:', error);
+        clearGameSession();
+    }
 }
 
 function showActiveGame() {
-    splash.style.display = 'none';
+    if (splash.style.display !== 'none') {
+        splash.style.display = 'none';
+    }
     game.style.display = 'block';
     setupSection.style.display = 'none';
     gameActive.style.display = 'block';
     gameCodeHeader.style.display = 'flex';
-    renderStates();
-    updateGameUI();
-}
-
-function updateGameUI() {
-    if (!gameData || !currentPlayer) return;
-
-    const gameTitle = document.getElementById('gameTitle');
-    if (gameTitle) {
-        gameTitle.textContent = `${gameData.name || 'PlateQuest Multiplayer Pack'} • ${currentGameCode}`;
-    }
-
     updateGameCodeHeader();
-    updateScores();
-    renderStates();
 }
 
 function updateGameCodeHeader() {
@@ -622,39 +727,77 @@ function updateGameCodeHeader() {
     }
 }
 
+function updateGameUI() {
+    if (!gameData || !currentPlayer) return;
+
+    const signature = buildStateSignature();
+    if (signature === lastRenderedStateSignature) {
+        updateScores();
+        updateConnectionBadgeText();
+        return;
+    }
+
+    lastRenderedStateSignature = signature;
+    updateScores();
+    renderStates();
+    updateConnectionBadgeText();
+
+    const title = document.getElementById('gameTitle');
+    if (title) {
+        title.textContent = `${gameData.name} Pack 🐺`;
+    }
+}
+
+function updateConnectionBadgeText() {
+    const statusText = document.getElementById('statusText');
+    if (!statusText) return;
+
+    if (!currentGameCode) {
+        statusText.textContent = currentConnectionState === 'online' ? 'Ready' : 'Disconnected';
+        return;
+    }
+
+    const me = playersData[currentPlayer.playerKey];
+    if (currentConnectionState !== 'online') {
+        statusText.textContent = 'Offline - reconnecting…';
+    } else if (me && me.connected) {
+        statusText.textContent = `Pack Connected • ${stateMapToCount(me.states)} plates`;
+    } else {
+        statusText.textContent = 'Rejoining pack…';
+    }
+}
+
 function updateScores() {
     const scoresContainer = document.getElementById('scoresContainer');
     if (!scoresContainer) return;
 
     scoresContainer.innerHTML = '';
 
-    const scoreRows = Object.values(playersData)
-        .map((player) => {
-            const count = getPlayerStateCount(player);
-            return {
-                ...player,
-                count,
-                percentage: Math.round((count / 50) * 100)
-            };
-        })
-        .sort((left, right) => right.count - left.count || String(left.displayName).localeCompare(String(right.displayName)));
+    const scores = Object.values(playersData)
+        .map((player) => ({
+            ...player,
+            count: stateMapToCount(player.states),
+            percentage: Math.round((stateMapToCount(player.states) / 50) * 100)
+        }))
+        .sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            return (a.joinedAt || 0) - (b.joinedAt || 0);
+        });
 
-    scoreRows.forEach((player, index) => {
-        const card = document.createElement('div');
-        card.className = `score-card ${index === 0 && player.count > 0 ? 'leader' : ''}`;
-
-        const isMe = player.id === currentPlayer.id;
+    scores.forEach((player, index) => {
+        const scoreCard = document.createElement('div');
+        scoreCard.className = `score-card ${index === 0 && player.count > 0 ? 'leader' : ''}`;
+        const isMe = player.playerKey === currentPlayer.playerKey;
+        const marker = isMe ? '🐺' : (player.connected ? '👤' : '💤');
         const trophy = index === 0 && player.count > 0 ? '🏆' : '';
-        const wolf = isMe ? '🐺' : '👤';
-        const status = player.connected ? '🟢' : '⚪️';
 
-        card.innerHTML = `
-            <div class="score-player-name">${wolf} ${isMe ? 'YOU' : (player.displayName || player.name)} ${trophy}</div>
+        scoreCard.innerHTML = `
+            <div class="score-player-name">${marker} ${isMe ? 'YOU' : player.displayName} ${trophy}</div>
             <div class="score-count">${player.count}</div>
-            <div class="score-percentage">(${player.percentage}%) ${status}</div>
+            <div class="score-percentage">(${player.percentage}%)</div>
         `;
 
-        scoresContainer.appendChild(card);
+        scoresContainer.appendChild(scoreCard);
     });
 }
 
@@ -662,32 +805,20 @@ function renderStates() {
     const statesGrid = document.getElementById('statesGrid');
     if (!statesGrid || !currentPlayer) return;
 
-    const myStateMap = normalizeStatesRecord(playersData[currentPlayer.id]?.states);
-
     statesGrid.innerHTML = '';
+    const myStates = getMyStatesMap();
 
     statesData.forEach((state, index) => {
         const card = document.createElement('div');
         card.className = 'state-card';
 
-        const foundByMe = Boolean(myStateMap[state.name]);
-        let foundByOtherDisplay = null;
-        let foundByOtherInitial = null;
-
-        Object.values(playersData).some((player) => {
-            if (player.id === currentPlayer.id) return false;
-            const stateMap = normalizeStatesRecord(player.states);
-            if (stateMap[state.name]) {
-                foundByOtherDisplay = player.displayName || player.name || 'Player';
-                foundByOtherInitial = (player.name || 'P').charAt(0).toUpperCase();
-                return true;
-            }
-            return false;
-        });
+        const foundByMe = Boolean(myStates[state.name]);
+        const owner = findStateOwner(state.name);
+        const foundByOther = owner && owner.playerKey !== currentPlayer.playerKey ? owner : null;
 
         if (foundByMe) {
             card.classList.add('selected');
-        } else if (foundByOtherDisplay) {
+        } else if (foundByOther) {
             card.classList.add('selected-by-other');
         }
 
@@ -706,49 +837,36 @@ function renderStates() {
                          onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';">
                 </div>
             </div>
-            ${foundByOtherDisplay ? `<div style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; background: #f39c12; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="Found by ${foundByOtherDisplay}">${foundByOtherInitial}</div>` : ''}
+            ${foundByOther ? `<div style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; background: #f39c12; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="Found by ${foundByOther.displayName}">${foundByOther.name.charAt(0).toUpperCase()}</div>` : ''}
         `;
 
-        card.addEventListener('click', () => toggleState(state.name));
+        card.addEventListener('click', () => toggleState(state.name, foundByMe));
         card.style.animationDelay = `${index * 0.02}s`;
         statesGrid.appendChild(card);
     });
 }
 
-async function toggleState(stateName) {
+async function toggleState(stateName, currentlySelected) {
     if (!currentGameRef || !currentPlayer) return;
 
+    const playerStatesRef = currentGameRef.child(`players/${currentPlayer.playerKey}/states`);
     try {
-        const playerStatesRef = currentGameRef.child(`players/${currentPlayer.id}/states`);
-        const hadStateBefore = Boolean(normalizeStatesRecord(playersData[currentPlayer.id]?.states)[stateName]);
-        let nextCount = 0;
-
-        await playerStatesRef.transaction((currentValue) => {
-            const normalized = normalizeStatesRecord(currentValue);
-
-            if (normalized[stateName]) {
-                delete normalized[stateName];
-            } else {
-                normalized[stateName] = {
-                    foundAt: Date.now(),
-                    foundBy: currentPlayer.displayName
-                };
-            }
-
-            nextCount = Object.keys(normalized).length;
-            return normalized;
-        });
-
-        currentGameRef.child(`players/${currentPlayer.id}`).update({
-            connected: connectionOnline,
-            lastSeen: firebase.database.ServerValue.TIMESTAMP
-        }).catch(() => {});
-
-        if (!hadStateBefore) {
+        if (currentlySelected) {
+            await playerStatesRef.child(stateName).remove();
+        } else {
+            await playerStatesRef.child(stateName).set({
+                state: stateName,
+                foundAt: firebase.database.ServerValue.TIMESTAMP,
+                foundBy: currentPlayer.displayName,
+                foundByKey: currentPlayer.playerKey
+            });
             showToast(`Found ${stateName}! 🎉`, 'success');
         }
 
-        if (nextCount === 50) {
+        await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
+
+        const myCount = currentlySelected ? stateMapToCount(getMyStatesMap()) - 1 : stateMapToCount(getMyStatesMap()) + 1;
+        if (!currentlySelected && myCount === 50) {
             showToast('🏆 AMAZING! You found all 50 states!', 'success');
         }
     } catch (error) {
@@ -762,11 +880,8 @@ async function resetMyProgress() {
     if (!confirm('Reset all your spotted plates? This cannot be undone.')) return;
 
     try {
-        await currentGameRef.child(`players/${currentPlayer.id}/states`).set({});
-        await currentGameRef.child(`players/${currentPlayer.id}`).update({
-            connected: connectionOnline,
-            lastSeen: firebase.database.ServerValue.TIMESTAMP
-        });
+        await currentGameRef.child(`players/${currentPlayer.playerKey}/states`).set({});
+        await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
         showToast('Your progress has been reset.', 'info');
     } catch (error) {
         console.error('Error resetting progress:', error);
@@ -779,121 +894,86 @@ async function leaveGame() {
     if (!confirm('Leave this pack?')) return;
 
     try {
-        await currentGameRef.child(`players/${currentPlayer.id}`).remove();
-        returnToSetup();
+        const roomSnapshot = await currentGameRef.once('value');
+        if (!roomSnapshot.exists()) {
+            returnToSetup(true);
+            return;
+        }
+
+        const room = roomSnapshot.val();
+        const roomPlayers = normalizePlayers(room.players || {});
+        const isHost = room.hostPlayerKey === currentPlayer.playerKey;
+
+        await currentGameRef.child(`players/${currentPlayer.playerKey}`).remove();
+
+        const remainingKeys = Object.keys(roomPlayers).filter((key) => key !== currentPlayer.playerKey);
+        if (remainingKeys.length === 0) {
+            await currentGameRef.remove();
+        } else if (isHost) {
+            const nextHostKey = remainingKeys[0];
+            await currentGameRef.update({
+                hostPlayerKey: nextHostKey,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            await currentGameRef.child(`players/${nextHostKey}/isHost`).set(true);
+            await currentGameRef.child(`players/${nextHostKey}/role`).set('host');
+        }
+
         showToast('Left the pack.', 'info');
+        returnToSetup(true);
     } catch (error) {
-        console.error('Error leaving pack:', error);
+        console.error('Error leaving game:', error);
         showToast('Failed to leave pack.', 'error');
     }
 }
 
-function returnToSetup() {
-    if (currentGameRef) {
-        currentGameRef.off();
-    }
+function returnToSetup(clearSessionToo = false) {
+    teardownCurrentRoomListeners();
 
     currentGameRef = null;
     currentGameCode = null;
     gameData = null;
     playersData = {};
-    presenceInitializedForGame = null;
+    lastRenderedStateSignature = '';
 
-    clearGameSession();
+    if (clearSessionToo) {
+        clearGameSession();
+        clearGameCodeFromUrl();
+    }
 
     gameCodeHeader.style.display = 'none';
     setupSection.style.display = 'block';
     gameActive.style.display = 'none';
 
     document.getElementById('newGameInput').value = '';
-    prefillInviteCodeFromUrl();
+    document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl || '';
 
     if (currentPlayer) {
-        enableGameSetupCards();
+        enableGameCards();
+    } else {
+        disableGameCards();
     }
-}
 
-function saveGameSession() {
-    if (!currentPlayer || !currentGameCode) return;
-
-    const session = {
-        gameCode: currentGameCode,
-        playerId: currentPlayer.id,
-        savedAt: Date.now()
-    };
-
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(session));
-}
-
-function clearGameSession() {
-    localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
-}
-
-async function attemptSessionRecovery() {
-    if (!database || currentGameCode) return;
-
-    const raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
-    if (!raw) return;
-
-    try {
-        const session = JSON.parse(raw);
-        if (!session?.gameCode || !session?.playerId) {
-            clearGameSession();
-            return;
-        }
-
-        const profile = loadStoredProfile();
-        if (!profile?.id) {
-            clearGameSession();
-            return;
-        }
-
-        currentPlayer = buildPlayerFromProfile(profile);
-        currentPlayer.id = session.playerId;
-
-        const roomRef = database.ref(`games/${session.gameCode}`);
-        const snapshot = await roomRef.once('value');
-
-        if (!snapshot.exists()) {
-            clearGameSession();
-            return;
-        }
-
-        const room = normalizeGameData(snapshot.val());
-        if (!room.players?.[session.playerId]) {
-            clearGameSession();
-            return;
-        }
-
-        currentGameCode = session.gameCode;
-        currentGameRef = roomRef;
-
-        splash.style.display = 'none';
-        game.style.display = 'block';
-        showActiveGame();
-        subscribeToCurrentGame();
-        maintainPresence();
-        showToast(`Rejoined pack ${currentGameCode}! 🐺`, 'success');
-    } catch (error) {
-        console.error('Session recovery failed:', error);
-        clearGameSession();
-    }
+    updateConnectionBadgeText();
 }
 
 function copyGameCode() {
     if (!currentGameCode) return;
+    copyToClipboard(currentGameCode, 'Pack code copied! 📋');
+}
 
-    navigator.clipboard.writeText(currentGameCode).then(() => {
-        showToast('Pack code copied! 📋', 'success');
-    }).catch(() => {
-        showToast(`Pack code: ${currentGameCode}`, 'info');
-    });
+function getCanonicalJoinUrl() {
+    const url = new URL(window.location.href);
+    if (currentGameCode) {
+        url.searchParams.set('game', currentGameCode);
+    }
+    return url.toString();
 }
 
 function shareGameCode() {
     if (!currentGameCode) return;
 
-    const joinUrl = `${window.location.origin}${window.location.pathname}?game=${currentGameCode}`;
+    const joinUrl = getCanonicalJoinUrl();
     const shareData = {
         title: 'Join my PlateQuest Pack!',
         text: `Join my license plate hunting pack! Use code: ${currentGameCode}`,
@@ -902,47 +982,51 @@ function shareGameCode() {
 
     if (navigator.share) {
         navigator.share(shareData).catch(() => {
-            copyToClipboard(`${shareData.text}\n${joinUrl}`);
+            copyToClipboard(`${shareData.text}\n${joinUrl}`, 'Join link copied! 📋');
         });
     } else {
-        copyToClipboard(`${shareData.text}\n${joinUrl}`);
+        copyToClipboard(`${shareData.text}\n${joinUrl}`, 'Join link copied! 📋');
     }
 }
 
 function inviteNewPlayer() {
     if (!currentGameCode) return;
-
-    const joinUrl = `${window.location.origin}${window.location.pathname}?game=${currentGameCode}`;
-    const message = `🐺 Join my PlateQuest Pack!\n\nPack Code: ${currentGameCode}\nJoin Link: ${joinUrl}\n\nLet's hunt license plates together!`;
+    const message = `🐺 Join my PlateQuest Pack!\n\nPack Code: ${currentGameCode}\nJoin here: ${getCanonicalJoinUrl()}\n\nLet's hunt license plates together!`;
 
     if (navigator.share) {
-        navigator.share({
-            title: 'Join my PlateQuest Pack!',
-            text: message,
-            url: joinUrl
-        }).catch(() => {
-            copyToClipboard(message);
+        navigator.share({ title: 'Join my PlateQuest Pack!', text: message }).catch(() => {
+            copyToClipboard(message, 'Invitation copied to clipboard! 📋');
         });
     } else {
-        copyToClipboard(message);
+        copyToClipboard(message, 'Invitation copied to clipboard! 📋');
     }
 }
 
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Copied to clipboard! 📋', 'success');
-    }).catch(() => {
-        showToast('Copy failed. Please try again.', 'error');
-    });
+function copyToClipboard(text, successMessage = 'Copied!') {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast(successMessage, 'success');
+        }).catch(() => fallbackCopy(text, successMessage));
+    } else {
+        fallbackCopy(text, successMessage);
+    }
+}
+
+function fallbackCopy(text, successMessage) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    showToast(successMessage, 'success');
 }
 
 function toggleDarkMode() {
     document.body.classList.toggle('dark');
-    const btn = document.getElementById('darkModeBtn');
-    if (btn) {
-        btn.textContent = document.body.classList.contains('dark') ? '☀️ Light Mode' : '🌙 Dark Mode';
-    }
-    localStorage.setItem(STORAGE_KEYS.DARK_MODE, document.body.classList.contains('dark'));
+    const isDark = document.body.classList.contains('dark');
+    document.getElementById('darkModeBtn').textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+    localStorage.setItem(STORAGE_KEYS.darkMode, String(isDark));
 }
 
 function updateConnectionStatus(status) {
@@ -950,25 +1034,19 @@ function updateConnectionStatus(status) {
     const statusText = document.getElementById('statusText');
 
     if (statusDot) {
-        statusDot.className = `status-dot ${status === 'online' ? 'online' : status === 'connecting' ? 'connecting' : 'offline'}`;
+        statusDot.className = `status-dot ${status}`;
     }
 
     if (statusText) {
-        if (status === 'online') {
-            statusText.textContent = currentGameCode ? 'Pack Connected 🐺' : 'Online';
-        } else if (status === 'connecting') {
-            statusText.textContent = currentGameCode ? 'Reconnecting to pack…' : 'Connecting...';
-        } else {
-            statusText.textContent = 'Disconnected';
-        }
+        if (status === 'online') statusText.textContent = 'Connected';
+        if (status === 'offline') statusText.textContent = 'Disconnected';
+        if (status === 'connecting') statusText.textContent = 'Connecting...';
     }
 }
 
 function showLoading(text = 'Loading...') {
     const loadingText = loadingOverlay.querySelector('.loading-text');
-    if (loadingText) {
-        loadingText.textContent = text;
-    }
+    if (loadingText) loadingText.textContent = text;
     loadingOverlay.style.display = 'flex';
 }
 
@@ -990,18 +1068,5 @@ function showToast(message, type = 'info') {
             toast.style.animation = 'slideInToast 0.3s ease reverse';
             setTimeout(() => toast.remove(), 300);
         }
-    }, 3500);
-}
-
-function generateGameCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let index = 0; index < 6; index += 1) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-}
-
-function generatePlayerId() {
-    return `player_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    }, 4000);
 }
