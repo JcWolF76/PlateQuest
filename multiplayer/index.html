@@ -66,7 +66,6 @@
             z-index: 2;
         }
 
-        /* Splash Screen */
         #splash {
             display: flex;
             flex-direction: column;
@@ -254,7 +253,6 @@
             box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
         }
 
-        /* Game Interface */
         #game {
             display: none;
             background: linear-gradient(145deg, rgba(44, 62, 80, 0.95), rgba(52, 73, 94, 0.95));
@@ -265,7 +263,6 @@
             border: 1px solid rgba(52, 152, 219, 0.2);
         }
 
-        /* Persistent Game Code Header */
         .game-code-header {
             background: linear-gradient(45deg, #27ae60, #2ecc71);
             color: white;
@@ -388,7 +385,55 @@
             51%, 100% { opacity: 0.3; }
         }
 
-        /* Setup Section */
+        .diagnostics-panel {
+            margin-top: 16px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(52, 152, 219, 0.25);
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: none;
+        }
+
+        .diagnostics-panel.visible {
+            display: block;
+        }
+
+        .diagnostics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .diagnostics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            text-align: left;
+        }
+
+        .diagnostic-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .diagnostic-label {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .diagnostic-value {
+            font-size: 14px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
         .setup-section {
             padding: 30px;
             position: relative;
@@ -497,7 +542,6 @@
                 inset 0 2px 5px rgba(0, 0, 0, 0.2);
         }
 
-        /* Live Scores */
         .live-scores {
             background: linear-gradient(45deg, #27ae60, #2ecc71);
             color: white;
@@ -560,7 +604,6 @@
             font-size: 12px;
         }
 
-        /* States Grid */
         .states-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -643,7 +686,6 @@
             background: linear-gradient(145deg, #f39c12, #e67e22);
         }
 
-        /* Buttons */
         .btn {
             padding: 12px 20px;
             border: none;
@@ -693,7 +735,6 @@
             font-size: 16px;
         }
 
-        /* Loading and Toast styles would go here - keeping them from original */
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -781,7 +822,6 @@
             }
         }
 
-        /* Responsive Design */
         @media (max-width: 768px) {
             .container { padding: 10px; }
             .states-grid { grid-template-columns: 1fr; }
@@ -790,12 +830,12 @@
             .logo { width: 250px; }
             .game-code-header { flex-direction: column; gap: 15px; text-align: center; }
             .share-controls { justify-content: center; }
+            .diagnostics-grid { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Splash Screen -->
         <div id="splash">
             <div class="logo-container">
                 <img src="../platequest-final-logo.jpeg" alt="PlateQuest Logo" class="logo">
@@ -817,9 +857,7 @@
             <p style="margin-top: 30px; opacity: 0.7; font-style: italic;">Created by JcWoLF76 🐺</p>
         </div>
 
-        <!-- Game Interface -->
         <div id="game">
-            <!-- Persistent Game Code Header (Only shown during active game) -->
             <div class="game-code-header" id="gameCodeHeader" style="display: none;">
                 <div class="game-code-info">
                     <span style="font-size: 16px;">Pack Code:</span>
@@ -832,7 +870,6 @@
                 </div>
             </div>
 
-            <!-- Header -->
             <div class="game-header">
                 <div class="game-title" id="gameTitle">PlateQuest Multiplayer Pack 🐺</div>
                 <div class="game-subtitle">Live adventure with your pack!</div>
@@ -840,9 +877,40 @@
                     <span class="status-dot offline" id="statusDot"></span>
                     <span id="statusText">Connecting...</span>
                 </div>
+                <div class="diagnostics-panel" id="diagnosticsPanel">
+                    <div class="diagnostics-header">
+                        <strong>Diagnostics</strong>
+                        <span style="opacity:0.8;font-size:12px;">Toggle with ⌘/Ctrl + D</span>
+                    </div>
+                    <div class="diagnostics-grid">
+                        <div class="diagnostic-card">
+                            <div class="diagnostic-label">Identity</div>
+                            <div class="diagnostic-value" id="diagIdentity">—</div>
+                        </div>
+                        <div class="diagnostic-card">
+                            <div class="diagnostic-label">Room</div>
+                            <div class="diagnostic-value" id="diagRoom">—</div>
+                        </div>
+                        <div class="diagnostic-card">
+                            <div class="diagnostic-label">Connection</div>
+                            <div class="diagnostic-value" id="diagConnection">—</div>
+                        </div>
+                        <div class="diagnostic-card">
+                            <div class="diagnostic-label">Players</div>
+                            <div class="diagnostic-value" id="diagPlayers">—</div>
+                        </div>
+                        <div class="diagnostic-card">
+                            <div class="diagnostic-label">Last Sync</div>
+                            <div class="diagnostic-value" id="diagLastSync">—</div>
+                        </div>
+                        <div class="diagnostic-card">
+                            <div class="diagnostic-label">Session</div>
+                            <div class="diagnostic-value" id="diagSession">—</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Player Setup -->
             <div class="setup-section steel-texture" id="setupSection">
                 <div class="control-group">
                     <label>👤 Your Identity</label>
@@ -876,17 +944,12 @@
                 </div>
             </div>
 
-            <!-- Active Game -->
             <div class="game-active" id="gameActive" style="display: none;">
-                <!-- Real-time Score Display -->
                 <div class="live-scores" id="liveScores">
                     <h3>🏆 Pack Leaderboard</h3>
-                    <div class="scores-container" id="scoresContainer">
-                        <!-- Live scores will be populated here -->
-                    </div>
+                    <div class="scores-container" id="scoresContainer"></div>
                 </div>
 
-                <!-- States Grid -->
                 <div style="padding: 25px;">
                     <h3 style="color: #3498db; margin-bottom: 15px; font-size: 24px;">🗺️ State License Plates</h3>
                     <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">
@@ -894,12 +957,9 @@
                         <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> 
                         <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span>
                     </p>
-                    <div class="states-grid" id="statesGrid">
-                        <!-- States will be populated by JavaScript -->
-                    </div>
+                    <div class="states-grid" id="statesGrid"></div>
                 </div>
 
-                <!-- Game Controls -->
                 <div style="padding: 25px; border-top: 1px solid rgba(52, 152, 219, 0.2); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
                     <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
@@ -908,13 +968,11 @@
             </div>
         </div>
 
-        <!-- Loading Overlay -->
         <div id="loadingOverlay" class="loading-overlay" style="display: none;">
             <div class="loading-spinner"></div>
             <div class="loading-text">Connecting to the pack...</div>
         </div>
 
-        <!-- Toast Notifications -->
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
