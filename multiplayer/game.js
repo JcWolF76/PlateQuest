@@ -74,6 +74,10 @@ const STORAGE_KEYS = {
     diagnostics: 'platequest_diagnostics_visible'
 };
 
+const SESSION_KEYS = {
+    joinReloadCode: 'platequest_join_reload_code_v1'
+};
+
 const LEGACY_STORAGE_KEYS = {
     playerProfile: 'platequest_player_profile',
     activeSession: 'platequest_active_session'
@@ -132,6 +136,34 @@ function normalizeTagInput(value) {
 
 function normalizeCodeInput(value) {
     return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+}
+
+function setPendingJoinReload(code) {
+    try {
+        sessionStorage.setItem(SESSION_KEYS.joinReloadCode, code);
+    } catch (error) {}
+}
+
+function getPendingJoinReload() {
+    try {
+        return normalizeCodeInput(sessionStorage.getItem(SESSION_KEYS.joinReloadCode) || '');
+    } catch (error) {
+        return '';
+    }
+}
+
+function clearPendingJoinReload() {
+    try {
+        sessionStorage.removeItem(SESSION_KEYS.joinReloadCode);
+    } catch (error) {}
+}
+
+function reloadForJoin(code) {
+    setPendingJoinReload(code);
+    const url = new URL(window.location.href);
+    url.searchParams.set('game', code);
+    url.searchParams.set('joinrefresh', '1');
+    window.location.replace(url.toString());
 }
 
 async function ensureDatabaseReady(actionLabel = 'continue') {
@@ -455,7 +487,7 @@ function initializeApp() {
         bindEventListeners();
         restoreIdentity();
         initializeDarkMode();
-        pendingGameCodeFromUrl = readGameCodeFromUrl();
+        pendingGameCodeFromUrl = readGameCodeFromUrl() || getPendingJoinReload();
         updateDiagnosticsPanel();
 
         database.ref('.info/connected').on('value', async (snapshot) => {
@@ -481,6 +513,7 @@ function initializeApp() {
         bindEventListeners();
         restoreIdentity();
         initializeDarkMode();
+        pendingGameCodeFromUrl = readGameCodeFromUrl() || getPendingJoinReload();
         updateDiagnosticsPanel();
     }
 }
@@ -590,6 +623,7 @@ function writeGameCodeToUrl(code) {
     if (!window.history || !window.history.replaceState) return;
     const url = new URL(window.location.href);
     url.searchParams.set('game', code);
+    url.searchParams.delete('joinrefresh');
     window.history.replaceState({}, document.title, url.toString());
 }
 
@@ -598,6 +632,7 @@ function clearGameCodeFromUrl() {
     const url = new URL(window.location.href);
     url.searchParams.delete('game');
     url.searchParams.delete('code');
+    url.searchParams.delete('joinrefresh');
     window.history.replaceState({}, document.title, url.pathname);
 }
 
@@ -681,6 +716,7 @@ async function createGame() {
         };
 
         await roomRef.set(roomData);
+        clearPendingJoinReload();
         await connectToGame(code, { showJoinedToast: true, joinedMessage: `Pack "${gameName}" created! 🐺` });
     } catch (error) {
         console.error('Error creating game:', error);
@@ -712,8 +748,20 @@ async function joinGame(codeOverride = null) {
 
     try {
         await connectToGame(code, { showJoinedToast: true });
+        clearPendingJoinReload();
     } catch (error) {
         console.error('Error joining game:', error);
+        const shouldReloadOnce = !getPendingJoinReload() && (
+            /not found/i.test(error.message || '') ||
+            /permission_denied/i.test(error.message || '') ||
+            /network/i.test(error.message || '')
+        );
+        if (shouldReloadOnce) {
+            showToast('Refreshing once to join the pack…', 'info');
+            reloadForJoin(code);
+            return;
+        }
+        clearPendingJoinReload();
         showToast(error.message || 'Failed to join pack.', 'error');
     } finally {
         hideLoading();
@@ -898,10 +946,12 @@ async function attemptAutoResume() {
         try {
             await connectToGame(urlCode, { showJoinedToast: true, joinedMessage: `Rejoined pack ${urlCode}.` });
             pendingGameCodeFromUrl = null;
+            clearPendingJoinReload();
             return;
         } catch (error) {
             console.warn('URL join failed:', error);
             showToast(error.message || 'Could not join the shared pack.', 'error');
+            clearPendingJoinReload();
         }
     }
 
@@ -1165,6 +1215,7 @@ function returnToSetup(clearSessionToo = false) {
     if (clearSessionToo) {
         clearGameSession();
         clearGameCodeFromUrl();
+        clearPendingJoinReload();
     }
 
     gameCodeHeader.style.display = 'none';
@@ -1194,6 +1245,7 @@ function getCanonicalJoinUrl() {
     if (currentGameCode) {
         url.searchParams.set('game', currentGameCode);
     }
+    url.searchParams.delete('joinrefresh');
     return url.toString();
 }
 
