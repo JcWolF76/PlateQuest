@@ -99,6 +99,7 @@ let pendingGameCodeFromUrl = null;
 let lastRenderedStateSignature = '';
 let diagnosticsVisible = false;
 let lastSyncAt = null;
+let firebaseReady = false;
 
 const splash = document.getElementById('splash');
 const game = document.getElementById('game');
@@ -131,6 +132,35 @@ function normalizeTagInput(value) {
 
 function normalizeCodeInput(value) {
     return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+}
+
+async function ensureDatabaseReady(actionLabel = 'continue') {
+    if (database) {
+        firebaseReady = true;
+        return true;
+    }
+
+    try {
+        if (typeof firebase === 'undefined') {
+            throw new Error('Firebase SDK did not load.');
+        }
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        database = firebase.database();
+        firebaseReady = true;
+        currentConnectionState = 'connecting';
+        updateConnectionStatus('connecting');
+        updateDiagnosticsPanel();
+        return true;
+    } catch (error) {
+        console.error(`Unable to ${actionLabel}: Firebase is not ready.`, error);
+        firebaseReady = false;
+        updateConnectionStatus('offline');
+        showToast(`Could not ${actionLabel}. Connection is not ready yet.`, 'error');
+        updateDiagnosticsPanel();
+        return false;
+    }
 }
 
 function getOrCreateDeviceId() {
@@ -421,6 +451,7 @@ function initializeApp() {
             firebase.initializeApp(firebaseConfig);
         }
         database = firebase.database();
+        firebaseReady = true;
         bindEventListeners();
         restoreIdentity();
         initializeDarkMode();
@@ -445,6 +476,7 @@ function initializeApp() {
         });
     } catch (error) {
         console.error('Firebase initialization failed:', error);
+        firebaseReady = false;
         updateConnectionStatus('offline');
         bindEventListeners();
         restoreIdentity();
@@ -618,6 +650,10 @@ async function createGame() {
         return;
     }
 
+    if (!(await ensureDatabaseReady('create a pack'))) {
+        return;
+    }
+
     const gameName = document.getElementById('newGameInput').value.trim();
     if (!gameName) {
         showToast('Please enter a pack name! 🎮', 'error');
@@ -648,7 +684,7 @@ async function createGame() {
         await connectToGame(code, { showJoinedToast: true, joinedMessage: `Pack "${gameName}" created! 🐺` });
     } catch (error) {
         console.error('Error creating game:', error);
-        showToast('Failed to create pack. Please try again.', 'error');
+        showToast(error?.message || 'Failed to create pack. Please try again.', 'error');
     } finally {
         hideLoading();
     }
@@ -657,6 +693,10 @@ async function createGame() {
 async function joinGame(codeOverride = null) {
     if (!currentPlayer) {
         showToast('Please set your name first! 👤', 'error');
+        return;
+    }
+
+    if (!(await ensureDatabaseReady('join a pack'))) {
         return;
     }
 
