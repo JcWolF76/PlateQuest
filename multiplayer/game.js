@@ -1,5 +1,6 @@
 // PlateQuest Multiplayer v2
-// Rebuilt around durable room membership, stable player identity, and silent rejoin.
+// Rebuilt around durable room membership, stable player identity, silent rejoin,
+// legacy migration, and visible diagnostics.
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -69,7 +70,13 @@ const STORAGE_KEYS = {
     tag: 'platequest_player_tag',
     player: 'platequest_player_identity_v2',
     session: 'platequest_active_session_v2',
-    darkMode: 'platequest_dark_mode'
+    darkMode: 'platequest_dark_mode',
+    diagnostics: 'platequest_diagnostics_visible'
+};
+
+const LEGACY_STORAGE_KEYS = {
+    playerProfile: 'platequest_player_profile',
+    activeSession: 'platequest_active_session'
 };
 
 const ROOM_VERSION = 2;
@@ -90,6 +97,8 @@ let presenceCleanup = null;
 let heartbeatInterval = null;
 let pendingGameCodeFromUrl = null;
 let lastRenderedStateSignature = '';
+let diagnosticsVisible = false;
+let lastSyncAt = null;
 
 const splash = document.getElementById('splash');
 const game = document.getElementById('game');
@@ -97,6 +106,7 @@ const setupSection = document.getElementById('setupSection');
 const gameActive = document.getElementById('gameActive');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const gameCodeHeader = document.getElementById('gameCodeHeader');
+const diagnosticsPanel = document.getElementById('diagnosticsPanel');
 
 function slugify(value) {
     return String(value || '')
@@ -107,18 +117,19 @@ function slugify(value) {
         .slice(0, 40);
 }
 
-function getOrCreateDeviceId() {
-    let identity = null;
+function safeParseStorage(key) {
     try {
-        identity = JSON.parse(localStorage.getItem(STORAGE_KEYS.player) || 'null');
+        return JSON.parse(localStorage.getItem(key) || 'null');
     } catch (error) {
-        identity = null;
+        return null;
     }
+}
 
+function getOrCreateDeviceId() {
+    const identity = safeParseStorage(STORAGE_KEYS.player);
     if (identity && identity.deviceId) {
         return identity.deviceId;
     }
-
     return `device_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -167,10 +178,54 @@ function buildPlayerFromInputs() {
     };
 }
 
+function buildPlayerIdentity(name, tag, extras = {}) {
+    return {
+        playerKey: `${slugify(name)}__${slugify(tag)}`,
+        deviceId: extras.deviceId || getOrCreateDeviceId(),
+        name,
+        tag,
+        displayName: `${name} (${tag})`,
+        colorSeed: slugify(`${name}_${tag}`),
+        updatedAtLocal: Date.now(),
+        legacyPlayerId: extras.legacyPlayerId || null
+    };
+}
+
 function persistIdentity(player) {
     localStorage.setItem(STORAGE_KEYS.name, player.name);
     localStorage.setItem(STORAGE_KEYS.tag, player.tag);
     localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(player));
+    updateDiagnosticsPanel();
+}
+
+function migrateLegacyStorage() {
+    const hasNewIdentity = Boolean(localStorage.getItem(STORAGE_KEYS.player));
+    const hasNewSession = Boolean(localStorage.getItem(STORAGE_KEYS.session));
+    const legacyProfile = safeParseStorage(LEGACY_STORAGE_KEYS.playerProfile);
+    const legacySession = safeParseStorage(LEGACY_STORAGE_KEYS.activeSession);
+
+    let migratedIdentity = safeParseStorage(STORAGE_KEYS.player);
+
+    if (!hasNewIdentity && legacyProfile && legacyProfile.name && legacyProfile.tag) {
+        migratedIdentity = buildPlayerIdentity(legacyProfile.name, legacyProfile.tag, {
+            legacyPlayerId: legacyProfile.id,
+            deviceId: legacyProfile.deviceId || getOrCreateDeviceId()
+        });
+        persistIdentity(migratedIdentity);
+        showToast('Upgraded your saved multiplayer identity.', 'info');
+    }
+
+    if (!hasNewSession && legacySession && legacySession.gameCode) {
+        const player = migratedIdentity || safeParseStorage(STORAGE_KEYS.player);
+        if (player && player.playerKey) {
+            localStorage.setItem(STORAGE_KEYS.session, JSON.stringify({
+                gameCode: legacySession.gameCode,
+                playerKey: player.playerKey,
+                savedAt: legacySession.savedAt || Date.now()
+            }));
+            showToast('Upgraded your saved multiplayer session.', 'info');
+        }
+    }
 }
 
 function restoreIdentity() {
@@ -179,15 +234,12 @@ function restoreIdentity() {
     if (savedName) document.getElementById('playerNameInput').value = savedName;
     if (savedTag) document.getElementById('playerTagInput').value = savedTag;
 
-    try {
-        const savedPlayer = JSON.parse(localStorage.getItem(STORAGE_KEYS.player) || 'null');
-        if (savedPlayer && savedPlayer.playerKey) {
-            currentPlayer = savedPlayer;
-            enableGameCards();
-        }
-    } catch (error) {
-        console.warn('Could not restore player identity.', error);
+    const savedPlayer = safeParseStorage(STORAGE_KEYS.player);
+    if (savedPlayer && savedPlayer.playerKey) {
+        currentPlayer = savedPlayer;
+        enableGameCards();
     }
+    updateDiagnosticsPanel();
 }
 
 function saveGameSession() {
@@ -197,18 +249,16 @@ function saveGameSession() {
         playerKey: currentPlayer.playerKey,
         savedAt: Date.now()
     }));
+    updateDiagnosticsPanel();
 }
 
 function clearGameSession() {
     localStorage.removeItem(STORAGE_KEYS.session);
+    updateDiagnosticsPanel();
 }
 
 function getSavedSession() {
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || 'null');
-    } catch (error) {
-        return null;
-    }
+    return safeParseStorage(STORAGE_KEYS.session);
 }
 
 function enableGameCards() {
@@ -306,12 +356,60 @@ function buildStateSignature() {
     return JSON.stringify(snapshot);
 }
 
+function formatSyncTime(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+}
+
+function updateDiagnosticsPanel() {
+    if (!diagnosticsPanel) return;
+    diagnosticsPanel.classList.toggle('visible', diagnosticsVisible);
+
+    const diagIdentity = document.getElementById('diagIdentity');
+    const diagRoom = document.getElementById('diagRoom');
+    const diagConnection = document.getElementById('diagConnection');
+    const diagPlayers = document.getElementById('diagPlayers');
+    const diagLastSync = document.getElementById('diagLastSync');
+    const diagSession = document.getElementById('diagSession');
+
+    if (diagIdentity) {
+        diagIdentity.textContent = currentPlayer ? `${currentPlayer.displayName}` : 'Not set';
+    }
+    if (diagRoom) {
+        diagRoom.textContent = currentGameCode || 'None';
+    }
+    if (diagConnection) {
+        diagConnection.textContent = currentConnectionState;
+    }
+    if (diagPlayers) {
+        diagPlayers.textContent = String(Object.keys(playersData || {}).length || 0);
+    }
+    if (diagLastSync) {
+        diagLastSync.textContent = formatSyncTime(lastSyncAt);
+    }
+    if (diagSession) {
+        const session = getSavedSession();
+        diagSession.textContent = session?.gameCode ? `Saved ${session.gameCode}` : 'None';
+    }
+}
+
+function setDiagnosticsVisible(forceValue = null) {
+    diagnosticsVisible = typeof forceValue === 'boolean' ? forceValue : !diagnosticsVisible;
+    localStorage.setItem(STORAGE_KEYS.diagnostics, diagnosticsVisible ? 'true' : 'false');
+    updateDiagnosticsPanel();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
 
 function initializeApp() {
     try {
+        diagnosticsVisible = localStorage.getItem(STORAGE_KEYS.diagnostics) === 'true';
+        migrateLegacyStorage();
+
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
@@ -320,11 +418,13 @@ function initializeApp() {
         restoreIdentity();
         initializeDarkMode();
         pendingGameCodeFromUrl = readGameCodeFromUrl();
+        updateDiagnosticsPanel();
 
         database.ref('.info/connected').on('value', async (snapshot) => {
             const isConnected = snapshot.val() === true;
             currentConnectionState = isConnected ? 'online' : 'offline';
             updateConnectionStatus(isConnected ? 'online' : 'offline');
+            updateDiagnosticsPanel();
 
             if (isConnected) {
                 if (!attemptedAutoResume) {
@@ -342,6 +442,7 @@ function initializeApp() {
         bindEventListeners();
         restoreIdentity();
         initializeDarkMode();
+        updateDiagnosticsPanel();
     }
 }
 
@@ -379,6 +480,13 @@ function bindEventListeners() {
             saveGameSession();
         } else if (currentGameCode && currentPlayer && currentConnectionState === 'online') {
             setupPresence();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+            e.preventDefault();
+            setDiagnosticsVisible();
         }
     });
 
@@ -422,6 +530,7 @@ function startGame() {
     if (!currentPlayer) {
         document.getElementById('playerNameInput').focus();
     }
+    updateDiagnosticsPanel();
 }
 
 function setPlayerName() {
@@ -436,6 +545,7 @@ function setPlayerName() {
     if (pendingGameCodeFromUrl && game.style.display === 'block') {
         document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl;
     }
+    updateDiagnosticsPanel();
 }
 
 async function generateUniqueGameCode() {
@@ -479,9 +589,7 @@ async function createGame() {
             name: gameName,
             code,
             status: 'active',
-            settings: {
-                maxPlayers: MAX_PLAYERS
-            },
+            settings: { maxPlayers: MAX_PLAYERS },
             hostPlayerKey: currentPlayer.playerKey,
             createdAt: firebase.database.ServerValue.TIMESTAMP,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -537,25 +645,38 @@ async function connectToGame(code, options = {}) {
     const normalizedPlayers = normalizePlayers(room.players || {});
     const existingPlayer = normalizedPlayers[currentPlayer.playerKey];
 
-    if (!existingPlayer && Object.keys(normalizedPlayers).length >= (room.settings?.maxPlayers || MAX_PLAYERS)) {
+    if (!existingPlayer && currentPlayer.legacyPlayerId && normalizedPlayers[currentPlayer.legacyPlayerId]) {
+        const legacyPlayer = normalizedPlayers[currentPlayer.legacyPlayerId];
+        await roomRef.child(`players/${currentPlayer.legacyPlayerId}`).remove().catch(() => {});
+        normalizedPlayers[currentPlayer.playerKey] = {
+            ...legacyPlayer,
+            playerKey: currentPlayer.playerKey,
+            name: currentPlayer.name,
+            tag: currentPlayer.tag,
+            displayName: currentPlayer.displayName,
+            deviceId: currentPlayer.deviceId
+        };
+    }
+
+    if (!normalizedPlayers[currentPlayer.playerKey] && Object.keys(normalizedPlayers).length >= (room.settings?.maxPlayers || MAX_PLAYERS)) {
         throw new Error('Pack is full. Maximum 8 players allowed.');
     }
 
+    const existing = normalizedPlayers[currentPlayer.playerKey];
     const playerRecord = buildPlayerRoomRecord(currentPlayer, {
-        isHost: existingPlayer?.isHost || room.hostPlayerKey === currentPlayer.playerKey,
-        joinedAt: existingPlayer?.joinedAt,
-        states: existingPlayer?.states || {}
+        isHost: existing?.isHost || room.hostPlayerKey === currentPlayer.playerKey,
+        joinedAt: existing?.joinedAt,
+        states: existing?.states || {}
     });
 
     await roomRef.child(`players/${currentPlayer.playerKey}`).update(playerRecord);
-    await roomRef.update({
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-    });
+    await roomRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
 
     currentGameCode = code;
     currentGameRef = roomRef;
     saveGameSession();
     writeGameCodeToUrl(code);
+    lastSyncAt = Date.now();
 
     setupGameListeners();
     setupPresence();
@@ -564,6 +685,7 @@ async function connectToGame(code, options = {}) {
     if (options.showJoinedToast) {
         showToast(options.joinedMessage || `Joined "${room.name}" pack! 🐺`, 'success');
     }
+    updateDiagnosticsPanel();
 }
 
 function teardownCurrentRoomListeners() {
@@ -607,6 +729,7 @@ function setupGameListeners() {
             return;
         }
 
+        lastSyncAt = Date.now();
         updateGameUI();
     });
 
@@ -640,6 +763,9 @@ function setupPresence() {
             name: currentPlayer.name,
             tag: currentPlayer.tag,
             displayName: currentPlayer.displayName
+        }).then(() => {
+            lastSyncAt = Date.now();
+            updateDiagnosticsPanel();
         }).catch((error) => console.warn('Presence update failed:', error));
     });
 
@@ -647,6 +773,9 @@ function setupPresence() {
         playerRef.update({
             connected: true,
             lastSeen: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            lastSyncAt = Date.now();
+            updateDiagnosticsPanel();
         }).catch(() => {});
     }, HEARTBEAT_MS);
 
@@ -673,6 +802,7 @@ async function attemptAutoResume() {
         if (urlCode) {
             document.getElementById('joinCodeInput').value = urlCode;
         }
+        updateDiagnosticsPanel();
         return;
     }
 
@@ -689,6 +819,7 @@ async function attemptAutoResume() {
     }
 
     if (!savedSession || !savedSession.gameCode || savedSession.playerKey !== currentPlayer.playerKey) {
+        updateDiagnosticsPanel();
         return;
     }
 
@@ -718,6 +849,7 @@ function showActiveGame() {
     gameActive.style.display = 'block';
     gameCodeHeader.style.display = 'flex';
     updateGameCodeHeader();
+    updateDiagnosticsPanel();
 }
 
 function updateGameCodeHeader() {
@@ -734,6 +866,7 @@ function updateGameUI() {
     if (signature === lastRenderedStateSignature) {
         updateScores();
         updateConnectionBadgeText();
+        updateDiagnosticsPanel();
         return;
     }
 
@@ -746,6 +879,7 @@ function updateGameUI() {
     if (title) {
         title.textContent = `${gameData.name} Pack 🐺`;
     }
+    updateDiagnosticsPanel();
 }
 
 function updateConnectionBadgeText() {
@@ -864,11 +998,13 @@ async function toggleState(stateName, currentlySelected) {
         }
 
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
+        lastSyncAt = Date.now();
 
         const myCount = currentlySelected ? stateMapToCount(getMyStatesMap()) - 1 : stateMapToCount(getMyStatesMap()) + 1;
         if (!currentlySelected && myCount === 50) {
             showToast('🏆 AMAZING! You found all 50 states!', 'success');
         }
+        updateDiagnosticsPanel();
     } catch (error) {
         console.error('Error updating state:', error);
         showToast('Failed to update progress.', 'error');
@@ -882,7 +1018,9 @@ async function resetMyProgress() {
     try {
         await currentGameRef.child(`players/${currentPlayer.playerKey}/states`).set({});
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
+        lastSyncAt = Date.now();
         showToast('Your progress has been reset.', 'info');
+        updateDiagnosticsPanel();
     } catch (error) {
         console.error('Error resetting progress:', error);
         showToast('Failed to reset progress.', 'error');
@@ -935,6 +1073,7 @@ function returnToSetup(clearSessionToo = false) {
     gameData = null;
     playersData = {};
     lastRenderedStateSignature = '';
+    lastSyncAt = null;
 
     if (clearSessionToo) {
         clearGameSession();
@@ -955,6 +1094,7 @@ function returnToSetup(clearSessionToo = false) {
     }
 
     updateConnectionBadgeText();
+    updateDiagnosticsPanel();
 }
 
 function copyGameCode() {
