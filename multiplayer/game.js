@@ -122,39 +122,116 @@ window.PQ_US_PLATES = US_PLATES;
 // ── Rarity & Scoring ──────────────────────────────────────────────────────────
 
 // All point values are even so the 50%-later-finder share is always a whole number.
-const PLATE_RARITY = {
-    // Common (2 pts) — high-population states, seen everywhere on U.S. roads
-    'California':'common','Texas':'common','Florida':'common','New York':'common',
-    'Pennsylvania':'common','Ohio':'common','Illinois':'common','Georgia':'common',
-    'North Carolina':'common','Michigan':'common','New Jersey':'common','Virginia':'common',
-    'Washington':'common','Arizona':'common','Massachusetts':'common','Tennessee':'common',
-    // Uncommon (4 pts) — mid-tier, frequently seen on major highways
-    'Indiana':'uncommon','Missouri':'uncommon','Maryland':'uncommon','Wisconsin':'uncommon',
-    'Colorado':'uncommon','Minnesota':'uncommon','South Carolina':'uncommon','Alabama':'uncommon',
-    'Louisiana':'uncommon','Oregon':'uncommon','Kentucky':'uncommon','Connecticut':'uncommon',
-    'Oklahoma':'uncommon','Utah':'uncommon','Nevada':'uncommon',
-    // Rare (6 pts) — lower population, less-traveled states
-    'Iowa':'rare','Arkansas':'rare','Mississippi':'rare','Kansas':'rare',
-    'New Mexico':'rare','Nebraska':'rare','West Virginia':'rare','Idaho':'rare',
-    'New Hampshire':'rare','Maine':'rare','Rhode Island':'rare','Montana':'rare',
-    'Delaware':'rare','South Dakota':'rare','North Dakota':'rare',
-    // Epic (10 pts) — sparse population, a genuine surprise anywhere
-    'Vermont':'epic','Wyoming':'epic',
-    // Elite (20 pts) — almost impossible on mainland roads
-    'Alaska':'elite','Hawaii':'elite',
-    // Ultra Elite (30 pts) — U.S. territories, extremely rare
-    'Puerto Rico':'ultra','U.S. Virgin Islands':'ultra','American Samoa':'ultra',
-    'Guam':'ultra','Northern Mariana Islands':'ultra',
-    // Canada — Common (2 pts)
-    'Ontario':'common','Quebec':'common','British Columbia':'common',
-    // Canada — Uncommon (4 pts)
-    'Alberta':'uncommon',
-    // Canada — Rare (6 pts)
+// State adjacency map for route-aware rarity.
+// Rarity is computed at runtime by BFS hop-distance from the pack's travel corridor.
+const STATE_NEIGHBORS = {
+    'Alabama':        ['Florida','Georgia','Mississippi','Tennessee'],
+    'Alaska':         [],
+    'Arizona':        ['California','Colorado','Nevada','New Mexico','Utah'],
+    'Arkansas':       ['Louisiana','Mississippi','Missouri','Oklahoma','Tennessee','Texas'],
+    'California':     ['Arizona','Nevada','Oregon'],
+    'Colorado':       ['Arizona','Kansas','Nebraska','New Mexico','Oklahoma','Utah','Wyoming'],
+    'Connecticut':    ['Massachusetts','New York','Rhode Island'],
+    'Delaware':       ['Maryland','New Jersey','Pennsylvania'],
+    'Florida':        ['Alabama','Georgia'],
+    'Georgia':        ['Alabama','Florida','North Carolina','South Carolina','Tennessee'],
+    'Hawaii':         [],
+    'Idaho':          ['Montana','Nevada','Oregon','Utah','Washington','Wyoming'],
+    'Illinois':       ['Indiana','Iowa','Kentucky','Missouri','Wisconsin'],
+    'Indiana':        ['Illinois','Kentucky','Michigan','Ohio'],
+    'Iowa':           ['Illinois','Minnesota','Missouri','Nebraska','South Dakota','Wisconsin'],
+    'Kansas':         ['Colorado','Missouri','Nebraska','Oklahoma'],
+    'Kentucky':       ['Illinois','Indiana','Missouri','Ohio','Tennessee','Virginia','West Virginia'],
+    'Louisiana':      ['Arkansas','Mississippi','Texas'],
+    'Maine':          ['New Hampshire'],
+    'Maryland':       ['Delaware','Pennsylvania','Virginia','West Virginia'],
+    'Massachusetts':  ['Connecticut','New Hampshire','New York','Rhode Island','Vermont'],
+    'Michigan':       ['Indiana','Ohio','Wisconsin'],
+    'Minnesota':      ['Iowa','North Dakota','South Dakota','Wisconsin'],
+    'Mississippi':    ['Alabama','Arkansas','Louisiana','Tennessee'],
+    'Missouri':       ['Arkansas','Illinois','Iowa','Kansas','Kentucky','Nebraska','Oklahoma','Tennessee'],
+    'Montana':        ['Idaho','North Dakota','South Dakota','Wyoming'],
+    'Nebraska':       ['Colorado','Iowa','Kansas','Missouri','South Dakota','Wyoming'],
+    'Nevada':         ['Arizona','California','Idaho','Oregon','Utah'],
+    'New Hampshire':  ['Maine','Massachusetts','Vermont'],
+    'New Jersey':     ['Delaware','New York','Pennsylvania'],
+    'New Mexico':     ['Arizona','Colorado','Oklahoma','Texas'],
+    'New York':       ['Connecticut','Massachusetts','New Jersey','Pennsylvania','Vermont'],
+    'North Carolina': ['Georgia','South Carolina','Tennessee','Virginia'],
+    'North Dakota':   ['Minnesota','Montana','South Dakota'],
+    'Ohio':           ['Indiana','Kentucky','Michigan','Pennsylvania','West Virginia'],
+    'Oklahoma':       ['Arkansas','Colorado','Kansas','Missouri','New Mexico','Texas'],
+    'Oregon':         ['California','Idaho','Nevada','Washington'],
+    'Pennsylvania':   ['Delaware','Maryland','New Jersey','New York','Ohio','West Virginia'],
+    'Rhode Island':   ['Connecticut','Massachusetts'],
+    'South Carolina': ['Georgia','North Carolina'],
+    'South Dakota':   ['Iowa','Minnesota','Montana','Nebraska','North Dakota','Wyoming'],
+    'Tennessee':      ['Alabama','Arkansas','Georgia','Kentucky','Mississippi','Missouri','North Carolina','Virginia'],
+    'Texas':          ['Arkansas','Louisiana','New Mexico','Oklahoma'],
+    'Utah':           ['Arizona','Colorado','Idaho','Nevada','New Mexico','Wyoming'],
+    'Vermont':        ['Massachusetts','New Hampshire','New York'],
+    'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','West Virginia'],
+    'Washington':     ['Idaho','Oregon'],
+    'West Virginia':  ['Kentucky','Maryland','Ohio','Pennsylvania','Virginia'],
+    'Wisconsin':      ['Illinois','Iowa','Michigan','Minnesota'],
+    'Wyoming':        ['Colorado','Idaho','Montana','Nebraska','South Dakota','Utah']
+};
+
+// Canada fixed tiers — corridor is US-only so Canadian rarity is fixed relative to proximity to US.
+const CANADA_RARITY = {
+    'Ontario':'uncommon','Quebec':'uncommon','British Columbia':'uncommon',
+    'Alberta':'rare',
     'Manitoba':'rare','Saskatchewan':'rare','Nova Scotia':'rare',
     'New Brunswick':'rare','Prince Edward Island':'rare','Newfoundland and Labrador':'rare',
-    // Canada — Elite (20 pts)
     'Yukon':'elite','Northwest Territories':'elite','Nunavut':'elite'
 };
+
+const TERRITORY_NAMES = new Set(['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
+const NON_CONTIGUOUS = new Set(['Alaska','Hawaii']);
+
+// Returns the rarity tier for a plate given the pack's travel corridor.
+// Tiers: common (2pt) → uncommon (4pt) → rare (6pt) → epic (10pt) → elite (20pt) → ultra (30pt)
+// - In corridor             → common   (driving right through it)
+// - 1 hop from corridor     → uncommon (neighboring state, quite likely)
+// - 2 hops from corridor    → rare     (regional but not adjacent)
+// - 3+ hops from corridor   → epic     (far away, a real surprise)
+// - Alaska/Hawaii not in corridor → elite (non-contiguous, almost impossible)
+// - Territories             → ultra    (always, can't drive there)
+// - No corridor set         → flat uncommon for all states (AK/HI still elite)
+function computeRarityForState(stateName, corridorStates) {
+    if (TERRITORY_NAMES.has(stateName)) return 'ultra';
+    if (CANADA_RARITY[stateName]) return CANADA_RARITY[stateName];
+
+    const corridorSet = new Set(corridorStates || []);
+
+    // No corridor set → flat scoring, still special-case non-contiguous
+    if (corridorSet.size === 0) {
+        return NON_CONTIGUOUS.has(stateName) ? 'elite' : 'uncommon';
+    }
+
+    if (corridorSet.has(stateName)) return 'common';
+    if (NON_CONTIGUOUS.has(stateName)) return 'elite'; // AK/HI unreachable unless in corridor
+
+    // BFS from corridor states outward — stops at 3 hops
+    const visited = new Set(corridorSet);
+    let frontier = new Set(corridorSet);
+    for (let hop = 1; hop <= 3; hop++) {
+        const next = new Set();
+        for (const state of frontier) {
+            for (const neighbor of (STATE_NEIGHBORS[state] || [])) {
+                if (neighbor === stateName) {
+                    if (hop === 1) return 'uncommon';
+                    if (hop === 2) return 'rare';
+                    return 'epic';
+                }
+                if (!visited.has(neighbor)) { visited.add(neighbor); next.add(neighbor); }
+            }
+        }
+        frontier = next;
+        if (!frontier.size) break;
+    }
+    return 'epic'; // 3+ hops — distant region
+}
 
 const RARITY_CONFIG = {
     common:   { label: 'Common',      points: 2,  color: '#7f8c8d' },
@@ -830,7 +907,8 @@ function renderStates() {
 
         const flagImg = `../flags/${state.abbr.toLowerCase()}.png`;
         const plateTypeLabel = state.category === 'canada' ? 'PROVINCE PLATE' : state.category === 'territory' ? 'TERRITORY PLATE' : 'LICENSE PLATE';
-        const rarityTier = PLATE_RARITY[state.name] || 'common';
+        const corridor = gameData?.settings?.playAreaStates || [];
+        const rarityTier = computeRarityForState(state.name, corridor);
         const rarityCfg = RARITY_CONFIG[rarityTier];
         const rarityBadge = `<div class="rarity-badge rarity-${rarityTier}" title="${rarityCfg.label} · ${rarityCfg.points} pts first find">${rarityCfg.points}pt</div>`;
         const firstFinderBadge = claim ? `<div class="ff-tag" title="First found by ${claim.displayName}">${claim.tag}</div>` : '';
@@ -963,10 +1041,11 @@ function computePlayerStats(playerKey) {
         name => gameData?.claimedStates?.[name]?.playerKey === playerKey
     ).length;
 
-    // Base plate score — first finder gets full points, later finders get half
+    // Base plate score — rarity is route-aware (BFS from travel corridor)
+    const corridor = gameData?.settings?.playAreaStates || [];
     let score = 0;
     foundSet.forEach(name => {
-        const tier = PLATE_RARITY[name] || 'common';
+        const tier = computeRarityForState(name, corridor);
         const pts = RARITY_CONFIG[tier].points;
         const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
         score += isFirst ? pts : pts / 2;
@@ -1035,11 +1114,12 @@ function openPlayerDetail(playerKey) {
     }
 
     // Score breakdown by rarity tier
+    const detailCorridor = gameData?.settings?.playAreaStates || [];
     const breakdownEl = document.getElementById('detailBreakdownGrid');
     if (breakdownEl) {
         const byTier = {};
         stats.foundSet.forEach(name => {
-            const tier = PLATE_RARITY[name] || 'common';
+            const tier = computeRarityForState(name, detailCorridor);
             if (!byTier[tier]) byTier[tier] = { count: 0, pts: 0 };
             const pts = RARITY_CONFIG[tier].points;
             const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
@@ -1060,15 +1140,15 @@ function openPlayerDetail(playerKey) {
     // Found plates chips sorted rarity-first
     const foundGrid = document.getElementById('detailFoundGrid');
     if (foundGrid) {
-        const tierOrder = { ultra: 0, elite: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
+        const tierRank = { ultra: 0, elite: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
         const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES];
         const sorted = Array.from(stats.foundSet).sort((a, b) => {
-            const ta = tierOrder[PLATE_RARITY[a] || 'common'] ?? 5;
-            const tb = tierOrder[PLATE_RARITY[b] || 'common'] ?? 5;
+            const ta = tierRank[computeRarityForState(a, detailCorridor)] ?? 5;
+            const tb = tierRank[computeRarityForState(b, detailCorridor)] ?? 5;
             return ta !== tb ? ta - tb : a.localeCompare(b);
         });
         foundGrid.innerHTML = sorted.map(name => {
-            const tier = PLATE_RARITY[name] || 'common';
+            const tier = computeRarityForState(name, detailCorridor);
             const abbr = allPlates.find(p => p.name === name)?.abbr || name.slice(0, 2).toUpperCase();
             const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
             return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}">${abbr}${isFirst ? '⭐' : ''}</div>`;
