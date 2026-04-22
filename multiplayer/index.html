@@ -13,7 +13,7 @@
         html { -webkit-text-size-adjust: 100%; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%); min-height: 100vh; color: #ecf0f1; position: relative; overflow-x: hidden; padding-bottom: env(safe-area-inset-bottom, 0px); }
         body.dark { background: linear-gradient(135deg, #111827 0%, #0f172a 50%, #111827 100%); color: #f8fafc; }
-        body.dark #game, body.dark .welcome-text, body.dark .mode-card, body.dark .state-card, body.dark input, body.dark select, body.dark .btn-secondary, body.dark .diagnostics-panel, body.dark .diagnostic-card, body.dark .play-area-panel, body.dark .play-area-chip, body.dark .setup-inline-card, body.dark .creator-games-panel, body.dark .creator-game-card { background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)); color: #f8fafc; }
+        body.dark #game, body.dark .welcome-text, body.dark .mode-card, body.dark .state-card, body.dark input, body.dark select, body.dark .btn-secondary, body.dark .diagnostics-panel, body.dark .diagnostic-card, body.dark .play-area-panel, body.dark .play-area-chip, body.dark .setup-inline-card, body.dark .creator-games-panel, body.dark .creator-game-card, body.dark .edit-pack-dialog { background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)); color: #f8fafc; }
         body.dark .game-header, body.dark .license-plate-header { background: linear-gradient(45deg, #0f172a, #1e293b); }
         body.dark .connection-status { background: rgba(15, 23, 42, 0.75); border-color: rgba(96, 165, 250, 0.35); }
         body.dark .game-code-display { background: rgba(15, 23, 42, 0.35); }
@@ -79,15 +79,14 @@
         .mode-card p { color: #bdc3c7; margin-bottom: 25px; line-height: 1.5; }
         .mode-input { width: 100%; margin-bottom: 20px; padding: 15px 20px; border: 2px solid rgba(52, 152, 219, 0.3); border-radius: 12px; font-size: 16px; background: linear-gradient(145deg, rgba(44, 62, 80, 0.8), rgba(52, 73, 94, 0.8)); color: #ecf0f1; transition: all 0.3s ease; box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2); }
         .mode-input:focus { outline: none; border-color: #3498db; box-shadow: 0 0 20px rgba(52, 152, 219, 0.3), inset 0 2px 5px rgba(0, 0, 0, 0.2); }
-        .setup-inline-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(52, 152, 219, 0.25); border-radius: 14px; padding: 16px; margin-bottom: 16px; text-align: left; }
+        .setup-inline-card, .edit-pack-section { background: rgba(255,255,255,0.06); border: 1px solid rgba(52, 152, 219, 0.25); border-radius: 14px; padding: 16px; margin-bottom: 16px; text-align: left; }
         .play-area-panel { background: rgba(255,255,255,0.06); border: 1px solid rgba(52, 152, 219, 0.25); border-radius: 14px; padding: 16px; text-align: left; }
         .play-area-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
         .play-area-summary { font-size: 13px; color: #bdc3c7; margin-bottom: 12px; min-height: 18px; }
-        .play-area-map { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-        .play-area-chip { border: 1px solid rgba(52, 152, 219, 0.25); background: rgba(255,255,255,0.05); color: #ecf0f1; border-radius: 10px; padding: 10px 8px; font-size: 12px; font-weight: 700; text-align: center; cursor: pointer; user-select: none; transition: all 0.2s ease; }
-        .play-area-chip:hover { transform: translateY(-1px); border-color: #3498db; }
-        .play-area-chip.selected { background: linear-gradient(45deg, #3498db, #2980b9); border-color: #5dade2; color: white; box-shadow: 0 4px 14px rgba(52, 152, 219, 0.35); }
-        .play-area-chip.route { background: linear-gradient(45deg, #27ae60, #2ecc71); border-color: #58d68d; }
+        .play-area-map, .edit-play-area-map { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+        .play-area-chip, .edit-play-area-chip { border: 1px solid rgba(52, 152, 219, 0.25); background: rgba(255,255,255,0.05); color: #ecf0f1; border-radius: 10px; padding: 10px 8px; font-size: 12px; font-weight: 700; text-align: center; cursor: pointer; user-select: none; transition: all 0.2s ease; }
+        .play-area-chip:hover, .edit-play-area-chip:hover { transform: translateY(-1px); border-color: #3498db; }
+        .play-area-chip.selected, .edit-play-area-chip.selected { background: linear-gradient(45deg, #3498db, #2980b9); border-color: #5dade2; color: white; box-shadow: 0 4px 14px rgba(52, 152, 219, 0.35); }
         .setup-hint { font-size: 12px; color: #95a5a6; margin-top: 8px; line-height: 1.4; }
         .creator-games-panel { background: rgba(255,255,255,0.06); border: 1px solid rgba(52, 152, 219, 0.25); border-radius: 14px; padding: 16px; margin-top: 16px; text-align: left; }
         .creator-games-list { display: grid; gap: 10px; }
@@ -121,11 +120,18 @@
         .btn-secondary:hover { background: linear-gradient(145deg, #4a6741, #34495e); transform: translateY(-1px); color: #ecf0f1; }
         .btn-small { padding: 8px 16px; font-size: 12px; }
         input, select { padding: 12px 15px; border: 2px solid rgba(52, 152, 219, 0.3); border-radius: 10px; background: linear-gradient(145deg, rgba(44, 62, 80, 0.8), rgba(52, 73, 94, 0.8)); color: #ecf0f1; font-size: 16px; }
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .loading-overlay, .edit-pack-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; }
+        .loading-overlay { background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .loading-spinner { width: 60px; height: 60px; border: 6px solid rgba(52, 152, 219, 0.3); border-top: 6px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 25px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { color: white; font-size: 20px; font-weight: 600; }
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1001; }
+        .edit-pack-modal { display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,0.72); z-index: 1200; }
+        .edit-pack-modal.visible { display: flex; }
+        .edit-pack-dialog { width: min(94vw, 760px); max-height: 90vh; overflow: auto; background: linear-gradient(145deg, rgba(44, 62, 80, 0.98), rgba(52, 73, 94, 0.98)); border-radius: 22px; border: 1px solid rgba(52, 152, 219, 0.3); box-shadow: 0 20px 60px rgba(0,0,0,0.45); padding: 22px; }
+        .edit-pack-header { display: flex; justify-content: space-between; gap: 14px; align-items: center; margin-bottom: 14px; }
+        .edit-pack-title { font-size: 24px; font-weight: 800; color: #ecf0f1; }
+        .edit-pack-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 18px; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1301; }
         .toast { background: linear-gradient(145deg, #34495e, #2c3e50); color: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); transform: translateX(400px); animation: slideInToast 0.3s ease forwards; border: 1px solid rgba(52, 152, 219, 0.3); position: relative; max-width: min(92vw, 360px); }
         .toast::before { content: '🐾'; position: absolute; top: 5px; left: 8px; font-size: 10px; opacity: 0.5; }
         .toast.success { background: linear-gradient(45deg, #27ae60, #2ecc71); }
@@ -133,9 +139,9 @@
         .toast.error { background: linear-gradient(45deg, #e74c3c, #c0392b); }
         .toast.info { background: linear-gradient(45deg, #3498db, #2980b9); }
         @keyframes slideInToast { to { transform: translateX(0); } }
-        @media (max-width: 900px) { .states-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } .game-mode-selector { grid-template-columns: 1fr; } .play-area-map { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-        @media (max-width: 768px) { .container { padding: 10px; } .states-grid { grid-template-columns: 1fr; } .input-row { flex-direction: column; align-items: stretch; } .game-mode-selector { grid-template-columns: 1fr; } .logo { width: min(250px, 80vw); } .game-code-header { flex-direction: column; gap: 12px; text-align: center; padding-left: 12px; padding-right: 12px; } .share-controls { justify-content: center; width: 100%; flex-wrap: wrap; } .diagnostics-grid { grid-template-columns: 1fr 1fr; } .diagnostics-panel { padding: 10px; } .diagnostics-header span { font-size: 11px !important; } .game-title { font-size: 24px; } .game-subtitle { font-size: 15px; } .game-code-display { font-size: 20px; letter-spacing: 2px; } .welcome-text { padding: 28px 20px; } .setup-section, .game-header, .live-scores, .game-active > div, .game-active > div:last-child { padding-left: 16px !important; padding-right: 16px !important; } .btn { min-height: 46px; } .mode-input { min-height: 48px; } .toast-container { left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top, 0px)); } .toast { max-width: none; width: 100%; margin-bottom: 8px; } .play-area-map { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-        @media (max-width: 520px) { .diagnostics-grid { grid-template-columns: 1fr; } .share-controls .btn { flex: 1 1 30%; } .game-code-info { flex-direction: column; gap: 8px; } .state-card { min-height: 108px; } .play-area-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 900px) { .states-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } .game-mode-selector { grid-template-columns: 1fr; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+        @media (max-width: 768px) { .container { padding: 10px; } .states-grid { grid-template-columns: 1fr; } .input-row { flex-direction: column; align-items: stretch; } .game-mode-selector { grid-template-columns: 1fr; } .logo { width: min(250px, 80vw); } .game-code-header { flex-direction: column; gap: 12px; text-align: center; padding-left: 12px; padding-right: 12px; } .share-controls { justify-content: center; width: 100%; flex-wrap: wrap; } .diagnostics-grid { grid-template-columns: 1fr 1fr; } .diagnostics-panel { padding: 10px; } .diagnostics-header span { font-size: 11px !important; } .game-title { font-size: 24px; } .game-subtitle { font-size: 15px; } .game-code-display { font-size: 20px; letter-spacing: 2px; } .welcome-text { padding: 28px 20px; } .setup-section, .game-header, .live-scores, .game-active > div, .game-active > div:last-child { padding-left: 16px !important; padding-right: 16px !important; } .btn { min-height: 46px; } .mode-input { min-height: 48px; } .toast-container { left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top, 0px)); } .toast { max-width: none; width: 100%; margin-bottom: 8px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 520px) { .diagnostics-grid { grid-template-columns: 1fr; } .share-controls .btn { flex: 1 1 30%; } .game-code-info { flex-direction: column; gap: 8px; } .state-card { min-height: 108px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     </style>
 </head>
 <body>
@@ -252,10 +258,65 @@
                     <div class="states-grid" id="statesGrid"></div>
                 </div>
                 <div style="padding: 25px; border-top: 1px solid rgba(52, 152, 219, 0.2); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
                     <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
                     <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="editPackModal" class="edit-pack-modal">
+            <div class="edit-pack-dialog">
+                <div class="edit-pack-header">
+                    <div>
+                        <div class="edit-pack-title">Edit Pack Settings</div>
+                        <div class="creator-game-meta">Host-only changes. Existing plate progress will be preserved.</div>
+                    </div>
+                    <button class="btn btn-secondary btn-small" id="closeEditPackBtn">✕ Close</button>
+                </div>
+                <div class="edit-pack-section">
+                    <label for="editPackNameInput" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🎮 Pack Name</label>
+                    <input type="text" id="editPackNameInput" class="mode-input" placeholder="Pack name..." style="margin-bottom:0;" />
+                </div>
+                <div class="edit-pack-section">
+                    <label for="editPrimaryRegionSelect" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🧭 Primary Play Region</label>
+                    <select id="editPrimaryRegionSelect" class="mode-input" style="margin-bottom:0;">
+                        <option value="">Select primary region...</option>
+                        <option value="east_coast">East Coast</option>
+                        <option value="southeast">Southeast</option>
+                        <option value="midwest">Midwest</option>
+                        <option value="mountain_west">Mountain West</option>
+                        <option value="west_coast">West Coast</option>
+                        <option value="national">National / Balanced</option>
+                    </select>
+                </div>
+                <div class="edit-pack-section">
+                    <label for="editPlateScopeSelect" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🌎 Plate Coverage</label>
+                    <select id="editPlateScopeSelect" class="mode-input" style="margin-bottom:0;">
+                        <option value="us_only">U.S. States Only</option>
+                        <option value="us_canada">U.S. + Canada</option>
+                    </select>
+                    <div class="setup-hint">Turning Canada off is blocked if this pack already contains saved Canadian plate progress.</div>
+                </div>
+                <div class="edit-pack-section">
+                    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                        <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">🗺️ Trip Play Area</label>
+                        <span class="setup-hint">Update the U.S. travel corridor without erasing gameplay history.</span>
+                    </div>
+                    <div class="play-area-controls">
+                        <button class="btn btn-secondary btn-small" id="editPresetNortheastBtn" type="button">Northeast</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetMidwestBtn" type="button">Midwest</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetWestBtn" type="button">West</button>
+                        <button class="btn btn-secondary btn-small" id="editClearPlayAreaBtn" type="button">Clear</button>
+                    </div>
+                    <div class="play-area-summary" id="editPlayAreaSummary">Select the U.S. states included in this pack’s travel area.</div>
+                    <div class="edit-play-area-map" id="editPlayAreaMap"></div>
+                </div>
+                <div class="edit-pack-actions">
+                    <button class="btn btn-secondary" id="cancelEditPackBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveEditPackBtn">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -270,366 +331,73 @@
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
         const FIREBASE_CREATOR_GAMES_PATH = 'creatorGames';
         const pendingCreateMeta = { gameName: null };
+        const CANADA_PLATE_NAMES = ['Alberta','British Columbia','Manitoba','New Brunswick','Newfoundland and Labrador','Northwest Territories','Nova Scotia','Nunavut','Ontario','Prince Edward Island','Quebec','Saskatchewan','Yukon'];
+        const US_STATE_CHIPS = [
+            ['Alabama','AL'],['Alaska','AK'],['Arizona','AZ'],['Arkansas','AR'],['California','CA'],['Colorado','CO'],['Connecticut','CT'],['Delaware','DE'],['Florida','FL'],['Georgia','GA'],['Hawaii','HI'],['Idaho','ID'],['Illinois','IL'],['Indiana','IN'],['Iowa','IA'],['Kansas','KS'],['Kentucky','KY'],['Louisiana','LA'],['Maine','ME'],['Maryland','MD'],['Massachusetts','MA'],['Michigan','MI'],['Minnesota','MN'],['Mississippi','MS'],['Missouri','MO'],['Montana','MT'],['Nebraska','NE'],['Nevada','NV'],['New Hampshire','NH'],['New Jersey','NJ'],['New Mexico','NM'],['New York','NY'],['North Carolina','NC'],['North Dakota','ND'],['Ohio','OH'],['Oklahoma','OK'],['Oregon','OR'],['Pennsylvania','PA'],['Rhode Island','RI'],['South Carolina','SC'],['South Dakota','SD'],['Tennessee','TN'],['Texas','TX'],['Utah','UT'],['Vermont','VT'],['Virginia','VA'],['Washington','WA'],['West Virginia','WV'],['Wisconsin','WI'],['Wyoming','WY']
+        ];
+        const PLAY_AREA_PRESETS = {
+            northeast: ['ME','NH','VT','MA','RI','CT','NY','NJ','PA','DE','MD'],
+            midwest: ['OH','MI','IN','IL','WI','MN','IA','MO','ND','SD','NE','KS'],
+            west: ['WA','OR','CA','ID','NV','UT','AZ','MT','WY','CO','NM','AK','HI']
+        };
         let currentCreatorListener = null;
+        let editPlayAreaStates = new Set();
 
-        function normalizeCode(value) {
-            return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+        function normalizeCode(value) { return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6); }
+        function getSavedIdentity() { try { return JSON.parse(localStorage.getItem('platequest_player_identity_v2') || 'null'); } catch (e) { return null; } }
+        function getCreatorKey() { return getSavedIdentity()?.playerKey || null; }
+        function getFirebaseDb() { try { if (typeof firebase === 'undefined') return null; if (!firebase.apps || !firebase.apps.length) return null; return firebase.database(); } catch (e) { return null; } }
+        function getCreatorLibraryPath(creatorKey) { return `${FIREBASE_CREATOR_GAMES_PATH}/${creatorKey}`; }
+        function getLocalCreatorLibrary() { const creatorKey = getCreatorKey(); if (!creatorKey) return []; try { return JSON.parse(localStorage.getItem(LIBRARY_KEY_PREFIX + creatorKey) || '[]'); } catch (e) { return []; } }
+        function saveLocalCreatorLibrary(list) { const creatorKey = getCreatorKey(); if (!creatorKey) return; localStorage.setItem(LIBRARY_KEY_PREFIX + creatorKey, JSON.stringify(list.slice(0, 25))); }
+        function mergeGameLists(primary, fallback) { const mergedMap = new Map(); [...(primary || []), ...(fallback || [])].forEach((item) => { if (!item || !item.code) return; const code = normalizeCode(item.code); if (!code) return; const existing = mergedMap.get(code); if (!existing || (item.lastOpenedAt || 0) > (existing.lastOpenedAt || 0)) mergedMap.set(code, { ...existing, ...item, code }); }); return Array.from(mergedMap.values()).sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)); }
+        async function readFirebaseCreatorLibrary() { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return []; const snap = await db.ref(getCreatorLibraryPath(creatorKey)).once('value'); if (!snap.exists()) return []; const raw = snap.val() || {}; return Object.values(raw).map((item) => ({ code: normalizeCode(item.code), name: item.name || 'Untitled Pack', createdAt: item.createdAt || 0, lastOpenedAt: item.lastOpenedAt || item.createdAt || 0, playRegion: item.playRegion || '', playAreaStates: item.playAreaStates || [] })).filter((item) => item.code); }
+        async function writeFirebaseCreatorGame(entry) { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db || !entry?.code) return; const code = normalizeCode(entry.code); const ref = db.ref(`${getCreatorLibraryPath(creatorKey)}/${code}`); const existingSnap = await ref.once('value'); const existing = existingSnap.val() || {}; const payload = { code, name: entry.name || entry.gameName || existing.name || 'Untitled Pack', createdAt: existing.createdAt || entry.createdAt || Date.now(), lastOpenedAt: Date.now(), playRegion: entry.playRegion || existing.playRegion || '', playAreaStates: entry.playAreaStates || existing.playAreaStates || [], creatorKey, updatedAt: Date.now() }; await ref.set(payload); }
+        async function removeFirebaseCreatorGame(code) { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return; await db.ref(`${getCreatorLibraryPath(creatorKey)}/${normalizeCode(code)}`).remove(); }
+        function cacheCreatedGameLocally(entry) { if (!entry || !entry.code) return; const code = normalizeCode(entry.code); if (!code) return; const list = getLocalCreatorLibrary(); const idx = list.findIndex((item) => normalizeCode(item.code) === code); const merged = { code, name: entry.name || entry.gameName || 'Untitled Pack', createdAt: entry.createdAt || Date.now(), lastOpenedAt: Date.now(), playRegion: entry.playRegion || '', playAreaStates: entry.playAreaStates || [] }; if (idx >= 0) list[idx] = { ...list[idx], ...merged, createdAt: list[idx].createdAt || merged.createdAt }; else list.unshift(merged); list.sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)); saveLocalCreatorLibrary(list); }
+        async function upsertCreatedGame(entry) { if (!entry || !entry.code) return; cacheCreatedGameLocally(entry); try { await writeFirebaseCreatorGame(entry); } catch (e) { console.warn('Failed to sync creator game to Firebase:', e); } renderCreatedGamesLibrary(); }
+        async function removeCreatedGame(code) { const normalizedCode = normalizeCode(code); saveLocalCreatorLibrary(getLocalCreatorLibrary().filter((item) => normalizeCode(item.code) !== normalizedCode)); try { await removeFirebaseCreatorGame(normalizedCode); } catch (e) { console.warn('Failed to remove creator game from Firebase:', e); } renderCreatedGamesLibrary(); }
+        function ensureCreatedGamesPanel() { const createCard = document.getElementById('createGameCard'); if (!createCard) return null; let panel = document.getElementById('creatorGamesPanel'); if (panel) return panel; panel = document.createElement('div'); panel.id = 'creatorGamesPanel'; panel.className = 'creator-games-panel'; panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;"><label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">📚 My Created Games</label><span class="setup-hint">Cross-device list of packs you created.</span></div><div id="creatorGamesList" class="creator-games-list"></div>`; createCard.appendChild(panel); return panel; }
+        function formatWhen(ts) { if (!ts) return '—'; const d = new Date(ts); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+        async function getResolvedCreatorLibrary() { const localItems = getLocalCreatorLibrary(); try { const firebaseItems = await readFirebaseCreatorLibrary(); const merged = mergeGameLists(firebaseItems, localItems); saveLocalCreatorLibrary(merged); return merged; } catch (e) { return localItems; } }
+        async function renderCreatedGamesLibrary() { const panel = ensureCreatedGamesPanel(); if (!panel) return; const listEl = document.getElementById('creatorGamesList'); const creatorKey = getCreatorKey(); if (!creatorKey) { listEl.innerHTML = '<div class="creator-empty">Set your identity to keep and sync a reusable list of packs you created.</div>'; return; } listEl.innerHTML = '<div class="creator-empty">Loading your created games…</div>'; const items = await getResolvedCreatorLibrary(); if (!items.length) { listEl.innerHTML = '<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>'; return; } listEl.innerHTML = items.map((item) => { const region = item.playRegion ? item.playRegion.replace(/_/g, ' ') : 'custom'; const playAreaCount = Array.isArray(item.playAreaStates) ? item.playAreaStates.length : 0; return `<div class="creator-game-card"><div class="creator-game-top"><div><div class="creator-game-name">${item.name || 'Untitled Pack'}</div><div class="creator-game-meta">Created ${formatWhen(item.createdAt)} • Last opened ${formatWhen(item.lastOpenedAt)}</div></div><div class="creator-game-code">${item.code}</div></div><div class="creator-game-meta">Region: ${region} • Trip area: ${playAreaCount} state${playAreaCount === 1 ? '' : 's'}</div><div class="creator-game-actions"><button class="btn btn-secondary btn-small" type="button" data-action="play" data-code="${item.code}">▶️ Play</button><button class="btn btn-secondary btn-small" type="button" data-action="copy" data-code="${item.code}">📋 Copy Code</button><button class="btn btn-secondary btn-small" type="button" data-action="remove" data-code="${item.code}">🗑️ Remove</button></div></div>`; }).join(''); listEl.querySelectorAll('button[data-action]').forEach((btn) => { btn.addEventListener('click', async () => { const action = btn.dataset.action; const code = btn.dataset.code; if (action === 'remove') { await removeCreatedGame(code); return; } if (action === 'copy') { if (typeof copyToClipboard === 'function') copyToClipboard(code, 'Pack code copied! 📋'); return; } if (action === 'play') { const joinInput = document.getElementById('joinCodeInput'); if (joinInput) joinInput.value = code; if (typeof startGame === 'function' && document.getElementById('game')?.style.display !== 'block') startGame(); if (!getSavedIdentity()) { if (typeof showToast === 'function') showToast('Set your identity first, then tap Play again.', 'info'); return; } if (typeof joinGame === 'function') await joinGame(code); } }); }); }
+        function startCreatorLibrarySync() { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return; stopCreatorLibrarySync(); currentCreatorListener = db.ref(getCreatorLibraryPath(creatorKey)); currentCreatorListener.on('value', async () => { await renderCreatedGamesLibrary(); }); }
+        function stopCreatorLibrarySync() { if (currentCreatorListener) { currentCreatorListener.off(); currentCreatorListener = null; } }
+        async function fetchRoomMetaByCode(code) { const db = getFirebaseDb(); if (!db) return null; const snap = await db.ref(`games/${normalizeCode(code)}`).once('value'); return snap.exists() ? snap.val() : null; }
+        function isCurrentHost() { const identity = getSavedIdentity(); const room = window.gameData || null; return Boolean(identity && room && room.hostPlayerKey === identity.playerKey); }
+        function syncEditButtonVisibility() { const btn = document.getElementById('editPackBtn'); if (!btn) return; btn.style.display = isCurrentHost() ? 'inline-flex' : 'none'; }
+        function updateEditPlayAreaSummary() { const summary = document.getElementById('editPlayAreaSummary'); if (!summary) return; const states = Array.from(editPlayAreaStates).sort(); summary.textContent = states.length ? `${states.length} state${states.length === 1 ? '' : 's'} selected: ${states.join(', ')}` : 'Select the U.S. states included in this pack’s travel area.'; }
+        function renderEditPlayAreaMap() { const map = document.getElementById('editPlayAreaMap'); if (!map) return; map.innerHTML = ''; US_STATE_CHIPS.forEach(([name, abbr]) => { const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'edit-play-area-chip'; chip.textContent = abbr; chip.title = name; if (editPlayAreaStates.has(name)) chip.classList.add('selected'); chip.addEventListener('click', () => { if (editPlayAreaStates.has(name)) editPlayAreaStates.delete(name); else editPlayAreaStates.add(name); renderEditPlayAreaMap(); }); map.appendChild(chip); }); updateEditPlayAreaSummary(); }
+        function applyEditPlayAreaPreset(presetKey) { (PLAY_AREA_PRESETS[presetKey] || []).forEach((abbr) => { const match = US_STATE_CHIPS.find((item) => item[1] === abbr); if (match) editPlayAreaStates.add(match[0]); }); renderEditPlayAreaMap(); }
+        function openEditPackModal() { if (!isCurrentHost()) { if (typeof showToast === 'function') showToast('Only the host can edit pack settings.', 'info'); return; } const room = window.gameData || null; if (!room) return; document.getElementById('editPackNameInput').value = room.name || ''; document.getElementById('editPrimaryRegionSelect').value = room.settings?.playRegion || ''; document.getElementById('editPlateScopeSelect').value = room.settings?.plateScope || 'us_only'; editPlayAreaStates = new Set(room.settings?.playAreaStates || []); renderEditPlayAreaMap(); document.getElementById('editPackModal').classList.add('visible'); }
+        function closeEditPackModal() { document.getElementById('editPackModal').classList.remove('visible'); }
+        async function saveEditedPack() { if (!isCurrentHost()) { if (typeof showToast === 'function') showToast('Only the host can edit pack settings.', 'info'); return; } const room = window.gameData || null; const code = window.currentGameCode || null; const db = getFirebaseDb(); if (!room || !code || !db) { if (typeof showToast === 'function') showToast('Pack data is not ready yet.', 'error'); return; } const nextName = document.getElementById('editPackNameInput').value.trim(); const nextRegion = document.getElementById('editPrimaryRegionSelect').value || ''; const nextScope = document.getElementById('editPlateScopeSelect').value || 'us_only'; const nextPlayAreaStates = Array.from(editPlayAreaStates).sort(); if (!nextName) { if (typeof showToast === 'function') showToast('Please enter a pack name.', 'error'); return; } if (!nextRegion) { if (typeof showToast === 'function') showToast('Please choose a primary play region.', 'error'); return; } if (!nextPlayAreaStates.length) { if (typeof showToast === 'function') showToast('Select at least one trip-area state.', 'error'); return; } const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name))); if (nextScope === 'us_only' && hasCanadianProgress) { if (typeof showToast === 'function') showToast('Cannot turn Canada off because this pack already contains Canadian plate progress.', 'error'); return; } const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() }; try { await db.ref(`games/${code}`).update(payload); try { await upsertCreatedGame({ code, name: nextName, playRegion: nextRegion, playAreaStates: nextPlayAreaStates }); } catch (e) {} closeEditPackModal(); if (typeof showToast === 'function') showToast('Pack settings updated.', 'success'); } catch (e) { console.warn('Failed to save pack edits:', e); if (typeof showToast === 'function') showToast('Failed to save pack settings.', 'error'); } }
+        function bindEditPackButtons() {
+            const openBtn = document.getElementById('editPackBtn');
+            const closeBtn = document.getElementById('closeEditPackBtn');
+            const cancelBtn = document.getElementById('cancelEditPackBtn');
+            const saveBtn = document.getElementById('saveEditPackBtn');
+            if (openBtn && openBtn.dataset.bound !== 'true') { openBtn.dataset.bound = 'true'; openBtn.addEventListener('click', openEditPackModal); }
+            if (closeBtn && closeBtn.dataset.bound !== 'true') { closeBtn.dataset.bound = 'true'; closeBtn.addEventListener('click', closeEditPackModal); }
+            if (cancelBtn && cancelBtn.dataset.bound !== 'true') { cancelBtn.dataset.bound = 'true'; cancelBtn.addEventListener('click', closeEditPackModal); }
+            if (saveBtn && saveBtn.dataset.bound !== 'true') { saveBtn.dataset.bound = 'true'; saveBtn.addEventListener('click', saveEditedPack); }
+            [['editPresetNortheastBtn','northeast'],['editPresetMidwestBtn','midwest'],['editPresetWestBtn','west']].forEach(([id,key]) => { const btn = document.getElementById(id); if (btn && btn.dataset.bound !== 'true') { btn.dataset.bound = 'true'; btn.addEventListener('click', () => applyEditPlayAreaPreset(key)); } });
+            const clearBtn = document.getElementById('editClearPlayAreaBtn');
+            if (clearBtn && clearBtn.dataset.bound !== 'true') { clearBtn.dataset.bound = 'true'; clearBtn.addEventListener('click', () => { editPlayAreaStates = new Set(); renderEditPlayAreaMap(); }); }
+            const modal = document.getElementById('editPackModal');
+            if (modal && modal.dataset.bound !== 'true') { modal.dataset.bound = 'true'; modal.addEventListener('click', (event) => { if (event.target === modal) closeEditPackModal(); }); }
+            renderEditPlayAreaMap();
+            syncEditButtonVisibility();
         }
-
-        function getSavedIdentity() {
-            try {
-                return JSON.parse(localStorage.getItem('platequest_player_identity_v2') || 'null');
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function getCreatorKey() {
-            return getSavedIdentity()?.playerKey || null;
-        }
-
-        function getFirebaseDb() {
-            try {
-                if (typeof firebase === 'undefined') return null;
-                if (!firebase.apps || !firebase.apps.length) return null;
-                return firebase.database();
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function getCreatorLibraryPath(creatorKey) {
-            return `${FIREBASE_CREATOR_GAMES_PATH}/${creatorKey}`;
-        }
-
-        function getLocalCreatorLibrary() {
-            const creatorKey = getCreatorKey();
-            if (!creatorKey) return [];
-            try {
-                return JSON.parse(localStorage.getItem(LIBRARY_KEY_PREFIX + creatorKey) || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveLocalCreatorLibrary(list) {
-            const creatorKey = getCreatorKey();
-            if (!creatorKey) return;
-            localStorage.setItem(LIBRARY_KEY_PREFIX + creatorKey, JSON.stringify(list.slice(0, 25)));
-        }
-
-        function mergeGameLists(primary, fallback) {
-            const mergedMap = new Map();
-            [...(primary || []), ...(fallback || [])].forEach((item) => {
-                if (!item || !item.code) return;
-                const code = normalizeCode(item.code);
-                if (!code) return;
-                const existing = mergedMap.get(code);
-                if (!existing || (item.lastOpenedAt || 0) > (existing.lastOpenedAt || 0)) {
-                    mergedMap.set(code, { ...existing, ...item, code });
-                }
-            });
-            return Array.from(mergedMap.values()).sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
-        }
-
-        async function readFirebaseCreatorLibrary() {
-            const creatorKey = getCreatorKey();
-            const db = getFirebaseDb();
-            if (!creatorKey || !db) return [];
-            const snap = await db.ref(getCreatorLibraryPath(creatorKey)).once('value');
-            if (!snap.exists()) return [];
-            const raw = snap.val() || {};
-            return Object.values(raw).map((item) => ({
-                code: normalizeCode(item.code),
-                name: item.name || 'Untitled Pack',
-                createdAt: item.createdAt || 0,
-                lastOpenedAt: item.lastOpenedAt || item.createdAt || 0,
-                playRegion: item.playRegion || '',
-                playAreaStates: item.playAreaStates || []
-            })).filter((item) => item.code);
-        }
-
-        async function writeFirebaseCreatorGame(entry) {
-            const creatorKey = getCreatorKey();
-            const db = getFirebaseDb();
-            if (!creatorKey || !db || !entry?.code) return;
-            const code = normalizeCode(entry.code);
-            const ref = db.ref(`${getCreatorLibraryPath(creatorKey)}/${code}`);
-            const existingSnap = await ref.once('value');
-            const existing = existingSnap.val() || {};
-            const payload = {
-                code,
-                name: entry.name || entry.gameName || existing.name || 'Untitled Pack',
-                createdAt: existing.createdAt || entry.createdAt || Date.now(),
-                lastOpenedAt: Date.now(),
-                playRegion: entry.playRegion || existing.playRegion || '',
-                playAreaStates: entry.playAreaStates || existing.playAreaStates || [],
-                creatorKey,
-                updatedAt: Date.now()
-            };
-            await ref.set(payload);
-        }
-
-        async function removeFirebaseCreatorGame(code) {
-            const creatorKey = getCreatorKey();
-            const db = getFirebaseDb();
-            if (!creatorKey || !db) return;
-            await db.ref(`${getCreatorLibraryPath(creatorKey)}/${normalizeCode(code)}`).remove();
-        }
-
-        function cacheCreatedGameLocally(entry) {
-            if (!entry || !entry.code) return;
-            const code = normalizeCode(entry.code);
-            if (!code) return;
-            const list = getLocalCreatorLibrary();
-            const idx = list.findIndex((item) => normalizeCode(item.code) === code);
-            const merged = {
-                code,
-                name: entry.name || entry.gameName || 'Untitled Pack',
-                createdAt: entry.createdAt || Date.now(),
-                lastOpenedAt: Date.now(),
-                playRegion: entry.playRegion || '',
-                playAreaStates: entry.playAreaStates || []
-            };
-            if (idx >= 0) list[idx] = { ...list[idx], ...merged, createdAt: list[idx].createdAt || merged.createdAt };
-            else list.unshift(merged);
-            list.sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
-            saveLocalCreatorLibrary(list);
-        }
-
-        async function upsertCreatedGame(entry) {
-            if (!entry || !entry.code) return;
-            cacheCreatedGameLocally(entry);
-            try {
-                await writeFirebaseCreatorGame(entry);
-            } catch (e) {
-                console.warn('Failed to sync creator game to Firebase:', e);
-            }
-            renderCreatedGamesLibrary();
-        }
-
-        async function removeCreatedGame(code) {
-            const normalizedCode = normalizeCode(code);
-            saveLocalCreatorLibrary(getLocalCreatorLibrary().filter((item) => normalizeCode(item.code) !== normalizedCode));
-            try {
-                await removeFirebaseCreatorGame(normalizedCode);
-            } catch (e) {
-                console.warn('Failed to remove creator game from Firebase:', e);
-            }
-            renderCreatedGamesLibrary();
-        }
-
-        function ensureCreatedGamesPanel() {
-            const createCard = document.getElementById('createGameCard');
-            if (!createCard) return null;
-            let panel = document.getElementById('creatorGamesPanel');
-            if (panel) return panel;
-            panel = document.createElement('div');
-            panel.id = 'creatorGamesPanel';
-            panel.className = 'creator-games-panel';
-            panel.innerHTML = `
-                <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-                    <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">📚 My Created Games</label>
-                    <span class="setup-hint">Cross-device list of packs you created.</span>
-                </div>
-                <div id="creatorGamesList" class="creator-games-list"></div>
-            `;
-            createCard.appendChild(panel);
-            return panel;
-        }
-
-        function formatWhen(ts) {
-            if (!ts) return '—';
-            const d = new Date(ts);
-            return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-        }
-
-        async function getResolvedCreatorLibrary() {
-            const localItems = getLocalCreatorLibrary();
-            try {
-                const firebaseItems = await readFirebaseCreatorLibrary();
-                const merged = mergeGameLists(firebaseItems, localItems);
-                saveLocalCreatorLibrary(merged);
-                return merged;
-            } catch (e) {
-                return localItems;
-            }
-        }
-
-        async function renderCreatedGamesLibrary() {
-            const panel = ensureCreatedGamesPanel();
-            if (!panel) return;
-            const listEl = document.getElementById('creatorGamesList');
-            const creatorKey = getCreatorKey();
-            if (!creatorKey) {
-                listEl.innerHTML = '<div class="creator-empty">Set your identity to keep and sync a reusable list of packs you created.</div>';
-                return;
-            }
-            listEl.innerHTML = '<div class="creator-empty">Loading your created games…</div>';
-            const items = await getResolvedCreatorLibrary();
-            if (!items.length) {
-                listEl.innerHTML = '<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>';
-                return;
-            }
-            listEl.innerHTML = items.map((item) => {
-                const region = item.playRegion ? item.playRegion.replace(/_/g, ' ') : 'custom';
-                const playAreaCount = Array.isArray(item.playAreaStates) ? item.playAreaStates.length : 0;
-                return `
-                    <div class="creator-game-card">
-                        <div class="creator-game-top">
-                            <div>
-                                <div class="creator-game-name">${item.name || 'Untitled Pack'}</div>
-                                <div class="creator-game-meta">Created ${formatWhen(item.createdAt)} • Last opened ${formatWhen(item.lastOpenedAt)}</div>
-                            </div>
-                            <div class="creator-game-code">${item.code}</div>
-                        </div>
-                        <div class="creator-game-meta">Region: ${region} • Trip area: ${playAreaCount} state${playAreaCount === 1 ? '' : 's'}</div>
-                        <div class="creator-game-actions">
-                            <button class="btn btn-secondary btn-small" type="button" data-action="play" data-code="${item.code}">▶️ Play</button>
-                            <button class="btn btn-secondary btn-small" type="button" data-action="copy" data-code="${item.code}">📋 Copy Code</button>
-                            <button class="btn btn-secondary btn-small" type="button" data-action="remove" data-code="${item.code}">🗑️ Remove</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            listEl.querySelectorAll('button[data-action]').forEach((btn) => {
-                btn.addEventListener('click', async () => {
-                    const action = btn.dataset.action;
-                    const code = btn.dataset.code;
-                    if (action === 'remove') {
-                        await removeCreatedGame(code);
-                        return;
-                    }
-                    if (action === 'copy') {
-                        if (typeof copyToClipboard === 'function') copyToClipboard(code, 'Pack code copied! 📋');
-                        return;
-                    }
-                    if (action === 'play') {
-                        const joinInput = document.getElementById('joinCodeInput');
-                        if (joinInput) joinInput.value = code;
-                        if (typeof startGame === 'function' && document.getElementById('game')?.style.display !== 'block') startGame();
-                        if (!getSavedIdentity()) {
-                            if (typeof showToast === 'function') showToast('Set your identity first, then tap Play again.', 'info');
-                            return;
-                        }
-                        if (typeof joinGame === 'function') await joinGame(code);
-                    }
-                });
-            });
-        }
-
-        function startCreatorLibrarySync() {
-            const creatorKey = getCreatorKey();
-            const db = getFirebaseDb();
-            if (!creatorKey || !db) return;
-            stopCreatorLibrarySync();
-            currentCreatorListener = db.ref(getCreatorLibraryPath(creatorKey));
-            currentCreatorListener.on('value', async () => {
-                await renderCreatedGamesLibrary();
-            });
-        }
-
-        function stopCreatorLibrarySync() {
-            if (currentCreatorListener) {
-                currentCreatorListener.off();
-                currentCreatorListener = null;
-            }
-        }
-
-        async function fetchRoomMetaByCode(code) {
-            const db = getFirebaseDb();
-            if (!db) return null;
-            const snap = await db.ref(`games/${normalizeCode(code)}`).once('value');
-            return snap.exists() ? snap.val() : null;
-        }
-
         function attachMonkeyPatches() {
-            if (typeof window.setPlayerName === 'function' && !window.setPlayerName.__creatorWrapped) {
-                const original = window.setPlayerName;
-                window.setPlayerName = function(...args) {
-                    const result = original.apply(this, args);
-                    setTimeout(() => {
-                        startCreatorLibrarySync();
-                        renderCreatedGamesLibrary();
-                    }, 0);
-                    return result;
-                };
-                window.setPlayerName.__creatorWrapped = true;
-            }
-
-            if (typeof window.createGame === 'function' && !window.createGame.__creatorWrapped) {
-                const original = window.createGame;
-                window.createGame = async function(...args) {
-                    pendingCreateMeta.gameName = document.getElementById('newGameInput')?.value?.trim() || null;
-                    return await original.apply(this, args);
-                };
-                window.createGame.__creatorWrapped = true;
-            }
-
-            if (typeof window.connectToGame === 'function' && !window.connectToGame.__creatorWrapped) {
-                const original = window.connectToGame;
-                window.connectToGame = async function(...args) {
-                    const codeArg = args[0];
-                    const result = await original.apply(this, args);
-                    try {
-                        const identity = getSavedIdentity();
-                        const room = await fetchRoomMetaByCode(codeArg);
-                        if (room && identity && room.hostPlayerKey === identity.playerKey) {
-                            await upsertCreatedGame({
-                                code: room.code || codeArg,
-                                name: room.name || pendingCreateMeta.gameName || 'Untitled Pack',
-                                createdAt: room.createdAt || Date.now(),
-                                playRegion: room.settings?.playRegion || '',
-                                playAreaStates: room.settings?.playAreaStates || []
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('Creator library sync failed after join/create:', e);
-                    }
-                    pendingCreateMeta.gameName = null;
-                    return result;
-                };
-                window.connectToGame.__creatorWrapped = true;
-            }
-
-            if (typeof window.returnToSetup === 'function' && !window.returnToSetup.__creatorWrapped) {
-                const original = window.returnToSetup;
-                window.returnToSetup = function(...args) {
-                    const result = original.apply(this, args);
-                    setTimeout(renderCreatedGamesLibrary, 0);
-                    return result;
-                };
-                window.returnToSetup.__creatorWrapped = true;
-            }
+            if (typeof window.setPlayerName === 'function' && !window.setPlayerName.__creatorWrapped) { const original = window.setPlayerName; window.setPlayerName = function(...args) { const result = original.apply(this, args); setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); syncEditButtonVisibility(); }, 0); return result; }; window.setPlayerName.__creatorWrapped = true; }
+            if (typeof window.createGame === 'function' && !window.createGame.__creatorWrapped) { const original = window.createGame; window.createGame = async function(...args) { pendingCreateMeta.gameName = document.getElementById('newGameInput')?.value?.trim() || null; return await original.apply(this, args); }; window.createGame.__creatorWrapped = true; }
+            if (typeof window.connectToGame === 'function' && !window.connectToGame.__creatorWrapped) { const original = window.connectToGame; window.connectToGame = async function(...args) { const codeArg = args[0]; const result = await original.apply(this, args); try { const identity = getSavedIdentity(); const room = await fetchRoomMetaByCode(codeArg); if (room && identity && room.hostPlayerKey === identity.playerKey) await upsertCreatedGame({ code: room.code || codeArg, name: room.name || pendingCreateMeta.gameName || 'Untitled Pack', createdAt: room.createdAt || Date.now(), playRegion: room.settings?.playRegion || '', playAreaStates: room.settings?.playAreaStates || [] }); } catch (e) { console.warn('Creator library sync failed after join/create:', e); } pendingCreateMeta.gameName = null; setTimeout(syncEditButtonVisibility, 0); return result; }; window.connectToGame.__creatorWrapped = true; }
+            if (typeof window.returnToSetup === 'function' && !window.returnToSetup.__creatorWrapped) { const original = window.returnToSetup; window.returnToSetup = function(...args) { const result = original.apply(this, args); setTimeout(() => { renderCreatedGamesLibrary(); syncEditButtonVisibility(); closeEditPackModal(); }, 0); return result; }; window.returnToSetup.__creatorWrapped = true; }
+            if (typeof window.updateGameUI === 'function' && !window.updateGameUI.__editWrapped) { const original = window.updateGameUI; window.updateGameUI = function(...args) { const result = original.apply(this, args); setTimeout(syncEditButtonVisibility, 0); return result; }; window.updateGameUI.__editWrapped = true; }
         }
-
-        function bindBackToSetupButton() {
-            const btn = document.getElementById('backToSetupBtn');
-            if (!btn || btn.dataset.bound === 'true') return;
-            btn.dataset.bound = 'true';
-            btn.addEventListener('click', () => {
-                if (typeof window.returnToSetup === 'function') {
-                    window.returnToSetup(false);
-                    if (typeof showToast === 'function') showToast('Returned to setup. Your current pack was not deleted.', 'info');
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            ensureCreatedGamesPanel();
-            attachMonkeyPatches();
-            bindBackToSetupButton();
-            setTimeout(() => {
-                startCreatorLibrarySync();
-                renderCreatedGamesLibrary();
-                bindBackToSetupButton();
-            }, 50);
-            setTimeout(() => {
-                startCreatorLibrarySync();
-                renderCreatedGamesLibrary();
-                bindBackToSetupButton();
-            }, 600);
-        });
+        function bindBackToSetupButton() { const btn = document.getElementById('backToSetupBtn'); if (!btn || btn.dataset.bound === 'true') return; btn.dataset.bound = 'true'; btn.addEventListener('click', () => { if (typeof window.returnToSetup === 'function') { window.returnToSetup(false); if (typeof showToast === 'function') showToast('Returned to setup. Your current pack was not deleted.', 'info'); } }); }
+        document.addEventListener('DOMContentLoaded', () => { ensureCreatedGamesPanel(); attachMonkeyPatches(); bindBackToSetupButton(); bindEditPackButtons(); setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); bindBackToSetupButton(); bindEditPackButtons(); }, 50); setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); bindBackToSetupButton(); bindEditPackButtons(); }, 600); });
         window.renderCreatedGamesLibrary = renderCreatedGamesLibrary;
     })();
     </script>
