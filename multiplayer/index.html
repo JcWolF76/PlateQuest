@@ -151,12 +151,17 @@
 
         /* ── Rarity Badges (on state cards and breakdown) ── */
         .rarity-badge { display:inline-block; font-size:10px; font-weight:800; padding:2px 6px; border-radius:8px; letter-spacing:0.4px; text-transform:uppercase; line-height:1.4; }
-        .rarity-common   { background:#7f8c8d; color:#fff; }
-        .rarity-uncommon { background:#27ae60; color:#fff; }
-        .rarity-rare     { background:#3498db; color:#fff; }
-        .rarity-epic     { background:#9b59b6; color:#fff; }
-        .rarity-elite    { background:#f39c12; color:#fff; }
-        .rarity-ultra    { background:#e74c3c; color:#fff; }
+        .rarity-common       { background:#7f8c8d; color:#fff; }
+        .rarity-occasional   { background:#27ae60; color:#fff; }
+        .rarity-scarce       { background:#16a085; color:#fff; }
+        .rarity-semi-rare    { background:#2980b9; color:#fff; }
+        .rarity-rare         { background:#3498db; color:#fff; }
+        .rarity-mega-rare    { background:#7d3c98; color:#fff; }
+        .rarity-epic         { background:#9b59b6; color:#fff; }
+        .rarity-legendary    { background:#e67e22; color:#fff; }
+        .rarity-silver-elite { background:#a0aec0; color:#1a1a2e; }
+        .rarity-gold-elite   { background:#d4ac0d; color:#1a1a2e; }
+        .rarity-ultra        { background:#e74c3c; color:#fff; }
         /* Rarity badge pinned to state card */
         .state-card .rarity-badge { position:absolute; bottom:8px; left:8px; }
         /* First-finder tag pinned to state card */
@@ -201,12 +206,17 @@
         /* Found plates chips */
         .found-plates-grid { display:flex; flex-wrap:wrap; gap:6px; }
         .found-chip { padding:4px 9px; border-radius:8px; font-size:12px; font-weight:800; letter-spacing:0.5px; cursor:default; }
-        .rarity-chip-common   { background:rgba(127,140,141,0.25); border:1px solid #7f8c8d; color:#ecf0f1; }
-        .rarity-chip-uncommon { background:rgba(39,174,96,0.25);  border:1px solid #27ae60; color:#ecf0f1; }
-        .rarity-chip-rare     { background:rgba(52,152,219,0.25);  border:1px solid #3498db; color:#ecf0f1; }
-        .rarity-chip-epic     { background:rgba(155,89,182,0.25);  border:1px solid #9b59b6; color:#ecf0f1; }
-        .rarity-chip-elite    { background:rgba(243,156,18,0.3);   border:1px solid #f39c12; color:#fff; }
-        .rarity-chip-ultra    { background:rgba(231,76,60,0.3);    border:1px solid #e74c3c; color:#fff; }
+        .rarity-chip-common       { background:rgba(127,140,141,0.25); border:1px solid #7f8c8d; color:#ecf0f1; }
+        .rarity-chip-occasional   { background:rgba(39,174,96,0.25);   border:1px solid #27ae60; color:#ecf0f1; }
+        .rarity-chip-scarce       { background:rgba(22,160,133,0.25);   border:1px solid #16a085; color:#ecf0f1; }
+        .rarity-chip-semi-rare    { background:rgba(41,128,185,0.25);   border:1px solid #2980b9; color:#ecf0f1; }
+        .rarity-chip-rare         { background:rgba(52,152,219,0.25);   border:1px solid #3498db; color:#ecf0f1; }
+        .rarity-chip-mega-rare    { background:rgba(125,60,152,0.3);    border:1px solid #7d3c98; color:#fff; }
+        .rarity-chip-epic         { background:rgba(155,89,182,0.3);    border:1px solid #9b59b6; color:#fff; }
+        .rarity-chip-legendary    { background:rgba(230,126,34,0.3);    border:1px solid #e67e22; color:#fff; }
+        .rarity-chip-silver-elite { background:rgba(160,174,192,0.3);   border:1px solid #a0aec0; color:#fff; }
+        .rarity-chip-gold-elite   { background:rgba(212,172,13,0.3);    border:1px solid #d4ac0d; color:#fff; }
+        .rarity-chip-ultra        { background:rgba(231,76,60,0.3);     border:1px solid #e74c3c; color:#fff; }
         .detail-empty { font-size:13px; color:#7f8c8d; font-style:italic; }
 
         @media (max-width: 900px) { .states-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } .game-mode-selector { grid-template-columns: 1fr; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
@@ -560,7 +570,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260422d"></script>
+    <script src="game.js?v=20260422e"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
