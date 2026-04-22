@@ -205,10 +205,18 @@
                                 <option value="national">National / Balanced</option>
                             </select>
                         </div>
+                        <div class="setup-inline-card">
+                            <label for="plateScopeSelect" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🌎 Plate Coverage</label>
+                            <select id="plateScopeSelect" class="mode-input" disabled style="margin-bottom:0;">
+                                <option value="us_only">U.S. States Only</option>
+                                <option value="us_canada">U.S. + Canada</option>
+                            </select>
+                            <div class="setup-hint">When enabled, Canadian provinces and territories appear below the U.S. states in a separate alphabetical section.</div>
+                        </div>
                         <div class="play-area-panel">
                             <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
                                 <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">🗺️ Trip Play Area</label>
-                                <span class="setup-hint">Tap every state your trip actually travels through.</span>
+                                <span class="setup-hint">Tap every U.S. state your trip actually travels through.</span>
                             </div>
                             <div class="play-area-controls">
                                 <button class="btn btn-secondary btn-small" id="presetNortheastBtn" type="button" disabled>Northeast</button>
@@ -216,9 +224,9 @@
                                 <button class="btn btn-secondary btn-small" id="presetWestBtn" type="button" disabled>West</button>
                                 <button class="btn btn-secondary btn-small" id="clearPlayAreaBtn" type="button" disabled>Clear</button>
                             </div>
-                            <div class="play-area-summary" id="playAreaSummary">Select the states included in this pack’s travel area.</div>
+                            <div class="play-area-summary" id="playAreaSummary">Select the U.S. states included in this pack’s travel area.</div>
                             <div class="play-area-map" id="playAreaMap"></div>
-                            <div class="setup-hint">This saved footprint becomes the pack’s gameplay corridor for scoring and rarity.</div>
+                            <div class="setup-hint">This saved U.S. footprint becomes the pack’s gameplay corridor for scoring and rarity.</div>
                         </div>
                         <button class="btn btn-primary" id="createGameBtn" disabled style="margin-top:16px;">Create Game</button>
                     </div>
@@ -239,8 +247,8 @@
                     <div class="scores-container" id="scoresContainer"></div>
                 </div>
                 <div style="padding: 25px;">
-                    <h3 style="color: #3498db; margin-bottom: 15px; font-size: 24px;">🗺️ State License Plates</h3>
-                    <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">Tap any state when you spot their license plate! <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span></p>
+                    <h3 style="color: #3498db; margin-bottom: 15px; font-size: 24px;">🗺️ License Plates</h3>
+                    <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">Tap any state or province when you spot the plate. <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span></p>
                     <div class="states-grid" id="statesGrid"></div>
                 </div>
                 <div style="padding: 25px; border-top: 1px solid rgba(52, 152, 219, 0.2); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
@@ -256,7 +264,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260421e"></script>
+    <script src="game.js?v=20260421f"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
