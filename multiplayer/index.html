@@ -131,6 +131,12 @@
         .edit-pack-header { display: flex; justify-content: space-between; gap: 14px; align-items: center; margin-bottom: 14px; }
         .edit-pack-title { font-size: 24px; font-weight: 800; color: #ecf0f1; }
         .edit-pack-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 18px; }
+        .paused-pack-section { background: rgba(39, 174, 96, 0.07); border: 1px solid rgba(39, 174, 96, 0.35); border-radius: 14px; padding: 18px; margin-bottom: 22px; }
+        .paused-pack-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+        .paused-pack-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #2ecc71; font-weight: 700; margin-bottom: 5px; }
+        .paused-pack-name { font-size: 20px; font-weight: 800; color: #ecf0f1; margin-bottom: 4px; }
+        .paused-pack-divider { border: none; border-top: 1px solid rgba(52, 152, 219, 0.2); margin: 14px 0; }
+        body.dark .paused-pack-section { background: rgba(39, 174, 96, 0.05); border-color: rgba(39, 174, 96, 0.25); }
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1301; }
         .toast { background: linear-gradient(145deg, #34495e, #2c3e50); color: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); transform: translateX(400px); animation: slideInToast 0.3s ease forwards; border: 1px solid rgba(52, 152, 219, 0.3); position: relative; max-width: min(92vw, 360px); }
         .toast::before { content: '🐾'; position: absolute; top: 5px; left: 8px; font-size: 10px; opacity: 0.5; }
@@ -193,6 +199,82 @@
                     <p style="font-size: 14px; color: #bdc3c7; margin-top: 8px;"><strong>Examples:</strong> "Sarah + Mom", "Mike + Dad", "Alex + Jr" (Tag: letters/numbers only)</p>
                 </div>
 
+                <!-- Shown after Back to Setup when a pack is still active in the session -->
+                <div id="pausedPackSection" class="paused-pack-section" style="display:none;">
+                    <div class="paused-pack-header">
+                        <div style="min-width:0;">
+                            <div class="paused-pack-label">📦 Active Pack</div>
+                            <div class="paused-pack-name" id="pausedPackName">—</div>
+                            <div style="font-size:13px; color:#bdc3c7; margin-top:3px;">Code: <span class="creator-game-code" id="pausedPackCodeDisplay">—</span></div>
+                        </div>
+                        <button class="btn btn-primary" id="resumePackBtn" style="white-space:nowrap;">▶️ Return to Pack</button>
+                    </div>
+                    <hr class="paused-pack-divider">
+                    <div style="font-size:13px; color:#bdc3c7; margin-bottom:12px;">Update settings for this pack. Found plates and first-finder tags will not be affected.</div>
+                    <div class="setup-inline-card">
+                        <label for="pausedPackRegionSelect" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🧭 Primary Play Region</label>
+                        <select id="pausedPackRegionSelect" class="mode-input" style="margin-bottom:0;">
+                            <option value="">Select primary region...</option>
+                            <optgroup label="— Broad —">
+                                <option value="eastern_us">Eastern US</option>
+                                <option value="western_us">Western US</option>
+                            </optgroup>
+                            <optgroup label="— East —">
+                                <option value="northeast">Northeast</option>
+                                <option value="mid_atlantic">Mid-Atlantic</option>
+                                <option value="southeast">Southeast</option>
+                                <option value="south">Southern States</option>
+                                <option value="gulf_coast">Gulf Coast</option>
+                            </optgroup>
+                            <optgroup label="— Central —">
+                                <option value="midwest">Midwest</option>
+                                <option value="great_plains">Great Plains</option>
+                            </optgroup>
+                            <optgroup label="— West —">
+                                <option value="mountain_west">Mountain West</option>
+                                <option value="southwest">Southwest</option>
+                                <option value="pacific_northwest">Pacific Northwest</option>
+                                <option value="west_coast">West Coast</option>
+                            </optgroup>
+                            <optgroup label="— National —">
+                                <option value="national">National / Balanced</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="setup-inline-card">
+                        <label for="pausedPackScopeSelect" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🌎 Plate Coverage</label>
+                        <select id="pausedPackScopeSelect" class="mode-input" style="margin-bottom:0;">
+                            <option value="us_only">U.S. States Only</option>
+                            <option value="us_canada">U.S. + Canada</option>
+                        </select>
+                        <div class="setup-hint">Turning Canada off is blocked if this pack already contains Canadian plate progress.</div>
+                    </div>
+                    <div class="play-area-panel">
+                        <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                            <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">🗺️ Trip Play Area</label>
+                            <span class="setup-hint">Update the U.S. travel corridor.</span>
+                        </div>
+                        <div class="play-area-controls">
+                            <button class="btn btn-secondary btn-small" id="pausedPresetNortheastBtn" type="button">Northeast</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetMidAtlanticBtn" type="button">Mid-Atlantic</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetSoutheastBtn" type="button">Southeast</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetGulfCoastBtn" type="button">Gulf Coast</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetMidwestBtn" type="button">Midwest</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetGreatPlainsBtn" type="button">Great Plains</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetMountainWestBtn" type="button">Mountain West</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetSouthwestBtn" type="button">Southwest</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetPacificNwBtn" type="button">Pacific NW</button>
+                            <button class="btn btn-secondary btn-small" id="pausedPresetWestCoastBtn" type="button">West Coast</button>
+                            <button class="btn btn-secondary btn-small" id="pausedClearPlayAreaBtn" type="button">Clear</button>
+                        </div>
+                        <div class="play-area-summary" id="pausedPlayAreaSummary">Select the U.S. states included in this pack's travel area.</div>
+                        <div class="play-area-map" id="pausedPlayAreaMap"></div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+                        <button class="btn btn-primary" id="savePausedPackBtn">💾 Save Settings</button>
+                    </div>
+                </div>
+
                 <div class="game-mode-selector">
                     <div class="mode-card" id="createGameCard" style="opacity: 0.5;">
                         <div class="mode-icon">🎮</div>
@@ -203,12 +285,30 @@
                             <label for="primaryRegionSelect" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🧭 Primary Play Region</label>
                             <select id="primaryRegionSelect" class="mode-input" disabled style="margin-bottom:0;">
                                 <option value="">Select primary region...</option>
-                                <option value="east_coast">East Coast</option>
-                                <option value="southeast">Southeast</option>
-                                <option value="midwest">Midwest</option>
-                                <option value="mountain_west">Mountain West</option>
-                                <option value="west_coast">West Coast</option>
-                                <option value="national">National / Balanced</option>
+                                <optgroup label="— Broad —">
+                                    <option value="eastern_us">Eastern US</option>
+                                    <option value="western_us">Western US</option>
+                                </optgroup>
+                                <optgroup label="— East —">
+                                    <option value="northeast">Northeast</option>
+                                    <option value="mid_atlantic">Mid-Atlantic</option>
+                                    <option value="southeast">Southeast</option>
+                                    <option value="south">Southern States</option>
+                                    <option value="gulf_coast">Gulf Coast</option>
+                                </optgroup>
+                                <optgroup label="— Central —">
+                                    <option value="midwest">Midwest</option>
+                                    <option value="great_plains">Great Plains</option>
+                                </optgroup>
+                                <optgroup label="— West —">
+                                    <option value="mountain_west">Mountain West</option>
+                                    <option value="southwest">Southwest</option>
+                                    <option value="pacific_northwest">Pacific Northwest</option>
+                                    <option value="west_coast">West Coast</option>
+                                </optgroup>
+                                <optgroup label="— National —">
+                                    <option value="national">National / Balanced</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div class="setup-inline-card">
@@ -226,8 +326,15 @@
                             </div>
                             <div class="play-area-controls">
                                 <button class="btn btn-secondary btn-small" id="presetNortheastBtn" type="button" disabled>Northeast</button>
+                                <button class="btn btn-secondary btn-small" id="presetMidAtlanticBtn" type="button" disabled>Mid-Atlantic</button>
+                                <button class="btn btn-secondary btn-small" id="presetSoutheastBtn" type="button" disabled>Southeast</button>
+                                <button class="btn btn-secondary btn-small" id="presetGulfCoastBtn" type="button" disabled>Gulf Coast</button>
                                 <button class="btn btn-secondary btn-small" id="presetMidwestBtn" type="button" disabled>Midwest</button>
-                                <button class="btn btn-secondary btn-small" id="presetWestBtn" type="button" disabled>West</button>
+                                <button class="btn btn-secondary btn-small" id="presetGreatPlainsBtn" type="button" disabled>Great Plains</button>
+                                <button class="btn btn-secondary btn-small" id="presetMountainWestBtn" type="button" disabled>Mountain West</button>
+                                <button class="btn btn-secondary btn-small" id="presetSouthwestBtn" type="button" disabled>Southwest</button>
+                                <button class="btn btn-secondary btn-small" id="presetPacificNwBtn" type="button" disabled>Pacific NW</button>
+                                <button class="btn btn-secondary btn-small" id="presetWestCoastBtn" type="button" disabled>West Coast</button>
                                 <button class="btn btn-secondary btn-small" id="clearPlayAreaBtn" type="button" disabled>Clear</button>
                             </div>
                             <div class="play-area-summary" id="playAreaSummary">Select the U.S. states included in this pack’s travel area.</div>
@@ -284,12 +391,30 @@
                     <label for="editPrimaryRegionSelect" style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">🧭 Primary Play Region</label>
                     <select id="editPrimaryRegionSelect" class="mode-input" style="margin-bottom:0;">
                         <option value="">Select primary region...</option>
-                        <option value="east_coast">East Coast</option>
-                        <option value="southeast">Southeast</option>
-                        <option value="midwest">Midwest</option>
-                        <option value="mountain_west">Mountain West</option>
-                        <option value="west_coast">West Coast</option>
-                        <option value="national">National / Balanced</option>
+                        <optgroup label="— Broad —">
+                            <option value="eastern_us">Eastern US</option>
+                            <option value="western_us">Western US</option>
+                        </optgroup>
+                        <optgroup label="— East —">
+                            <option value="northeast">Northeast</option>
+                            <option value="mid_atlantic">Mid-Atlantic</option>
+                            <option value="southeast">Southeast</option>
+                            <option value="south">Southern States</option>
+                            <option value="gulf_coast">Gulf Coast</option>
+                        </optgroup>
+                        <optgroup label="— Central —">
+                            <option value="midwest">Midwest</option>
+                            <option value="great_plains">Great Plains</option>
+                        </optgroup>
+                        <optgroup label="— West —">
+                            <option value="mountain_west">Mountain West</option>
+                            <option value="southwest">Southwest</option>
+                            <option value="pacific_northwest">Pacific Northwest</option>
+                            <option value="west_coast">West Coast</option>
+                        </optgroup>
+                        <optgroup label="— National —">
+                            <option value="national">National / Balanced</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="edit-pack-section">
@@ -307,8 +432,15 @@
                     </div>
                     <div class="play-area-controls">
                         <button class="btn btn-secondary btn-small" id="editPresetNortheastBtn" type="button">Northeast</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetMidAtlanticBtn" type="button">Mid-Atlantic</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetSoutheastBtn" type="button">Southeast</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetGulfCoastBtn" type="button">Gulf Coast</button>
                         <button class="btn btn-secondary btn-small" id="editPresetMidwestBtn" type="button">Midwest</button>
-                        <button class="btn btn-secondary btn-small" id="editPresetWestBtn" type="button">West</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetGreatPlainsBtn" type="button">Great Plains</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetMountainWestBtn" type="button">Mountain West</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetSouthwestBtn" type="button">Southwest</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetPacificNwBtn" type="button">Pacific NW</button>
+                        <button class="btn btn-secondary btn-small" id="editPresetWestCoastBtn" type="button">West Coast</button>
                         <button class="btn btn-secondary btn-small" id="editClearPlayAreaBtn" type="button">Clear</button>
                     </div>
                     <div class="play-area-summary" id="editPlayAreaSummary">Select the U.S. states included in this pack’s travel area.</div>
@@ -325,79 +457,247 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260421f"></script>
+    <script src="game.js?v=20260422a"></script>
     <script>
     (function() {
-        const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
-        const FIREBASE_CREATOR_GAMES_PATH = 'creatorGames';
+        const LIBRARY_KEY_PREFIX = ‘platequest_created_games_v1_’;
+        const FIREBASE_CREATOR_GAMES_PATH = ‘creatorGames’;
         const pendingCreateMeta = { gameName: null };
-        const CANADA_PLATE_NAMES = ['Alberta','British Columbia','Manitoba','New Brunswick','Newfoundland and Labrador','Northwest Territories','Nova Scotia','Nunavut','Ontario','Prince Edward Island','Quebec','Saskatchewan','Yukon'];
-        const US_STATE_CHIPS = [
-            ['Alabama','AL'],['Alaska','AK'],['Arizona','AZ'],['Arkansas','AR'],['California','CA'],['Colorado','CO'],['Connecticut','CT'],['Delaware','DE'],['Florida','FL'],['Georgia','GA'],['Hawaii','HI'],['Idaho','ID'],['Illinois','IL'],['Indiana','IN'],['Iowa','IA'],['Kansas','KS'],['Kentucky','KY'],['Louisiana','LA'],['Maine','ME'],['Maryland','MD'],['Massachusetts','MA'],['Michigan','MI'],['Minnesota','MN'],['Mississippi','MS'],['Missouri','MO'],['Montana','MT'],['Nebraska','NE'],['Nevada','NV'],['New Hampshire','NH'],['New Jersey','NJ'],['New Mexico','NM'],['New York','NY'],['North Carolina','NC'],['North Dakota','ND'],['Ohio','OH'],['Oklahoma','OK'],['Oregon','OR'],['Pennsylvania','PA'],['Rhode Island','RI'],['South Carolina','SC'],['South Dakota','SD'],['Tennessee','TN'],['Texas','TX'],['Utah','UT'],['Vermont','VT'],['Virginia','VA'],['Washington','WA'],['West Virginia','WV'],['Wisconsin','WI'],['Wyoming','WY']
-        ];
-        const PLAY_AREA_PRESETS = {
-            northeast: ['ME','NH','VT','MA','RI','CT','NY','NJ','PA','DE','MD'],
-            midwest: ['OH','MI','IN','IL','WI','MN','IA','MO','ND','SD','NE','KS'],
-            west: ['WA','OR','CA','ID','NV','UT','AZ','MT','WY','CO','NM','AK','HI']
-        };
+        const CANADA_PLATE_NAMES = [‘Alberta’,’British Columbia’,’Manitoba’,’New Brunswick’,’Newfoundland and Labrador’,’Northwest Territories’,’Nova Scotia’,’Nunavut’,’Ontario’,’Prince Edward Island’,’Quebec’,’Saskatchewan’,’Yukon’];
+
+        // Use shared constants exposed by game.js to avoid duplication.
+        // Falls back to an empty structure if game.js hasn’t loaded yet.
+        function getUsStateChips() {
+            return (window.PQ_US_PLATES || []).map((s) => [s.name, s.abbr]);
+        }
+        function getPlayAreaPresets() {
+            return window.PQ_PLAY_AREA_PRESETS || {};
+        }
+
         let currentCreatorListener = null;
         let editPlayAreaStates = new Set();
+        let pausedPlayAreaStates = new Set();
 
-        function normalizeCode(value) { return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6); }
-        function getSavedIdentity() { try { return JSON.parse(localStorage.getItem('platequest_player_identity_v2') || 'null'); } catch (e) { return null; } }
+        // ── helpers ──────────────────────────────────────────────────────────
+
+        function normalizeCode(value) { return String(value || ‘’).replace(/[^a-zA-Z0-9]/g, ‘’).toUpperCase().slice(0, 6); }
+        function getSavedIdentity() { try { return JSON.parse(localStorage.getItem(‘platequest_player_identity_v2’) || ‘null’); } catch (e) { return null; } }
         function getCreatorKey() { return getSavedIdentity()?.playerKey || null; }
-        function getFirebaseDb() { try { if (typeof firebase === 'undefined') return null; if (!firebase.apps || !firebase.apps.length) return null; return firebase.database(); } catch (e) { return null; } }
+        function getFirebaseDb() { try { if (typeof firebase === ‘undefined’) return null; if (!firebase.apps || !firebase.apps.length) return null; return firebase.database(); } catch (e) { return null; } }
         function getCreatorLibraryPath(creatorKey) { return `${FIREBASE_CREATOR_GAMES_PATH}/${creatorKey}`; }
-        function getLocalCreatorLibrary() { const creatorKey = getCreatorKey(); if (!creatorKey) return []; try { return JSON.parse(localStorage.getItem(LIBRARY_KEY_PREFIX + creatorKey) || '[]'); } catch (e) { return []; } }
+        function getLocalCreatorLibrary() { const creatorKey = getCreatorKey(); if (!creatorKey) return []; try { return JSON.parse(localStorage.getItem(LIBRARY_KEY_PREFIX + creatorKey) || ‘[]’); } catch (e) { return []; } }
         function saveLocalCreatorLibrary(list) { const creatorKey = getCreatorKey(); if (!creatorKey) return; localStorage.setItem(LIBRARY_KEY_PREFIX + creatorKey, JSON.stringify(list.slice(0, 25))); }
         function mergeGameLists(primary, fallback) { const mergedMap = new Map(); [...(primary || []), ...(fallback || [])].forEach((item) => { if (!item || !item.code) return; const code = normalizeCode(item.code); if (!code) return; const existing = mergedMap.get(code); if (!existing || (item.lastOpenedAt || 0) > (existing.lastOpenedAt || 0)) mergedMap.set(code, { ...existing, ...item, code }); }); return Array.from(mergedMap.values()).sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)); }
-        async function readFirebaseCreatorLibrary() { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return []; const snap = await db.ref(getCreatorLibraryPath(creatorKey)).once('value'); if (!snap.exists()) return []; const raw = snap.val() || {}; return Object.values(raw).map((item) => ({ code: normalizeCode(item.code), name: item.name || 'Untitled Pack', createdAt: item.createdAt || 0, lastOpenedAt: item.lastOpenedAt || item.createdAt || 0, playRegion: item.playRegion || '', playAreaStates: item.playAreaStates || [] })).filter((item) => item.code); }
-        async function writeFirebaseCreatorGame(entry) { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db || !entry?.code) return; const code = normalizeCode(entry.code); const ref = db.ref(`${getCreatorLibraryPath(creatorKey)}/${code}`); const existingSnap = await ref.once('value'); const existing = existingSnap.val() || {}; const payload = { code, name: entry.name || entry.gameName || existing.name || 'Untitled Pack', createdAt: existing.createdAt || entry.createdAt || Date.now(), lastOpenedAt: Date.now(), playRegion: entry.playRegion || existing.playRegion || '', playAreaStates: entry.playAreaStates || existing.playAreaStates || [], creatorKey, updatedAt: Date.now() }; await ref.set(payload); }
+        function formatWhen(ts) { if (!ts) return ‘—‘; const d = new Date(ts); return Number.isNaN(d.getTime()) ? ‘—‘ : d.toLocaleString([], { month: ‘short’, day: ‘numeric’, hour: ‘numeric’, minute: ‘2-digit’ }); }
+
+        // ── Firebase creator library ─────────────────────────────────────────
+
+        async function readFirebaseCreatorLibrary() { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return []; const snap = await db.ref(getCreatorLibraryPath(creatorKey)).once(‘value’); if (!snap.exists()) return []; const raw = snap.val() || {}; return Object.values(raw).map((item) => ({ code: normalizeCode(item.code), name: item.name || ‘Untitled Pack’, createdAt: item.createdAt || 0, lastOpenedAt: item.lastOpenedAt || item.createdAt || 0, playRegion: item.playRegion || ‘’, playAreaStates: item.playAreaStates || [] })).filter((item) => item.code); }
+        async function writeFirebaseCreatorGame(entry) { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db || !entry?.code) return; const code = normalizeCode(entry.code); const ref = db.ref(`${getCreatorLibraryPath(creatorKey)}/${code}`); const existingSnap = await ref.once(‘value’); const existing = existingSnap.val() || {}; const payload = { code, name: entry.name || entry.gameName || existing.name || ‘Untitled Pack’, createdAt: existing.createdAt || entry.createdAt || Date.now(), lastOpenedAt: Date.now(), playRegion: entry.playRegion || existing.playRegion || ‘’, playAreaStates: entry.playAreaStates || existing.playAreaStates || [], creatorKey, updatedAt: Date.now() }; await ref.set(payload); }
         async function removeFirebaseCreatorGame(code) { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return; await db.ref(`${getCreatorLibraryPath(creatorKey)}/${normalizeCode(code)}`).remove(); }
-        function cacheCreatedGameLocally(entry) { if (!entry || !entry.code) return; const code = normalizeCode(entry.code); if (!code) return; const list = getLocalCreatorLibrary(); const idx = list.findIndex((item) => normalizeCode(item.code) === code); const merged = { code, name: entry.name || entry.gameName || 'Untitled Pack', createdAt: entry.createdAt || Date.now(), lastOpenedAt: Date.now(), playRegion: entry.playRegion || '', playAreaStates: entry.playAreaStates || [] }; if (idx >= 0) list[idx] = { ...list[idx], ...merged, createdAt: list[idx].createdAt || merged.createdAt }; else list.unshift(merged); list.sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)); saveLocalCreatorLibrary(list); }
-        async function upsertCreatedGame(entry) { if (!entry || !entry.code) return; cacheCreatedGameLocally(entry); try { await writeFirebaseCreatorGame(entry); } catch (e) { console.warn('Failed to sync creator game to Firebase:', e); } renderCreatedGamesLibrary(); }
-        async function removeCreatedGame(code) { const normalizedCode = normalizeCode(code); saveLocalCreatorLibrary(getLocalCreatorLibrary().filter((item) => normalizeCode(item.code) !== normalizedCode)); try { await removeFirebaseCreatorGame(normalizedCode); } catch (e) { console.warn('Failed to remove creator game from Firebase:', e); } renderCreatedGamesLibrary(); }
-        function ensureCreatedGamesPanel() { const createCard = document.getElementById('createGameCard'); if (!createCard) return null; let panel = document.getElementById('creatorGamesPanel'); if (panel) return panel; panel = document.createElement('div'); panel.id = 'creatorGamesPanel'; panel.className = 'creator-games-panel'; panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;"><label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">📚 My Created Games</label><span class="setup-hint">Cross-device list of packs you created.</span></div><div id="creatorGamesList" class="creator-games-list"></div>`; createCard.appendChild(panel); return panel; }
-        function formatWhen(ts) { if (!ts) return '—'; const d = new Date(ts); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+        function cacheCreatedGameLocally(entry) { if (!entry || !entry.code) return; const code = normalizeCode(entry.code); if (!code) return; const list = getLocalCreatorLibrary(); const idx = list.findIndex((item) => normalizeCode(item.code) === code); const merged = { code, name: entry.name || entry.gameName || ‘Untitled Pack’, createdAt: entry.createdAt || Date.now(), lastOpenedAt: Date.now(), playRegion: entry.playRegion || ‘’, playAreaStates: entry.playAreaStates || [] }; if (idx >= 0) list[idx] = { ...list[idx], ...merged, createdAt: list[idx].createdAt || merged.createdAt }; else list.unshift(merged); list.sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)); saveLocalCreatorLibrary(list); }
+        async function upsertCreatedGame(entry) { if (!entry || !entry.code) return; cacheCreatedGameLocally(entry); try { await writeFirebaseCreatorGame(entry); } catch (e) { console.warn(‘Failed to sync creator game to Firebase:’, e); } renderCreatedGamesLibrary(); }
+        async function removeCreatedGame(code) { const normalizedCode = normalizeCode(code); saveLocalCreatorLibrary(getLocalCreatorLibrary().filter((item) => normalizeCode(item.code) !== normalizedCode)); try { await removeFirebaseCreatorGame(normalizedCode); } catch (e) { console.warn(‘Failed to remove creator game from Firebase:’, e); } renderCreatedGamesLibrary(); }
         async function getResolvedCreatorLibrary() { const localItems = getLocalCreatorLibrary(); try { const firebaseItems = await readFirebaseCreatorLibrary(); const merged = mergeGameLists(firebaseItems, localItems); saveLocalCreatorLibrary(merged); return merged; } catch (e) { return localItems; } }
-        async function renderCreatedGamesLibrary() { const panel = ensureCreatedGamesPanel(); if (!panel) return; const listEl = document.getElementById('creatorGamesList'); const creatorKey = getCreatorKey(); if (!creatorKey) { listEl.innerHTML = '<div class="creator-empty">Set your identity to keep and sync a reusable list of packs you created.</div>'; return; } listEl.innerHTML = '<div class="creator-empty">Loading your created games…</div>'; const items = await getResolvedCreatorLibrary(); if (!items.length) { listEl.innerHTML = '<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>'; return; } listEl.innerHTML = items.map((item) => { const region = item.playRegion ? item.playRegion.replace(/_/g, ' ') : 'custom'; const playAreaCount = Array.isArray(item.playAreaStates) ? item.playAreaStates.length : 0; return `<div class="creator-game-card"><div class="creator-game-top"><div><div class="creator-game-name">${item.name || 'Untitled Pack'}</div><div class="creator-game-meta">Created ${formatWhen(item.createdAt)} • Last opened ${formatWhen(item.lastOpenedAt)}</div></div><div class="creator-game-code">${item.code}</div></div><div class="creator-game-meta">Region: ${region} • Trip area: ${playAreaCount} state${playAreaCount === 1 ? '' : 's'}</div><div class="creator-game-actions"><button class="btn btn-secondary btn-small" type="button" data-action="play" data-code="${item.code}">▶️ Play</button><button class="btn btn-secondary btn-small" type="button" data-action="copy" data-code="${item.code}">📋 Copy Code</button><button class="btn btn-secondary btn-small" type="button" data-action="remove" data-code="${item.code}">🗑️ Remove</button></div></div>`; }).join(''); listEl.querySelectorAll('button[data-action]').forEach((btn) => { btn.addEventListener('click', async () => { const action = btn.dataset.action; const code = btn.dataset.code; if (action === 'remove') { await removeCreatedGame(code); return; } if (action === 'copy') { if (typeof copyToClipboard === 'function') copyToClipboard(code, 'Pack code copied! 📋'); return; } if (action === 'play') { const joinInput = document.getElementById('joinCodeInput'); if (joinInput) joinInput.value = code; if (typeof startGame === 'function' && document.getElementById('game')?.style.display !== 'block') startGame(); if (!getSavedIdentity()) { if (typeof showToast === 'function') showToast('Set your identity first, then tap Play again.', 'info'); return; } if (typeof joinGame === 'function') await joinGame(code); } }); }); }
-        function startCreatorLibrarySync() { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return; stopCreatorLibrarySync(); currentCreatorListener = db.ref(getCreatorLibraryPath(creatorKey)); currentCreatorListener.on('value', async () => { await renderCreatedGamesLibrary(); }); }
+        async function fetchRoomMetaByCode(code) { const db = getFirebaseDb(); if (!db) return null; const snap = await db.ref(`games/${normalizeCode(code)}`).once(‘value’); return snap.exists() ? snap.val() : null; }
+
+        // ── Creator games panel ──────────────────────────────────────────────
+
+        function ensureCreatedGamesPanel() { const createCard = document.getElementById(‘createGameCard’); if (!createCard) return null; let panel = document.getElementById(‘creatorGamesPanel’); if (panel) return panel; panel = document.createElement(‘div’); panel.id = ‘creatorGamesPanel’; panel.className = ‘creator-games-panel’; panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;"><label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">📚 My Created Games</label><span class="setup-hint">Cross-device list of packs you created.</span></div><div id="creatorGamesList" class="creator-games-list"></div>`; createCard.appendChild(panel); return panel; }
+        async function renderCreatedGamesLibrary() { const panel = ensureCreatedGamesPanel(); if (!panel) return; const listEl = document.getElementById(‘creatorGamesList’); const creatorKey = getCreatorKey(); if (!creatorKey) { listEl.innerHTML = ‘<div class="creator-empty">Set your identity to keep and sync a reusable list of packs you created.</div>’; return; } listEl.innerHTML = ‘<div class="creator-empty">Loading your created games…</div>’; const items = await getResolvedCreatorLibrary(); if (!items.length) { listEl.innerHTML = ‘<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>’; return; } listEl.innerHTML = items.map((item) => { const regionKey = item.playRegion || ‘’; const regionLabel = (window.PQ_PRIMARY_REGIONS?.[regionKey]?.label) || regionKey.replace(/_/g, ‘ ‘) || ‘custom’; const playAreaCount = Array.isArray(item.playAreaStates) ? item.playAreaStates.length : 0; return `<div class="creator-game-card"><div class="creator-game-top"><div><div class="creator-game-name">${item.name || ‘Untitled Pack’}</div><div class="creator-game-meta">Created ${formatWhen(item.createdAt)} • Last opened ${formatWhen(item.lastOpenedAt)}</div></div><div class="creator-game-code">${item.code}</div></div><div class="creator-game-meta">Region: ${regionLabel} • Trip area: ${playAreaCount} state${playAreaCount === 1 ? ‘’ : ‘s’}</div><div class="creator-game-actions"><button class="btn btn-secondary btn-small" type="button" data-action="play" data-code="${item.code}">▶️ Play</button><button class="btn btn-secondary btn-small" type="button" data-action="copy" data-code="${item.code}">📋 Copy Code</button><button class="btn btn-secondary btn-small" type="button" data-action="remove" data-code="${item.code}">🗑️ Remove</button></div></div>`; }).join(‘’); listEl.querySelectorAll(‘button[data-action]’).forEach((btn) => { btn.addEventListener(‘click’, async () => { const action = btn.dataset.action; const code = btn.dataset.code; if (action === ‘remove’) { await removeCreatedGame(code); return; } if (action === ‘copy’) { if (typeof copyToClipboard === ‘function’) copyToClipboard(code, ‘Pack code copied! 📋’); return; } if (action === ‘play’) { const joinInput = document.getElementById(‘joinCodeInput’); if (joinInput) joinInput.value = code; if (typeof startGame === ‘function’ && document.getElementById(‘game’)?.style.display !== ‘block’) startGame(); if (!getSavedIdentity()) { if (typeof showToast === ‘function’) showToast(‘Set your identity first, then tap Play again.’, ‘info’); return; } if (typeof joinGame === ‘function’) await joinGame(code); } }); }); }
+        function startCreatorLibrarySync() { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return; stopCreatorLibrarySync(); currentCreatorListener = db.ref(getCreatorLibraryPath(creatorKey)); currentCreatorListener.on(‘value’, async () => { await renderCreatedGamesLibrary(); }); }
         function stopCreatorLibrarySync() { if (currentCreatorListener) { currentCreatorListener.off(); currentCreatorListener = null; } }
-        async function fetchRoomMetaByCode(code) { const db = getFirebaseDb(); if (!db) return null; const snap = await db.ref(`games/${normalizeCode(code)}`).once('value'); return snap.exists() ? snap.val() : null; }
+
+        // ── Paused pack section (Back to Setup without leaving) ──────────────
+
+        function renderPausedPlayAreaMap() {
+            const map = document.getElementById(‘pausedPlayAreaMap’);
+            if (!map) return;
+            map.innerHTML = ‘’;
+            getUsStateChips().forEach(([name, abbr]) => {
+                const chip = document.createElement(‘button’);
+                chip.type = ‘button’;
+                chip.className = ‘play-area-chip’;
+                chip.textContent = abbr;
+                chip.title = name;
+                if (pausedPlayAreaStates.has(name)) chip.classList.add(‘selected’);
+                chip.addEventListener(‘click’, () => {
+                    if (pausedPlayAreaStates.has(name)) pausedPlayAreaStates.delete(name);
+                    else pausedPlayAreaStates.add(name);
+                    renderPausedPlayAreaMap();
+                });
+                map.appendChild(chip);
+            });
+            updatePausedPlayAreaSummary();
+        }
+
+        function updatePausedPlayAreaSummary() {
+            const summary = document.getElementById(‘pausedPlayAreaSummary’);
+            if (!summary) return;
+            const states = Array.from(pausedPlayAreaStates).sort();
+            summary.textContent = states.length ? `${states.length} state${states.length === 1 ? ‘’ : ‘s’} selected: ${states.join(‘, ‘)}` : ‘Select the U.S. states included in this pack’s travel area.’;
+        }
+
+        function applyPausedPlayAreaPreset(presetKey) {
+            (getPlayAreaPresets()[presetKey] || []).forEach((abbr) => {
+                const match = getUsStateChips().find((item) => item[1] === abbr);
+                if (match) pausedPlayAreaStates.add(match[0]);
+            });
+            renderPausedPlayAreaMap();
+        }
+
+        function showPausedPackSection(pack) {
+            const section = document.getElementById(‘pausedPackSection’);
+            if (!section || !pack) return;
+            document.getElementById(‘pausedPackName’).textContent = pack.data?.name || ‘Untitled Pack’;
+            document.getElementById(‘pausedPackCodeDisplay’).textContent = pack.code || ‘—‘;
+            document.getElementById(‘pausedPackRegionSelect’).value = pack.data?.settings?.playRegion || ‘’;
+            document.getElementById(‘pausedPackScopeSelect’).value = pack.data?.settings?.plateScope || ‘us_only’;
+            pausedPlayAreaStates = new Set(pack.data?.settings?.playAreaStates || []);
+            renderPausedPlayAreaMap();
+            section.style.display = ‘block’;
+        }
+
+        function hidePausedPackSection() {
+            const section = document.getElementById(‘pausedPackSection’);
+            if (section) section.style.display = ‘none’;
+            pausedPlayAreaStates = new Set();
+        }
+
+        async function savePausedPackSettings() {
+            const pack = window.pausedPack;
+            if (!pack || !pack.code) { if (typeof showToast === ‘function’) showToast(‘No active pack to update.’, ‘error’); return; }
+            const db = getFirebaseDb();
+            if (!db) { if (typeof showToast === ‘function’) showToast(‘Not connected to Firebase.’, ‘error’); return; }
+            const nextRegion = document.getElementById(‘pausedPackRegionSelect’).value || ‘’;
+            const nextScope = document.getElementById(‘pausedPackScopeSelect’).value || ‘us_only’;
+            const nextPlayAreaStates = Array.from(pausedPlayAreaStates).sort();
+            if (!nextRegion) { if (typeof showToast === ‘function’) showToast(‘Please choose a primary play region.’, ‘error’); return; }
+            if (!nextPlayAreaStates.length) { if (typeof showToast === ‘function’) showToast(‘Select at least one trip-area state.’, ‘error’); return; }
+            const room = pack.data || {};
+            const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name)));
+            if (nextScope === ‘us_only’ && hasCanadianProgress) { if (typeof showToast === ‘function’) showToast(‘Cannot turn Canada off — this pack already has Canadian plate progress.’, ‘error’); return; }
+            const payload = { settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() };
+            try {
+                await db.ref(`games/${pack.code}`).update(payload);
+                window.pausedPack.data = { ...room, ...payload };
+                try { await upsertCreatedGame({ code: pack.code, name: room.name, playRegion: nextRegion, playAreaStates: nextPlayAreaStates }); } catch (e) {}
+                if (typeof showToast === ‘function’) showToast(‘Pack settings saved.’, ‘success’);
+            } catch (e) {
+                console.warn(‘Failed to save paused pack settings:’, e);
+                if (typeof showToast === ‘function’) showToast(‘Failed to save pack settings.’, ‘error’);
+            }
+        }
+
+        function bindPausedPackButtons() {
+            const resumeBtn = document.getElementById(‘resumePackBtn’);
+            if (resumeBtn && resumeBtn.dataset.bound !== ‘true’) {
+                resumeBtn.dataset.bound = ‘true’;
+                resumeBtn.addEventListener(‘click’, async () => {
+                    const pack = window.pausedPack;
+                    if (!pack || !pack.code) return;
+                    if (typeof joinGame === ‘function’) await joinGame(pack.code);
+                });
+            }
+            const saveBtn = document.getElementById(‘savePausedPackBtn’);
+            if (saveBtn && saveBtn.dataset.bound !== ‘true’) {
+                saveBtn.dataset.bound = ‘true’;
+                saveBtn.addEventListener(‘click’, savePausedPackSettings);
+            }
+            const pausedPresets = [
+                [‘pausedPresetNortheastBtn’,’northeast’],[‘pausedPresetMidAtlanticBtn’,’mid_atlantic’],
+                [‘pausedPresetSoutheastBtn’,’southeast’],[‘pausedPresetGulfCoastBtn’,’gulf_coast’],
+                [‘pausedPresetMidwestBtn’,’midwest’],[‘pausedPresetGreatPlainsBtn’,’great_plains’],
+                [‘pausedPresetMountainWestBtn’,’mountain_west’],[‘pausedPresetSouthwestBtn’,’southwest’],
+                [‘pausedPresetPacificNwBtn’,’pacific_northwest’],[‘pausedPresetWestCoastBtn’,’west_coast’]
+            ];
+            pausedPresets.forEach(([id, key]) => {
+                const btn = document.getElementById(id);
+                if (btn && btn.dataset.bound !== ‘true’) { btn.dataset.bound = ‘true’; btn.addEventListener(‘click’, () => applyPausedPlayAreaPreset(key)); }
+            });
+            const clearBtn = document.getElementById(‘pausedClearPlayAreaBtn’);
+            if (clearBtn && clearBtn.dataset.bound !== ‘true’) { clearBtn.dataset.bound = ‘true’; clearBtn.addEventListener(‘click’, () => { pausedPlayAreaStates = new Set(); renderPausedPlayAreaMap(); }); }
+        }
+
+        // ── Edit Pack modal ──────────────────────────────────────────────────
+
         function isCurrentHost() { const identity = getSavedIdentity(); const room = window.gameData || null; return Boolean(identity && room && room.hostPlayerKey === identity.playerKey); }
-        function syncEditButtonVisibility() { const btn = document.getElementById('editPackBtn'); if (!btn) return; btn.style.display = isCurrentHost() ? 'inline-flex' : 'none'; }
-        function updateEditPlayAreaSummary() { const summary = document.getElementById('editPlayAreaSummary'); if (!summary) return; const states = Array.from(editPlayAreaStates).sort(); summary.textContent = states.length ? `${states.length} state${states.length === 1 ? '' : 's'} selected: ${states.join(', ')}` : 'Select the U.S. states included in this pack’s travel area.'; }
-        function renderEditPlayAreaMap() { const map = document.getElementById('editPlayAreaMap'); if (!map) return; map.innerHTML = ''; US_STATE_CHIPS.forEach(([name, abbr]) => { const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'edit-play-area-chip'; chip.textContent = abbr; chip.title = name; if (editPlayAreaStates.has(name)) chip.classList.add('selected'); chip.addEventListener('click', () => { if (editPlayAreaStates.has(name)) editPlayAreaStates.delete(name); else editPlayAreaStates.add(name); renderEditPlayAreaMap(); }); map.appendChild(chip); }); updateEditPlayAreaSummary(); }
-        function applyEditPlayAreaPreset(presetKey) { (PLAY_AREA_PRESETS[presetKey] || []).forEach((abbr) => { const match = US_STATE_CHIPS.find((item) => item[1] === abbr); if (match) editPlayAreaStates.add(match[0]); }); renderEditPlayAreaMap(); }
-        function openEditPackModal() { if (!isCurrentHost()) { if (typeof showToast === 'function') showToast('Only the host can edit pack settings.', 'info'); return; } const room = window.gameData || null; if (!room) return; document.getElementById('editPackNameInput').value = room.name || ''; document.getElementById('editPrimaryRegionSelect').value = room.settings?.playRegion || ''; document.getElementById('editPlateScopeSelect').value = room.settings?.plateScope || 'us_only'; editPlayAreaStates = new Set(room.settings?.playAreaStates || []); renderEditPlayAreaMap(); document.getElementById('editPackModal').classList.add('visible'); }
-        function closeEditPackModal() { document.getElementById('editPackModal').classList.remove('visible'); }
-        async function saveEditedPack() { if (!isCurrentHost()) { if (typeof showToast === 'function') showToast('Only the host can edit pack settings.', 'info'); return; } const room = window.gameData || null; const code = window.currentGameCode || null; const db = getFirebaseDb(); if (!room || !code || !db) { if (typeof showToast === 'function') showToast('Pack data is not ready yet.', 'error'); return; } const nextName = document.getElementById('editPackNameInput').value.trim(); const nextRegion = document.getElementById('editPrimaryRegionSelect').value || ''; const nextScope = document.getElementById('editPlateScopeSelect').value || 'us_only'; const nextPlayAreaStates = Array.from(editPlayAreaStates).sort(); if (!nextName) { if (typeof showToast === 'function') showToast('Please enter a pack name.', 'error'); return; } if (!nextRegion) { if (typeof showToast === 'function') showToast('Please choose a primary play region.', 'error'); return; } if (!nextPlayAreaStates.length) { if (typeof showToast === 'function') showToast('Select at least one trip-area state.', 'error'); return; } const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name))); if (nextScope === 'us_only' && hasCanadianProgress) { if (typeof showToast === 'function') showToast('Cannot turn Canada off because this pack already contains Canadian plate progress.', 'error'); return; } const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() }; try { await db.ref(`games/${code}`).update(payload); try { await upsertCreatedGame({ code, name: nextName, playRegion: nextRegion, playAreaStates: nextPlayAreaStates }); } catch (e) {} closeEditPackModal(); if (typeof showToast === 'function') showToast('Pack settings updated.', 'success'); } catch (e) { console.warn('Failed to save pack edits:', e); if (typeof showToast === 'function') showToast('Failed to save pack settings.', 'error'); } }
+        function syncEditButtonVisibility() { const btn = document.getElementById(‘editPackBtn’); if (!btn) return; btn.style.display = isCurrentHost() ? ‘inline-flex’ : ‘none’; }
+
+        function updateEditPlayAreaSummary() { const summary = document.getElementById(‘editPlayAreaSummary’); if (!summary) return; const states = Array.from(editPlayAreaStates).sort(); summary.textContent = states.length ? `${states.length} state${states.length === 1 ? ‘’ : ‘s’} selected: ${states.join(‘, ‘)}` : ‘Select the U.S. states included in this pack’s travel area.’; }
+        function renderEditPlayAreaMap() { const map = document.getElementById(‘editPlayAreaMap’); if (!map) return; map.innerHTML = ‘’; getUsStateChips().forEach(([name, abbr]) => { const chip = document.createElement(‘button’); chip.type = ‘button’; chip.className = ‘edit-play-area-chip’; chip.textContent = abbr; chip.title = name; if (editPlayAreaStates.has(name)) chip.classList.add(‘selected’); chip.addEventListener(‘click’, () => { if (editPlayAreaStates.has(name)) editPlayAreaStates.delete(name); else editPlayAreaStates.add(name); renderEditPlayAreaMap(); }); map.appendChild(chip); }); updateEditPlayAreaSummary(); }
+        function applyEditPlayAreaPreset(presetKey) { (getPlayAreaPresets()[presetKey] || []).forEach((abbr) => { const match = getUsStateChips().find((item) => item[1] === abbr); if (match) editPlayAreaStates.add(match[0]); }); renderEditPlayAreaMap(); }
+        function openEditPackModal() { if (!isCurrentHost()) { if (typeof showToast === ‘function’) showToast(‘Only the host can edit pack settings.’, ‘info’); return; } const room = window.gameData || null; if (!room) return; document.getElementById(‘editPackNameInput’).value = room.name || ‘’; document.getElementById(‘editPrimaryRegionSelect’).value = room.settings?.playRegion || ‘’; document.getElementById(‘editPlateScopeSelect’).value = room.settings?.plateScope || ‘us_only’; editPlayAreaStates = new Set(room.settings?.playAreaStates || []); renderEditPlayAreaMap(); document.getElementById(‘editPackModal’).classList.add(‘visible’); }
+        function closeEditPackModal() { document.getElementById(‘editPackModal’).classList.remove(‘visible’); }
+        async function saveEditedPack() { if (!isCurrentHost()) { if (typeof showToast === ‘function’) showToast(‘Only the host can edit pack settings.’, ‘info’); return; } const room = window.gameData || null; const code = window.currentGameCode || null; const db = getFirebaseDb(); if (!room || !code || !db) { if (typeof showToast === ‘function’) showToast(‘Pack data is not ready yet.’, ‘error’); return; } const nextName = document.getElementById(‘editPackNameInput’).value.trim(); const nextRegion = document.getElementById(‘editPrimaryRegionSelect’).value || ‘’; const nextScope = document.getElementById(‘editPlateScopeSelect’).value || ‘us_only’; const nextPlayAreaStates = Array.from(editPlayAreaStates).sort(); if (!nextName) { if (typeof showToast === ‘function’) showToast(‘Please enter a pack name.’, ‘error’); return; } if (!nextRegion) { if (typeof showToast === ‘function’) showToast(‘Please choose a primary play region.’, ‘error’); return; } if (!nextPlayAreaStates.length) { if (typeof showToast === ‘function’) showToast(‘Select at least one trip-area state.’, ‘error’); return; } const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name))); if (nextScope === ‘us_only’ && hasCanadianProgress) { if (typeof showToast === ‘function’) showToast(‘Cannot turn Canada off because this pack already contains Canadian plate progress.’, ‘error’); return; } const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() }; try { await db.ref(`games/${code}`).update(payload); try { await upsertCreatedGame({ code, name: nextName, playRegion: nextRegion, playAreaStates: nextPlayAreaStates }); } catch (e) {} closeEditPackModal(); if (typeof showToast === ‘function’) showToast(‘Pack settings updated.’, ‘success’); } catch (e) { console.warn(‘Failed to save pack edits:’, e); if (typeof showToast === ‘function’) showToast(‘Failed to save pack settings.’, ‘error’); } }
+
         function bindEditPackButtons() {
-            const openBtn = document.getElementById('editPackBtn');
-            const closeBtn = document.getElementById('closeEditPackBtn');
-            const cancelBtn = document.getElementById('cancelEditPackBtn');
-            const saveBtn = document.getElementById('saveEditPackBtn');
-            if (openBtn && openBtn.dataset.bound !== 'true') { openBtn.dataset.bound = 'true'; openBtn.addEventListener('click', openEditPackModal); }
-            if (closeBtn && closeBtn.dataset.bound !== 'true') { closeBtn.dataset.bound = 'true'; closeBtn.addEventListener('click', closeEditPackModal); }
-            if (cancelBtn && cancelBtn.dataset.bound !== 'true') { cancelBtn.dataset.bound = 'true'; cancelBtn.addEventListener('click', closeEditPackModal); }
-            if (saveBtn && saveBtn.dataset.bound !== 'true') { saveBtn.dataset.bound = 'true'; saveBtn.addEventListener('click', saveEditedPack); }
-            [['editPresetNortheastBtn','northeast'],['editPresetMidwestBtn','midwest'],['editPresetWestBtn','west']].forEach(([id,key]) => { const btn = document.getElementById(id); if (btn && btn.dataset.bound !== 'true') { btn.dataset.bound = 'true'; btn.addEventListener('click', () => applyEditPlayAreaPreset(key)); } });
-            const clearBtn = document.getElementById('editClearPlayAreaBtn');
-            if (clearBtn && clearBtn.dataset.bound !== 'true') { clearBtn.dataset.bound = 'true'; clearBtn.addEventListener('click', () => { editPlayAreaStates = new Set(); renderEditPlayAreaMap(); }); }
-            const modal = document.getElementById('editPackModal');
-            if (modal && modal.dataset.bound !== 'true') { modal.dataset.bound = 'true'; modal.addEventListener('click', (event) => { if (event.target === modal) closeEditPackModal(); }); }
+            const openBtn = document.getElementById(‘editPackBtn’);
+            const closeBtn = document.getElementById(‘closeEditPackBtn’);
+            const cancelBtn = document.getElementById(‘cancelEditPackBtn’);
+            const saveBtn = document.getElementById(‘saveEditPackBtn’);
+            if (openBtn && openBtn.dataset.bound !== ‘true’) { openBtn.dataset.bound = ‘true’; openBtn.addEventListener(‘click’, openEditPackModal); }
+            if (closeBtn && closeBtn.dataset.bound !== ‘true’) { closeBtn.dataset.bound = ‘true’; closeBtn.addEventListener(‘click’, closeEditPackModal); }
+            if (cancelBtn && cancelBtn.dataset.bound !== ‘true’) { cancelBtn.dataset.bound = ‘true’; cancelBtn.addEventListener(‘click’, closeEditPackModal); }
+            if (saveBtn && saveBtn.dataset.bound !== ‘true’) { saveBtn.dataset.bound = ‘true’; saveBtn.addEventListener(‘click’, saveEditedPack); }
+            const editPresets = [
+                [‘editPresetNortheastBtn’,’northeast’],[‘editPresetMidAtlanticBtn’,’mid_atlantic’],
+                [‘editPresetSoutheastBtn’,’southeast’],[‘editPresetGulfCoastBtn’,’gulf_coast’],
+                [‘editPresetMidwestBtn’,’midwest’],[‘editPresetGreatPlainsBtn’,’great_plains’],
+                [‘editPresetMountainWestBtn’,’mountain_west’],[‘editPresetSouthwestBtn’,’southwest’],
+                [‘editPresetPacificNwBtn’,’pacific_northwest’],[‘editPresetWestCoastBtn’,’west_coast’]
+            ];
+            editPresets.forEach(([id, key]) => { const btn = document.getElementById(id); if (btn && btn.dataset.bound !== ‘true’) { btn.dataset.bound = ‘true’; btn.addEventListener(‘click’, () => applyEditPlayAreaPreset(key)); } });
+            const clearBtn = document.getElementById(‘editClearPlayAreaBtn’);
+            if (clearBtn && clearBtn.dataset.bound !== ‘true’) { clearBtn.dataset.bound = ‘true’; clearBtn.addEventListener(‘click’, () => { editPlayAreaStates = new Set(); renderEditPlayAreaMap(); }); }
+            const modal = document.getElementById(‘editPackModal’);
+            if (modal && modal.dataset.bound !== ‘true’) { modal.dataset.bound = ‘true’; modal.addEventListener(‘click’, (event) => { if (event.target === modal) closeEditPackModal(); }); }
             renderEditPlayAreaMap();
             syncEditButtonVisibility();
         }
+
+        // ── Monkey patches ───────────────────────────────────────────────────
+
         function attachMonkeyPatches() {
-            if (typeof window.setPlayerName === 'function' && !window.setPlayerName.__creatorWrapped) { const original = window.setPlayerName; window.setPlayerName = function(...args) { const result = original.apply(this, args); setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); syncEditButtonVisibility(); }, 0); return result; }; window.setPlayerName.__creatorWrapped = true; }
-            if (typeof window.createGame === 'function' && !window.createGame.__creatorWrapped) { const original = window.createGame; window.createGame = async function(...args) { pendingCreateMeta.gameName = document.getElementById('newGameInput')?.value?.trim() || null; return await original.apply(this, args); }; window.createGame.__creatorWrapped = true; }
-            if (typeof window.connectToGame === 'function' && !window.connectToGame.__creatorWrapped) { const original = window.connectToGame; window.connectToGame = async function(...args) { const codeArg = args[0]; const result = await original.apply(this, args); try { const identity = getSavedIdentity(); const room = await fetchRoomMetaByCode(codeArg); if (room && identity && room.hostPlayerKey === identity.playerKey) await upsertCreatedGame({ code: room.code || codeArg, name: room.name || pendingCreateMeta.gameName || 'Untitled Pack', createdAt: room.createdAt || Date.now(), playRegion: room.settings?.playRegion || '', playAreaStates: room.settings?.playAreaStates || [] }); } catch (e) { console.warn('Creator library sync failed after join/create:', e); } pendingCreateMeta.gameName = null; setTimeout(syncEditButtonVisibility, 0); return result; }; window.connectToGame.__creatorWrapped = true; }
-            if (typeof window.returnToSetup === 'function' && !window.returnToSetup.__creatorWrapped) { const original = window.returnToSetup; window.returnToSetup = function(...args) { const result = original.apply(this, args); setTimeout(() => { renderCreatedGamesLibrary(); syncEditButtonVisibility(); closeEditPackModal(); }, 0); return result; }; window.returnToSetup.__creatorWrapped = true; }
-            if (typeof window.updateGameUI === 'function' && !window.updateGameUI.__editWrapped) { const original = window.updateGameUI; window.updateGameUI = function(...args) { const result = original.apply(this, args); setTimeout(syncEditButtonVisibility, 0); return result; }; window.updateGameUI.__editWrapped = true; }
+            if (typeof window.setPlayerName === ‘function’ && !window.setPlayerName.__creatorWrapped) { const original = window.setPlayerName; window.setPlayerName = function(...args) { const result = original.apply(this, args); setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); syncEditButtonVisibility(); }, 0); return result; }; window.setPlayerName.__creatorWrapped = true; }
+            if (typeof window.createGame === ‘function’ && !window.createGame.__creatorWrapped) { const original = window.createGame; window.createGame = async function(...args) { pendingCreateMeta.gameName = document.getElementById(‘newGameInput’)?.value?.trim() || null; return await original.apply(this, args); }; window.createGame.__creatorWrapped = true; }
+            if (typeof window.connectToGame === ‘function’ && !window.connectToGame.__creatorWrapped) { const original = window.connectToGame; window.connectToGame = async function(...args) { const codeArg = args[0]; const result = await original.apply(this, args); try { const identity = getSavedIdentity(); const room = await fetchRoomMetaByCode(codeArg); if (room && identity && room.hostPlayerKey === identity.playerKey) await upsertCreatedGame({ code: room.code || codeArg, name: room.name || pendingCreateMeta.gameName || ‘Untitled Pack’, createdAt: room.createdAt || Date.now(), playRegion: room.settings?.playRegion || ‘’, playAreaStates: room.settings?.playAreaStates || [] }); } catch (e) { console.warn(‘Creator library sync failed after join/create:’, e); } pendingCreateMeta.gameName = null; hidePausedPackSection(); setTimeout(syncEditButtonVisibility, 0); return result; }; window.connectToGame.__creatorWrapped = true; }
+            if (typeof window.returnToSetup === ‘function’ && !window.returnToSetup.__creatorWrapped) {
+                const original = window.returnToSetup;
+                window.returnToSetup = function(...args) {
+                    const result = original.apply(this, args);
+                    setTimeout(() => {
+                        renderCreatedGamesLibrary();
+                        syncEditButtonVisibility();
+                        closeEditPackModal();
+                        // Show paused pack section if we have a saved paused pack
+                        if (window.pausedPack) {
+                            showPausedPackSection(window.pausedPack);
+                        } else {
+                            hidePausedPackSection();
+                        }
+                    }, 0);
+                    return result;
+                };
+                window.returnToSetup.__creatorWrapped = true;
+            }
+            if (typeof window.updateGameUI === ‘function’ && !window.updateGameUI.__editWrapped) { const original = window.updateGameUI; window.updateGameUI = function(...args) { const result = original.apply(this, args); setTimeout(syncEditButtonVisibility, 0); return result; }; window.updateGameUI.__editWrapped = true; }
         }
-        function bindBackToSetupButton() { const btn = document.getElementById('backToSetupBtn'); if (!btn || btn.dataset.bound === 'true') return; btn.dataset.bound = 'true'; btn.addEventListener('click', () => { if (typeof window.returnToSetup === 'function') { window.returnToSetup(false); if (typeof showToast === 'function') showToast('Returned to setup. Your current pack was not deleted.', 'info'); } }); }
-        document.addEventListener('DOMContentLoaded', () => { ensureCreatedGamesPanel(); attachMonkeyPatches(); bindBackToSetupButton(); bindEditPackButtons(); setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); bindBackToSetupButton(); bindEditPackButtons(); }, 50); setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); bindBackToSetupButton(); bindEditPackButtons(); }, 600); });
+
+        function bindBackToSetupButton() { const btn = document.getElementById(‘backToSetupBtn’); if (!btn || btn.dataset.bound === ‘true’) return; btn.dataset.bound = ‘true’; btn.addEventListener(‘click’, () => { if (typeof window.returnToSetup === ‘function’) { window.returnToSetup(false); if (typeof showToast === ‘function’) showToast(‘Returned to setup. Your pack is still active.’, ‘info’); } }); }
+
+        // ── Boot ─────────────────────────────────────────────────────────────
+
+        document.addEventListener(‘DOMContentLoaded’, () => {
+            ensureCreatedGamesPanel();
+            attachMonkeyPatches();
+            bindBackToSetupButton();
+            bindEditPackButtons();
+            bindPausedPackButtons();
+            setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); bindBackToSetupButton(); bindEditPackButtons(); bindPausedPackButtons(); }, 50);
+            setTimeout(() => { startCreatorLibrarySync(); renderCreatedGamesLibrary(); bindBackToSetupButton(); bindEditPackButtons(); bindPausedPackButtons(); }, 600);
+        });
+
         window.renderCreatedGamesLibrary = renderCreatedGamesLibrary;
     })();
     </script>

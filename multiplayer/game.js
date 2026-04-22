@@ -45,19 +45,71 @@ const CANADA_PLATES = [
 ];
 
 const PRIMARY_REGIONS = {
-    east_coast: { label: 'East Coast' },
-    southeast: { label: 'Southeast' },
-    midwest: { label: 'Midwest' },
-    mountain_west: { label: 'Mountain West' },
-    west_coast: { label: 'West Coast' },
-    national: { label: 'National / Balanced' }
+    // Broad regions
+    eastern_us:        { label: 'Eastern US' },
+    western_us:        { label: 'Western US' },
+    // East
+    northeast:         { label: 'Northeast' },
+    mid_atlantic:      { label: 'Mid-Atlantic' },
+    southeast:         { label: 'Southeast' },
+    south:             { label: 'Southern States' },
+    gulf_coast:        { label: 'Gulf Coast' },
+    // Central
+    midwest:           { label: 'Midwest' },
+    great_plains:      { label: 'Great Plains' },
+    // West
+    mountain_west:     { label: 'Mountain West' },
+    southwest:         { label: 'Southwest' },
+    pacific_northwest: { label: 'Pacific Northwest' },
+    west_coast:        { label: 'West Coast' },
+    // National
+    national:          { label: 'National / Balanced' },
+    // Legacy keys (existing packs may use these)
+    east_coast:        { label: 'East Coast' }
+};
+
+const SUB_REGIONS = {
+    new_england:      { label: 'New England',       states: ['Maine','New Hampshire','Vermont','Massachusetts','Rhode Island','Connecticut'] },
+    mid_atlantic:     { label: 'Mid-Atlantic',       states: ['New York','New Jersey','Pennsylvania','Delaware','Maryland'] },
+    appalachian:      { label: 'Appalachian',        states: ['West Virginia','Virginia','Kentucky','Tennessee','North Carolina'] },
+    eastern_seaboard: { label: 'Eastern Seaboard',  states: ['Maine','New Hampshire','Massachusetts','Rhode Island','Connecticut','New York','New Jersey','Pennsylvania','Delaware','Maryland','Virginia','North Carolina','South Carolina','Georgia','Florida'] },
+    great_lakes:      { label: 'Great Lakes',        states: ['Michigan','Ohio','Indiana','Illinois','Wisconsin','Minnesota'] },
+    midwest_plains:   { label: 'Midwest Plains',     states: ['Iowa','Missouri','North Dakota','South Dakota','Nebraska','Kansas'] },
+    deep_south:       { label: 'Deep South',         states: ['Alabama','Mississippi','Georgia','South Carolina'] },
+    gulf_coast:       { label: 'Gulf Coast',         states: ['Florida','Alabama','Mississippi','Louisiana','Texas'] },
+    south_central:    { label: 'South Central',      states: ['Arkansas','Louisiana','Oklahoma','Texas'] },
+    mountain_west:    { label: 'Mountain West',      states: ['Montana','Idaho','Wyoming','Colorado','Utah','Nevada'] },
+    desert_southwest: { label: 'Desert Southwest',   states: ['Arizona','New Mexico','Nevada'] },
+    pacific_northwest:{ label: 'Pacific Northwest',  states: ['Washington','Oregon'] },
+    pacific_coast:    { label: 'Pacific Coast',      states: ['California','Oregon','Washington'] },
+    non_contiguous:   { label: 'Non-Contiguous',     states: ['Alaska','Hawaii'] },
+    canada_east:      { label: 'Eastern Canada',     states: ['Ontario','Quebec','New Brunswick','Nova Scotia','Prince Edward Island','Newfoundland and Labrador'] },
+    canada_central:   { label: 'Central Canada',     states: ['Manitoba','Saskatchewan'] },
+    canada_west:      { label: 'Western Canada',     states: ['Alberta','British Columbia'] },
+    canada_territories:{ label: 'Canadian Territories', states: ['Yukon','Northwest Territories','Nunavut'] }
 };
 
 const PLAY_AREA_PRESETS = {
-    northeast: ['ME','NH','VT','MA','RI','CT','NY','NJ','PA','DE','MD'],
-    midwest: ['OH','MI','IN','IL','WI','MN','IA','MO','ND','SD','NE','KS'],
-    west: ['WA','OR','CA','ID','NV','UT','AZ','MT','WY','CO','NM','AK','HI']
+    northeast:         ['ME','NH','VT','MA','RI','CT','NY','NJ','PA'],
+    mid_atlantic:      ['NY','NJ','PA','DE','MD','VA','WV'],
+    southeast:         ['VA','NC','SC','GA','FL'],
+    gulf_coast:        ['FL','AL','MS','LA','TX'],
+    midwest:           ['OH','MI','IN','IL','WI','MN','IA','MO'],
+    great_plains:      ['ND','SD','NE','KS','MO','IA'],
+    mountain_west:     ['MT','ID','WY','CO','UT','NV'],
+    southwest:         ['AZ','NM','TX','NV'],
+    pacific_northwest: ['WA','OR'],
+    west_coast:        ['WA','OR','CA'],
+    eastern_us:        ['ME','NH','VT','MA','RI','CT','NY','NJ','PA','DE','MD','VA','WV','NC','SC','GA','FL','OH','MI','IN','IL','WI','MN','IA','MO','KY','TN','AL','MS','AR','LA'],
+    western_us:        ['MT','ID','WY','CO','UT','NV','AZ','NM','WA','OR','CA','ND','SD','NE','KS','OK','TX','AK','HI'],
+    west:              ['WA','OR','CA','ID','NV','UT','AZ','MT','WY','CO','NM','AK','HI']  // legacy
 };
+
+// Expose shared constants so the companion inline script can reference them
+// without maintaining a duplicate copy.
+window.PQ_PRIMARY_REGIONS = PRIMARY_REGIONS;
+window.PQ_PLAY_AREA_PRESETS = PLAY_AREA_PRESETS;
+window.PQ_US_PLATES = US_PLATES;
 
 const STORAGE_KEYS = {
     name: 'platequest_player_name',
@@ -205,8 +257,14 @@ function clearGameSession() { localStorage.removeItem(STORAGE_KEYS.session); upd
 function getSavedSession() { return safeParseStorage(STORAGE_KEYS.session); }
 
 function setSetupControlsDisabled(disabled) {
-    ['newGameInput','joinCodeInput','createGameBtn','joinGameBtn','primaryRegionSelect','plateScopeSelect','presetNortheastBtn','presetMidwestBtn','presetWestBtn','clearPlayAreaBtn']
-        .forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = disabled; });
+    [
+        'newGameInput','joinCodeInput','createGameBtn','joinGameBtn',
+        'primaryRegionSelect','plateScopeSelect',
+        'presetNortheastBtn','presetMidAtlanticBtn','presetSoutheastBtn',
+        'presetGulfCoastBtn','presetMidwestBtn','presetGreatPlainsBtn',
+        'presetMountainWestBtn','presetSouthwestBtn','presetPacificNwBtn',
+        'presetWestCoastBtn','clearPlayAreaBtn'
+    ].forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = disabled; });
     document.querySelectorAll('.play-area-chip').forEach((chip) => { chip.disabled = disabled; });
 }
 
@@ -357,8 +415,15 @@ function bindEventListeners() {
     document.getElementById('startBtn').addEventListener('click', startGame);
     document.getElementById('setNameBtn').addEventListener('click', setPlayerName);
     document.getElementById('presetNortheastBtn')?.addEventListener('click', () => applyPlayAreaPreset('northeast'));
+    document.getElementById('presetMidAtlanticBtn')?.addEventListener('click', () => applyPlayAreaPreset('mid_atlantic'));
+    document.getElementById('presetSoutheastBtn')?.addEventListener('click', () => applyPlayAreaPreset('southeast'));
+    document.getElementById('presetGulfCoastBtn')?.addEventListener('click', () => applyPlayAreaPreset('gulf_coast'));
     document.getElementById('presetMidwestBtn')?.addEventListener('click', () => applyPlayAreaPreset('midwest'));
-    document.getElementById('presetWestBtn')?.addEventListener('click', () => applyPlayAreaPreset('west'));
+    document.getElementById('presetGreatPlainsBtn')?.addEventListener('click', () => applyPlayAreaPreset('great_plains'));
+    document.getElementById('presetMountainWestBtn')?.addEventListener('click', () => applyPlayAreaPreset('mountain_west'));
+    document.getElementById('presetSouthwestBtn')?.addEventListener('click', () => applyPlayAreaPreset('southwest'));
+    document.getElementById('presetPacificNwBtn')?.addEventListener('click', () => applyPlayAreaPreset('pacific_northwest'));
+    document.getElementById('presetWestCoastBtn')?.addEventListener('click', () => applyPlayAreaPreset('west_coast'));
     document.getElementById('clearPlayAreaBtn')?.addEventListener('click', clearPlayAreaSelection);
     playerNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { if (!playerTagInput.value.trim()) playerTagInput.focus(); else setPlayerName(); } });
     playerTagInput.addEventListener('input', () => { playerTagInput.value = normalizeTagInput(playerTagInput.value); });
@@ -480,7 +545,9 @@ async function connectToGame(code, options = {}) {
     await roomRef.child(`players/${currentPlayer.playerKey}`).update(playerRecord);
     await roomRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
     currentGameCode = code;
+    window.currentGameCode = code;
     currentGameRef = roomRef;
+    window.pausedPack = null; // clear any paused state on successful connect
     saveGameSession();
     writeGameCodeToUrl(code);
     lastSyncAt = Date.now();
@@ -504,6 +571,7 @@ function setupGameListeners() {
     currentGameRef.on('value', (snapshot) => {
         if (!snapshot.exists()) { showToast('Pack no longer exists.', 'error'); returnToSetup(true); return; }
         gameData = snapshot.val();
+        window.gameData = gameData; // expose for companion inline script
         playersData = normalizePlayers(gameData.players || {});
         if (!playersData[currentPlayer.playerKey]) { showToast('You are no longer in this pack.', 'info'); returnToSetup(true); return; }
         lastSyncAt = Date.now();
@@ -706,8 +774,17 @@ async function leaveGame() {
 }
 
 function returnToSetup(clearSessionToo = false) {
+    // Capture pack state before teardown so the setup screen can offer
+    // "update settings for your active pack" when clearSessionToo is false.
+    if (!clearSessionToo && currentGameCode && gameData) {
+        window.pausedPack = { code: currentGameCode, data: JSON.parse(JSON.stringify(gameData)) };
+    } else {
+        window.pausedPack = null;
+    }
     teardownCurrentRoomListeners();
-    currentGameRef = null; currentGameCode = null; gameData = null; playersData = {}; lastRenderedStateSignature = ''; lastSyncAt = null;
+    currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
+    gameData = null; window.gameData = null;
+    playersData = {}; lastRenderedStateSignature = ''; lastSyncAt = null;
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl || '';
