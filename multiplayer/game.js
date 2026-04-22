@@ -28,6 +28,14 @@ const US_PLATES = [
     { name: "Wisconsin", abbr: "WI", category: "us" }, { name: "Wyoming", abbr: "WY", category: "us" }
 ];
 
+const TERRITORY_PLATES = [
+    { name: "Puerto Rico",              abbr: "PR",   category: "territory" },
+    { name: "U.S. Virgin Islands",      abbr: "USVI", category: "territory" },
+    { name: "American Samoa",           abbr: "AS",   category: "territory" },
+    { name: "Guam",                     abbr: "GU",   category: "territory" },
+    { name: "Northern Mariana Islands", abbr: "CNMI", category: "territory" }
+];
+
 const CANADA_PLATES = [
     { name: "Alberta", abbr: "AB", category: "canada" },
     { name: "British Columbia", abbr: "BC", category: "canada" },
@@ -111,6 +119,96 @@ window.PQ_PRIMARY_REGIONS = PRIMARY_REGIONS;
 window.PQ_PLAY_AREA_PRESETS = PLAY_AREA_PRESETS;
 window.PQ_US_PLATES = US_PLATES;
 
+// ── Rarity & Scoring ──────────────────────────────────────────────────────────
+
+// All point values are even so the 50%-later-finder share is always a whole number.
+const PLATE_RARITY = {
+    // Common (2 pts) — high-population states, seen everywhere on U.S. roads
+    'California':'common','Texas':'common','Florida':'common','New York':'common',
+    'Pennsylvania':'common','Ohio':'common','Illinois':'common','Georgia':'common',
+    'North Carolina':'common','Michigan':'common','New Jersey':'common','Virginia':'common',
+    'Washington':'common','Arizona':'common','Massachusetts':'common','Tennessee':'common',
+    // Uncommon (4 pts) — mid-tier, frequently seen on major highways
+    'Indiana':'uncommon','Missouri':'uncommon','Maryland':'uncommon','Wisconsin':'uncommon',
+    'Colorado':'uncommon','Minnesota':'uncommon','South Carolina':'uncommon','Alabama':'uncommon',
+    'Louisiana':'uncommon','Oregon':'uncommon','Kentucky':'uncommon','Connecticut':'uncommon',
+    'Oklahoma':'uncommon','Utah':'uncommon','Nevada':'uncommon',
+    // Rare (6 pts) — lower population, less-traveled states
+    'Iowa':'rare','Arkansas':'rare','Mississippi':'rare','Kansas':'rare',
+    'New Mexico':'rare','Nebraska':'rare','West Virginia':'rare','Idaho':'rare',
+    'New Hampshire':'rare','Maine':'rare','Rhode Island':'rare','Montana':'rare',
+    'Delaware':'rare','South Dakota':'rare','North Dakota':'rare',
+    // Epic (10 pts) — sparse population, a genuine surprise anywhere
+    'Vermont':'epic','Wyoming':'epic',
+    // Elite (20 pts) — almost impossible on mainland roads
+    'Alaska':'elite','Hawaii':'elite',
+    // Ultra Elite (30 pts) — U.S. territories, extremely rare
+    'Puerto Rico':'ultra','U.S. Virgin Islands':'ultra','American Samoa':'ultra',
+    'Guam':'ultra','Northern Mariana Islands':'ultra',
+    // Canada — Common (2 pts)
+    'Ontario':'common','Quebec':'common','British Columbia':'common',
+    // Canada — Uncommon (4 pts)
+    'Alberta':'uncommon',
+    // Canada — Rare (6 pts)
+    'Manitoba':'rare','Saskatchewan':'rare','Nova Scotia':'rare',
+    'New Brunswick':'rare','Prince Edward Island':'rare','Newfoundland and Labrador':'rare',
+    // Canada — Elite (20 pts)
+    'Yukon':'elite','Northwest Territories':'elite','Nunavut':'elite'
+};
+
+const RARITY_CONFIG = {
+    common:   { label: 'Common',      points: 2,  color: '#7f8c8d' },
+    uncommon: { label: 'Uncommon',    points: 4,  color: '#27ae60' },
+    rare:     { label: 'Rare',        points: 6,  color: '#3498db' },
+    epic:     { label: 'Epic',        points: 10, color: '#9b59b6' },
+    elite:    { label: 'Elite',       points: 20, color: '#f39c12' },
+    ultra:    { label: 'Ultra Elite', points: 30, color: '#e74c3c' }
+};
+
+// ── Badge Definitions ─────────────────────────────────────────────────────────
+
+const BADGE_DEFS = [
+    // Milestone — plates found
+    { id:'milestone_5',       group:'milestone',   icon:'🚗', label:'Road Warrior',    desc:'Found 5 plates',                 test:s=>s.foundCount>=5 },
+    { id:'milestone_10',      group:'milestone',   icon:'👀', label:'Spotter',          desc:'Found 10 plates',                test:s=>s.foundCount>=10 },
+    { id:'milestone_20',      group:'milestone',   icon:'🐺', label:'Pack Hunter',      desc:'Found 20 plates',                test:s=>s.foundCount>=20 },
+    { id:'milestone_40',      group:'milestone',   icon:'🏆', label:'Cross-Country',    desc:'Found 40 plates',                test:s=>s.foundCount>=40 },
+    { id:'milestone_50',      group:'milestone',   icon:'⭐', label:'Full Set',         desc:'Found all 50 states',            test:s=>s.foundCount>=50 },
+    // Milestone — first finds
+    { id:'ff_5',              group:'firstfinder', icon:'🎯', label:'Sharp Eye',        desc:'5 first finds',                  test:s=>s.firstCount>=5 },
+    { id:'ff_10',             group:'firstfinder', icon:'🔥', label:'On Fire',          desc:'10 first finds',                 test:s=>s.firstCount>=10 },
+    { id:'ff_15',             group:'firstfinder', icon:'⚡', label:'Lightning',        desc:'15 first finds',                 test:s=>s.firstCount>=15 },
+    { id:'ff_20',             group:'firstfinder', icon:'💎', label:'Diamond Eye',      desc:'20 first finds',                 test:s=>s.firstCount>=20 },
+    { id:'ff_40',             group:'firstfinder', icon:'🏅', label:'Elite Finder',     desc:'40 first finds',                 test:s=>s.firstCount>=40 },
+    { id:'ff_50',             group:'firstfinder', icon:'👑', label:'FF Legend',        desc:'50 first finds',                 test:s=>s.firstCount>=50 },
+    // Elite finds
+    { id:'found_ak',          group:'elite',       icon:'🗻', label:'Last Frontier',    desc:'Found Alaska',                   test:s=>s.foundSet.has('Alaska') },
+    { id:'found_hi',          group:'elite',       icon:'🌺', label:'Aloha!',           desc:'Found Hawaii',                   test:s=>s.foundSet.has('Hawaii') },
+    { id:'found_ak_hi',       group:'elite',       icon:'🌊', label:'Non-Contiguous',   desc:'Found Alaska & Hawaii',          test:s=>s.foundSet.has('Alaska')&&s.foundSet.has('Hawaii') },
+    { id:'found_pr',          group:'elite',       icon:'🌴', label:'La Isla',          desc:'Found Puerto Rico',              test:s=>s.foundSet.has('Puerto Rico') },
+    { id:'found_usvi',        group:'elite',       icon:'🏝️',label:'Island Hopper',    desc:'Found U.S. Virgin Islands',      test:s=>s.foundSet.has('U.S. Virgin Islands') },
+    { id:'found_as',          group:'elite',       icon:'🌏', label:'Pacific Isle',     desc:'Found American Samoa',           test:s=>s.foundSet.has('American Samoa') },
+    { id:'found_guam',        group:'elite',       icon:'🌐', label:'Pacific Rim',      desc:'Found Guam',                     test:s=>s.foundSet.has('Guam') },
+    { id:'found_cnmi',        group:'elite',       icon:'🗺️',label:'Marianas',         desc:'Found Northern Mariana Islands', test:s=>s.foundSet.has('Northern Mariana Islands') },
+    { id:'territory_hunter',  group:'elite',       icon:'🎖️',label:'Territory Hunter', desc:'Found all 5 U.S. territories',  test:s=>['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands'].every(t=>s.foundSet.has(t)) },
+    // Sub-region completions
+    { id:'sub_new_england',   group:'region', icon:'🦞', label:'New England',       desc:'Completed New England',       test:s=>s.completedSubs.includes('new_england') },
+    { id:'sub_mid_atlantic',  group:'region', icon:'🗽', label:'Mid-Atlantic',       desc:'Completed Mid-Atlantic',      test:s=>s.completedSubs.includes('mid_atlantic') },
+    { id:'sub_appalachian',   group:'region', icon:'⛰️', label:'Appalachian',        desc:'Completed Appalachian',       test:s=>s.completedSubs.includes('appalachian') },
+    { id:'sub_great_lakes',   group:'region', icon:'🚢', label:'Great Lakes',        desc:'Completed Great Lakes',       test:s=>s.completedSubs.includes('great_lakes') },
+    { id:'sub_midwest_plains',group:'region', icon:'🌾', label:'Midwest Plains',     desc:'Completed Midwest Plains',    test:s=>s.completedSubs.includes('midwest_plains') },
+    { id:'sub_deep_south',    group:'region', icon:'🌿', label:'Deep South',         desc:'Completed Deep South',        test:s=>s.completedSubs.includes('deep_south') },
+    { id:'sub_gulf_coast',    group:'region', icon:'🦈', label:'Gulf Coast',         desc:'Completed Gulf Coast',        test:s=>s.completedSubs.includes('gulf_coast') },
+    { id:'sub_south_central', group:'region', icon:'🤠', label:'South Central',      desc:'Completed South Central',     test:s=>s.completedSubs.includes('south_central') },
+    { id:'sub_mountain_west', group:'region', icon:'🏔️', label:'Mountain West',      desc:'Completed Mountain West',     test:s=>s.completedSubs.includes('mountain_west') },
+    { id:'sub_desert_sw',     group:'region', icon:'🌵', label:'Desert Southwest',   desc:'Completed Desert Southwest',  test:s=>s.completedSubs.includes('desert_southwest') },
+    { id:'sub_pacific_nw',    group:'region', icon:'🌲', label:'Pacific NW',         desc:'Completed Pacific Northwest', test:s=>s.completedSubs.includes('pacific_northwest') },
+    { id:'sub_pacific_coast', group:'region', icon:'🏄', label:'Pacific Coast',      desc:'Completed Pacific Coast',     test:s=>s.completedSubs.includes('pacific_coast') },
+    { id:'sub_non_contiguous',group:'region', icon:'✈️', label:'Non-Contiguous',     desc:'Found Alaska & Hawaii',       test:s=>s.completedSubs.includes('non_contiguous') },
+    // Travel corridor
+    { id:'corridor_complete', group:'corridor', icon:'🛣️',label:'Home Ground',       desc:'Found all corridor plates',   test:s=>s.corridorComplete },
+];
+
 const STORAGE_KEYS = {
     name: 'platequest_player_name',
     tag: 'platequest_player_tag',
@@ -168,7 +266,8 @@ function getPlateScope(scopeOverride = null) {
 }
 
 function getActivePlateEntries(scopeOverride = null) {
-    return getPlateScope(scopeOverride) === 'us_canada' ? [...US_PLATES, ...CANADA_PLATES] : US_PLATES;
+    const base = [...US_PLATES, ...TERRITORY_PLATES];
+    return getPlateScope(scopeOverride) === 'us_canada' ? [...base, ...CANADA_PLATES] : base;
 }
 
 function getUsStateEntries() {
@@ -442,7 +541,14 @@ function bindEventListeners() {
     document.getElementById('inviteNewBtn').addEventListener('click', inviteNewPlayer);
     document.addEventListener('visibilitychange', () => { if (document.hidden) saveGameSession(); else if (currentGameCode && currentPlayer && currentConnectionState === 'online') { setupPresence(); updateDiagnosticsPanel(); } });
     window.addEventListener('pageshow', async (event) => { if (event.persisted && currentPlayer && !currentGameCode) await attemptAutoResume(); else if (event.persisted && currentGameCode && currentPlayer && currentConnectionState === 'online') { setupPresence(); updateDiagnosticsPanel(); } });
-    document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); } });
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
+        if (e.key === 'Escape') closePlayerDetail();
+    });
+    const closeDetailBtn = document.getElementById('closePlayerDetailBtn');
+    if (closeDetailBtn) closeDetailBtn.addEventListener('click', closePlayerDetail);
+    const detailModal = document.getElementById('playerDetailModal');
+    if (detailModal) detailModal.addEventListener('click', e => { if (e.target === detailModal) closePlayerDetail(); });
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -655,14 +761,30 @@ function updateScores() {
     if (!scoresContainer) return;
     scoresContainer.innerHTML = '';
     const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
-    const scores = Object.values(playersData).map((player) => ({ ...player, count: stateMapToCount(player.states), percentage: Math.round((stateMapToCount(player.states) / totalPlates) * 100) })).sort((a, b) => { if (b.count !== a.count) return b.count - a.count; return (a.joinedAt || 0) - (b.joinedAt || 0); });
-    scores.forEach((player, index) => {
-        const scoreCard = document.createElement('div');
-        scoreCard.className = `score-card ${index === 0 && player.count > 0 ? 'leader' : ''}`;
+
+    const rows = Object.values(playersData).map((player) => {
+        const stats = computePlayerStats(player.playerKey) || { score: 0, foundCount: 0, firstCount: 0 };
+        return { ...player, ...stats, percentage: Math.round((stats.foundCount / totalPlates) * 100) };
+    }).sort((a, b) => b.score - a.score || b.foundCount - a.foundCount || (a.joinedAt || 0) - (b.joinedAt || 0));
+
+    rows.forEach((player, index) => {
+        const isLeader = index === 0 && player.score > 0;
         const isMe = player.playerKey === currentPlayer.playerKey;
         const marker = isMe ? '🐺' : (player.connected ? '👤' : '💤');
-        const trophy = index === 0 && player.count > 0 ? '🏆' : '';
-        scoreCard.innerHTML = `<div class="score-player-name">${marker} ${isMe ? 'YOU' : player.displayName} ${trophy}</div><div class="score-count">${player.count}</div><div class="score-percentage">(${player.percentage}%)</div>`;
+        const badges = getPlayerBadges(player.playerKey);
+        const badgeRow = badges.length
+            ? `<div class="badge-row">${badges.slice(0, 6).map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}</div>`
+            : '';
+        const scoreCard = document.createElement('div');
+        scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
+        scoreCard.style.cursor = 'pointer';
+        scoreCard.innerHTML = `
+            <div class="score-player-name">${marker} ${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}</div>
+            <div class="score-pts">${player.score}<span class="score-pts-label"> pts</span></div>
+            <div class="score-meta">${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds</div>
+            ${badgeRow}
+        `;
+        scoreCard.addEventListener('click', () => openPlayerDetail(player.playerKey));
         scoresContainer.appendChild(scoreCard);
     });
 }
@@ -685,9 +807,14 @@ function renderStates() {
     statesGrid.innerHTML = '';
     const myStates = getMyStatesMap();
     const plateEntries = getActivePlateEntries(gameData?.settings?.plateScope);
+    let territoryHeaderAdded = false;
     let canadaHeaderAdded = false;
 
     plateEntries.forEach((state, index) => {
+        if (state.category === 'territory' && !territoryHeaderAdded) {
+            statesGrid.appendChild(createSectionHeader('🇺🇸 U.S. Territories'));
+            territoryHeaderAdded = true;
+        }
         if (state.category === 'canada' && !canadaHeaderAdded) {
             statesGrid.appendChild(createSectionHeader('🇨🇦 Canadian Provinces & Territories'));
             canadaHeaderAdded = true;
@@ -700,9 +827,28 @@ function renderStates() {
         const foundByOther = owner && owner.playerKey !== currentPlayer.playerKey ? owner : null;
         const claim = getStateClaim(state.name);
         if (foundByMe) card.classList.add('selected'); else if (foundByOther) card.classList.add('selected-by-other');
+
         const flagImg = `../flags/${state.abbr.toLowerCase()}.png`;
-        const plateType = state.category === 'canada' ? 'PROVINCE PLATE' : 'LICENSE PLATE';
-        card.innerHTML = `<div class="license-plate-header">${plateType}</div><div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; height: calc(100% - 40px);"><div style="flex: 1;"><div style="font-size: 20px; font-weight: bold; margin-bottom: 8px;">${state.name}</div><div style="font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">${state.abbr}</div></div><div class="state-flag" style="width: 50px; height: 35px; border-radius: 8px; background: linear-gradient(145deg, #95a5a6, #7f8c8d); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #2c3e50; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); border: 1px solid rgba(52, 152, 219, 0.2); overflow: hidden; position: relative;"><img src="${flagImg}" alt="${state.abbr} flag" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.style.display='none'; this.parentNode.textContent='${state.abbr}';"></div></div>${claim ? `<div style="position: absolute; top: 8px; right: 8px; min-width: 24px; height: 24px; padding:0 6px; background: #f39c12; color: white; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="First found by ${claim.displayName}">${claim.tag}</div>` : ''}`;
+        const plateTypeLabel = state.category === 'canada' ? 'PROVINCE PLATE' : state.category === 'territory' ? 'TERRITORY PLATE' : 'LICENSE PLATE';
+        const rarityTier = PLATE_RARITY[state.name] || 'common';
+        const rarityCfg = RARITY_CONFIG[rarityTier];
+        const rarityBadge = `<div class="rarity-badge rarity-${rarityTier}" title="${rarityCfg.label} · ${rarityCfg.points} pts first find">${rarityCfg.points}pt</div>`;
+        const firstFinderBadge = claim ? `<div class="ff-tag" title="First found by ${claim.displayName}">${claim.tag}</div>` : '';
+
+        card.innerHTML = `
+            <div class="license-plate-header">${plateTypeLabel}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:15px;height:calc(100% - 40px);">
+                <div style="flex:1;">
+                    <div style="font-size:20px;font-weight:bold;margin-bottom:8px;">${state.name}</div>
+                    <div style="font-size:14px;opacity:0.8;text-transform:uppercase;letter-spacing:2px;font-weight:600;">${state.abbr}</div>
+                </div>
+                <div class="state-flag" style="width:50px;height:35px;border-radius:8px;background:linear-gradient(145deg,#95a5a6,#7f8c8d);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;color:#2c3e50;box-shadow:0 3px 10px rgba(0,0,0,0.2);border:1px solid rgba(52,152,219,0.2);overflow:hidden;position:relative;">
+                    <img src="${flagImg}" alt="${state.abbr}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.parentNode.textContent='${state.abbr}';">
+                </div>
+            </div>
+            ${rarityBadge}
+            ${firstFinderBadge}
+        `;
         card.addEventListener('click', () => toggleState(state.name, foundByMe));
         card.style.animationDelay = `${index * 0.02}s`;
         statesGrid.appendChild(card);
@@ -804,3 +950,134 @@ function updateConnectionStatus(status) { const statusDot = document.getElementB
 function showLoading(text = 'Loading...') { const loadingText = loadingOverlay.querySelector('.loading-text'); if (loadingText) loadingText.textContent = text; loadingOverlay.style.display = 'flex'; }
 function hideLoading() { loadingOverlay.style.display = 'none'; }
 function showToast(message, type = 'info') { const container = document.getElementById('toastContainer'); if (!container) return; const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; container.appendChild(toast); setTimeout(() => { if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); } }, 4000); }
+
+// ── Scoring Engine ────────────────────────────────────────────────────────────
+
+function computePlayerStats(playerKey) {
+    const player = playersData[playerKey];
+    if (!player) return null;
+
+    const foundSet = new Set(Object.keys(player.states || {}));
+    const foundCount = foundSet.size;
+    const firstCount = Array.from(foundSet).filter(
+        name => gameData?.claimedStates?.[name]?.playerKey === playerKey
+    ).length;
+
+    // Base plate score — first finder gets full points, later finders get half
+    let score = 0;
+    foundSet.forEach(name => {
+        const tier = PLATE_RARITY[name] || 'common';
+        const pts = RARITY_CONFIG[tier].points;
+        const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
+        score += isFirst ? pts : pts / 2;
+    });
+
+    // Sub-region completions
+    const completedSubs = Object.entries(SUB_REGIONS)
+        .filter(([, region]) => region.states.every(s => foundSet.has(s)))
+        .map(([key]) => key);
+
+    // Sub-region completion bonuses: +15 pts if first in pack, +8 pts otherwise
+    completedSubs.forEach(key => {
+        const anyOtherCompleted = Object.entries(playersData).some(([pKey, pData]) => {
+            if (pKey === playerKey) return false;
+            const pFound = new Set(Object.keys(pData?.states || {}));
+            return SUB_REGIONS[key].states.every(s => pFound.has(s));
+        });
+        score += anyOtherCompleted ? 8 : 15;
+    });
+
+    // Travel corridor completion: +20 pts if first, +10 pts otherwise
+    const corridorStates = gameData?.settings?.playAreaStates || [];
+    const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
+    if (corridorComplete) {
+        const anyOtherCompleted = Object.entries(playersData).some(([pKey, pData]) => {
+            if (pKey === playerKey) return false;
+            const pFound = new Set(Object.keys(pData?.states || {}));
+            return corridorStates.every(s => pFound.has(s));
+        });
+        score += anyOtherCompleted ? 10 : 20;
+    }
+
+    return { foundSet, foundCount, firstCount, score, completedSubs, corridorComplete };
+}
+
+function getPlayerBadges(playerKey) {
+    const stats = computePlayerStats(playerKey);
+    if (!stats) return [];
+    return BADGE_DEFS.filter(b => b.test(stats));
+}
+
+// ── Player Detail Modal ───────────────────────────────────────────────────────
+
+function openPlayerDetail(playerKey) {
+    const player = playersData[playerKey];
+    if (!player) return;
+    const modal = document.getElementById('playerDetailModal');
+    if (!modal) return;
+
+    const stats = computePlayerStats(playerKey) || { score: 0, foundCount: 0, firstCount: 0, foundSet: new Set(), completedSubs: [], corridorComplete: false };
+    const badges = getPlayerBadges(playerKey);
+    const isMe = playerKey === currentPlayer?.playerKey;
+
+    document.getElementById('detailPlayerName').textContent = player.displayName + (isMe ? ' (You)' : '');
+    document.getElementById('detailStatus').textContent = player.connected ? '🟢 Online' : '💤 Offline';
+    document.getElementById('detailScore').textContent = stats.score;
+    document.getElementById('detailFoundCount').textContent = stats.foundCount;
+    document.getElementById('detailFirstCount').textContent = stats.firstCount;
+
+    // Badges
+    const badgeGrid = document.getElementById('detailBadgeGrid');
+    if (badgeGrid) {
+        badgeGrid.innerHTML = badges.length
+            ? badges.map(b => `<div class="badge-item"><div class="badge-item-icon">${b.icon}</div><div class="badge-item-label">${b.label}</div><div class="badge-item-desc">${b.desc}</div></div>`).join('')
+            : '<div class="detail-empty">No badges yet — keep spotting!</div>';
+    }
+
+    // Score breakdown by rarity tier
+    const breakdownEl = document.getElementById('detailBreakdownGrid');
+    if (breakdownEl) {
+        const byTier = {};
+        stats.foundSet.forEach(name => {
+            const tier = PLATE_RARITY[name] || 'common';
+            if (!byTier[tier]) byTier[tier] = { count: 0, pts: 0 };
+            const pts = RARITY_CONFIG[tier].points;
+            const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
+            byTier[tier].count++;
+            byTier[tier].pts += isFirst ? pts : pts / 2;
+        });
+        const tierOrder = ['ultra', 'elite', 'epic', 'rare', 'uncommon', 'common'];
+        const rows = tierOrder.filter(t => byTier[t]).map(t => {
+            const cfg = RARITY_CONFIG[t];
+            const d = byTier[t];
+            return `<div class="breakdown-row"><span class="rarity-badge rarity-${t}">${cfg.label}</span><span class="breakdown-count">${d.count} plate${d.count !== 1 ? 's' : ''}</span><span class="breakdown-pts">${d.pts} pts</span></div>`;
+        });
+        if (stats.completedSubs.length) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Regional bonuses</span><span class="breakdown-count">${stats.completedSubs.length} region${stats.completedSubs.length !== 1 ? 's' : ''}</span><span class="breakdown-pts">+${stats.completedSubs.length * 8}–${stats.completedSubs.length * 15} pts</span></div>`);
+        if (stats.corridorComplete) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Corridor complete</span><span class="breakdown-count"></span><span class="breakdown-pts">+10–20 pts</span></div>`);
+        breakdownEl.innerHTML = rows.join('') || '<div class="detail-empty">No plates found yet.</div>';
+    }
+
+    // Found plates chips sorted rarity-first
+    const foundGrid = document.getElementById('detailFoundGrid');
+    if (foundGrid) {
+        const tierOrder = { ultra: 0, elite: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
+        const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES];
+        const sorted = Array.from(stats.foundSet).sort((a, b) => {
+            const ta = tierOrder[PLATE_RARITY[a] || 'common'] ?? 5;
+            const tb = tierOrder[PLATE_RARITY[b] || 'common'] ?? 5;
+            return ta !== tb ? ta - tb : a.localeCompare(b);
+        });
+        foundGrid.innerHTML = sorted.map(name => {
+            const tier = PLATE_RARITY[name] || 'common';
+            const abbr = allPlates.find(p => p.name === name)?.abbr || name.slice(0, 2).toUpperCase();
+            const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
+            return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}">${abbr}${isFirst ? '⭐' : ''}</div>`;
+        }).join('') || '<div class="detail-empty">No plates found yet.</div>';
+    }
+
+    modal.classList.add('visible');
+}
+
+function closePlayerDetail() {
+    document.getElementById('playerDetailModal')?.classList.remove('visible');
+}

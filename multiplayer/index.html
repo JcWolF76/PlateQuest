@@ -148,6 +148,67 @@
         .toast.error { background: linear-gradient(45deg, #e74c3c, #c0392b); }
         .toast.info { background: linear-gradient(45deg, #3498db, #2980b9); }
         @keyframes slideInToast { to { transform: translateX(0); } }
+
+        /* ── Rarity Badges (on state cards and breakdown) ── */
+        .rarity-badge { display:inline-block; font-size:10px; font-weight:800; padding:2px 6px; border-radius:8px; letter-spacing:0.4px; text-transform:uppercase; line-height:1.4; }
+        .rarity-common   { background:#7f8c8d; color:#fff; }
+        .rarity-uncommon { background:#27ae60; color:#fff; }
+        .rarity-rare     { background:#3498db; color:#fff; }
+        .rarity-epic     { background:#9b59b6; color:#fff; }
+        .rarity-elite    { background:#f39c12; color:#fff; }
+        .rarity-ultra    { background:#e74c3c; color:#fff; }
+        /* Rarity badge pinned to state card */
+        .state-card .rarity-badge { position:absolute; bottom:8px; left:8px; }
+        /* First-finder tag pinned to state card */
+        .ff-tag { position:absolute; top:8px; right:8px; min-width:24px; height:24px; padding:0 6px; background:#f39c12; color:#fff; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+
+        /* ── Score cards ── */
+        .score-pts { font-size:30px; font-weight:900; color:#f1c40f; line-height:1.1; margin:4px 0 2px; }
+        .score-pts-label { font-size:14px; font-weight:600; opacity:0.75; }
+        .score-meta { font-size:12px; opacity:0.8; margin-bottom:6px; }
+        .badge-row { display:flex; gap:4px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+        .badge-mini { font-size:20px; line-height:1; }
+
+        /* ── Player Detail Modal ── */
+        .player-detail-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.78); z-index:1200; padding:18px; }
+        .player-detail-modal.visible { display:flex; }
+        .player-detail-dialog { width:min(96vw,680px); max-height:90vh; overflow-y:auto; background:linear-gradient(145deg,rgba(44,62,80,0.98),rgba(52,73,94,0.98)); border-radius:22px; border:1px solid rgba(52,152,219,0.3); box-shadow:0 20px 60px rgba(0,0,0,0.5); padding:22px; display:flex; flex-direction:column; gap:18px; }
+        body.dark .player-detail-dialog { background:linear-gradient(145deg,rgba(15,23,42,0.98),rgba(30,41,59,0.98)); }
+        .detail-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+        .detail-name { font-size:24px; font-weight:800; color:#ecf0f1; }
+        .detail-status { font-size:13px; color:#bdc3c7; margin-top:4px; }
+        .detail-stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+        .detail-stat-card { background:rgba(255,255,255,0.07); border-radius:12px; padding:14px; text-align:center; border:1px solid rgba(52,152,219,0.18); }
+        .detail-stat-label { font-size:11px; text-transform:uppercase; letter-spacing:0.8px; color:#95a5a6; margin-bottom:6px; }
+        .detail-stat-value { font-size:28px; font-weight:900; }
+        #detailScore { color:#f1c40f; }
+        #detailFoundCount { color:#2ecc71; }
+        #detailFirstCount { color:#3498db; }
+        .detail-section-title { font-size:15px; font-weight:800; color:#3498db; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:12px; }
+        /* Badge grid */
+        .badge-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; }
+        .badge-item { background:rgba(255,255,255,0.06); border:1px solid rgba(52,152,219,0.15); border-radius:12px; padding:12px 8px; text-align:center; }
+        .badge-item-icon { font-size:26px; margin-bottom:6px; }
+        .badge-item-label { font-size:12px; font-weight:700; color:#ecf0f1; margin-bottom:2px; }
+        .badge-item-desc { font-size:11px; color:#95a5a6; line-height:1.3; }
+        /* Score breakdown */
+        .breakdown-grid { display:flex; flex-direction:column; gap:8px; }
+        .breakdown-row { display:flex; align-items:center; gap:10px; }
+        .breakdown-count { flex:1; font-size:13px; color:#bdc3c7; }
+        .breakdown-pts { font-size:14px; font-weight:700; color:#ecf0f1; text-align:right; min-width:60px; }
+        .breakdown-bonus { background:rgba(39,174,96,0.12); border-radius:8px; padding:6px 10px; }
+        .breakdown-bonus-label { font-size:12px; font-weight:700; color:#27ae60; flex:1; }
+        /* Found plates chips */
+        .found-plates-grid { display:flex; flex-wrap:wrap; gap:6px; }
+        .found-chip { padding:4px 9px; border-radius:8px; font-size:12px; font-weight:800; letter-spacing:0.5px; cursor:default; }
+        .rarity-chip-common   { background:rgba(127,140,141,0.25); border:1px solid #7f8c8d; color:#ecf0f1; }
+        .rarity-chip-uncommon { background:rgba(39,174,96,0.25);  border:1px solid #27ae60; color:#ecf0f1; }
+        .rarity-chip-rare     { background:rgba(52,152,219,0.25);  border:1px solid #3498db; color:#ecf0f1; }
+        .rarity-chip-epic     { background:rgba(155,89,182,0.25);  border:1px solid #9b59b6; color:#ecf0f1; }
+        .rarity-chip-elite    { background:rgba(243,156,18,0.3);   border:1px solid #f39c12; color:#fff; }
+        .rarity-chip-ultra    { background:rgba(231,76,60,0.3);    border:1px solid #e74c3c; color:#fff; }
+        .detail-empty { font-size:13px; color:#7f8c8d; font-style:italic; }
+
         @media (max-width: 900px) { .states-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } .game-mode-selector { grid-template-columns: 1fr; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
         @media (max-width: 768px) { .container { padding: 10px; } .states-grid { grid-template-columns: 1fr; } .input-row { flex-direction: column; align-items: stretch; } .game-mode-selector { grid-template-columns: 1fr; } .logo { width: min(250px, 80vw); } .game-code-header { flex-direction: column; gap: 12px; text-align: center; padding-left: 12px; padding-right: 12px; } .share-controls { justify-content: center; width: 100%; flex-wrap: wrap; } .diagnostics-grid { grid-template-columns: 1fr 1fr; } .diagnostics-panel { padding: 10px; } .diagnostics-header span { font-size: 11px !important; } .game-title { font-size: 24px; } .game-subtitle { font-size: 15px; } .game-code-display { font-size: 20px; letter-spacing: 2px; } .welcome-text { padding: 28px 20px; } .setup-section, .game-header, .live-scores, .game-active > div, .game-active > div:last-child { padding-left: 16px !important; padding-right: 16px !important; } .btn { min-height: 46px; } .mode-input { min-height: 48px; } .toast-container { left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top, 0px)); } .toast { max-width: none; width: 100%; margin-bottom: 8px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 520px) { .diagnostics-grid { grid-template-columns: 1fr; } .share-controls .btn { flex: 1 1 30%; } .game-code-info { flex-direction: column; gap: 8px; } .state-card { min-height: 108px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -456,11 +517,50 @@
             </div>
         </div>
 
+        <!-- Player Detail Modal -->
+        <div id="playerDetailModal" class="player-detail-modal">
+            <div class="player-detail-dialog">
+                <div class="detail-header">
+                    <div>
+                        <div class="detail-name" id="detailPlayerName">—</div>
+                        <div class="detail-status" id="detailStatus">—</div>
+                    </div>
+                    <button class="btn btn-secondary btn-small" id="closePlayerDetailBtn">✕ Close</button>
+                </div>
+                <div class="detail-stats-row">
+                    <div class="detail-stat-card">
+                        <div class="detail-stat-label">Score</div>
+                        <div class="detail-stat-value" id="detailScore">0</div>
+                    </div>
+                    <div class="detail-stat-card">
+                        <div class="detail-stat-label">Plates</div>
+                        <div class="detail-stat-value" id="detailFoundCount">0</div>
+                    </div>
+                    <div class="detail-stat-card">
+                        <div class="detail-stat-label">First Finds</div>
+                        <div class="detail-stat-value" id="detailFirstCount">0</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="detail-section-title">🏅 Badges</div>
+                    <div id="detailBadgeGrid" class="badge-grid"></div>
+                </div>
+                <div>
+                    <div class="detail-section-title">📊 Score Breakdown</div>
+                    <div id="detailBreakdownGrid" class="breakdown-grid"></div>
+                </div>
+                <div>
+                    <div class="detail-section-title">🗺️ Plates Found</div>
+                    <div id="detailFoundGrid" class="found-plates-grid"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="loadingOverlay" class="loading-overlay" style="display: none;"><div class="loading-spinner"></div><div class="loading-text">Connecting to the pack...</div></div>
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260422b"></script>
+    <script src="game.js?v=20260422c"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
