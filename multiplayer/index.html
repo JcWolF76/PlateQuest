@@ -477,6 +477,8 @@
         let currentCreatorListener = null;
         let editPlayAreaStates = new Set();
         let pausedPlayAreaStates = new Set();
+        let editTargetCode = null;   // which pack the edit modal is editing
+        let editTargetRoom = null;   // its fetched data (null = use live window.gameData)
 
         // ── helpers ──────────────────────────────────────────────────────────
 
@@ -504,7 +506,7 @@
         // ── Creator games panel ──────────────────────────────────────────────
 
         function ensureCreatedGamesPanel() { const createCard = document.getElementById(‘createGameCard’); if (!createCard) return null; let panel = document.getElementById(‘creatorGamesPanel’); if (panel) return panel; panel = document.createElement(‘div’); panel.id = ‘creatorGamesPanel’; panel.className = ‘creator-games-panel’; panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;"><label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">📚 My Created Games</label><span class="setup-hint">Cross-device list of packs you created.</span></div><div id="creatorGamesList" class="creator-games-list"></div>`; createCard.appendChild(panel); return panel; }
-        async function renderCreatedGamesLibrary() { const panel = ensureCreatedGamesPanel(); if (!panel) return; const listEl = document.getElementById(‘creatorGamesList’); const creatorKey = getCreatorKey(); if (!creatorKey) { listEl.innerHTML = ‘<div class="creator-empty">Set your identity to keep and sync a reusable list of packs you created.</div>’; return; } listEl.innerHTML = ‘<div class="creator-empty">Loading your created games…</div>’; const items = await getResolvedCreatorLibrary(); if (!items.length) { listEl.innerHTML = ‘<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>’; return; } listEl.innerHTML = items.map((item) => { const regionKey = item.playRegion || ‘’; const regionLabel = (window.PQ_PRIMARY_REGIONS?.[regionKey]?.label) || regionKey.replace(/_/g, ‘ ‘) || ‘custom’; const playAreaCount = Array.isArray(item.playAreaStates) ? item.playAreaStates.length : 0; return `<div class="creator-game-card"><div class="creator-game-top"><div><div class="creator-game-name">${item.name || ‘Untitled Pack’}</div><div class="creator-game-meta">Created ${formatWhen(item.createdAt)} • Last opened ${formatWhen(item.lastOpenedAt)}</div></div><div class="creator-game-code">${item.code}</div></div><div class="creator-game-meta">Region: ${regionLabel} • Trip area: ${playAreaCount} state${playAreaCount === 1 ? ‘’ : ‘s’}</div><div class="creator-game-actions"><button class="btn btn-secondary btn-small" type="button" data-action="play" data-code="${item.code}">▶️ Play</button><button class="btn btn-secondary btn-small" type="button" data-action="copy" data-code="${item.code}">📋 Copy Code</button><button class="btn btn-secondary btn-small" type="button" data-action="remove" data-code="${item.code}">🗑️ Remove</button></div></div>`; }).join(‘’); listEl.querySelectorAll(‘button[data-action]’).forEach((btn) => { btn.addEventListener(‘click’, async () => { const action = btn.dataset.action; const code = btn.dataset.code; if (action === ‘remove’) { await removeCreatedGame(code); return; } if (action === ‘copy’) { if (typeof copyToClipboard === ‘function’) copyToClipboard(code, ‘Pack code copied! 📋’); return; } if (action === ‘play’) { const joinInput = document.getElementById(‘joinCodeInput’); if (joinInput) joinInput.value = code; if (typeof startGame === ‘function’ && document.getElementById(‘game’)?.style.display !== ‘block’) startGame(); if (!getSavedIdentity()) { if (typeof showToast === ‘function’) showToast(‘Set your identity first, then tap Play again.’, ‘info’); return; } if (typeof joinGame === ‘function’) await joinGame(code); } }); }); }
+        async function renderCreatedGamesLibrary() { const panel = ensureCreatedGamesPanel(); if (!panel) return; const listEl = document.getElementById(‘creatorGamesList’); const creatorKey = getCreatorKey(); if (!creatorKey) { listEl.innerHTML = ‘<div class="creator-empty">Set your identity to keep and sync a reusable list of packs you created.</div>’; return; } listEl.innerHTML = ‘<div class="creator-empty">Loading your created games…</div>’; const items = await getResolvedCreatorLibrary(); if (!items.length) { listEl.innerHTML = ‘<div class="creator-empty">No created games saved yet. When you create or host a pack, it will appear here.</div>’; return; } listEl.innerHTML = items.map((item) => { const regionKey = item.playRegion || ‘’; const regionLabel = (window.PQ_PRIMARY_REGIONS?.[regionKey]?.label) || regionKey.replace(/_/g, ‘ ‘) || ‘custom’; const playAreaCount = Array.isArray(item.playAreaStates) ? item.playAreaStates.length : 0; return `<div class="creator-game-card"><div class="creator-game-top"><div><div class="creator-game-name">${item.name || ‘Untitled Pack’}</div><div class="creator-game-meta">Created ${formatWhen(item.createdAt)} • Last opened ${formatWhen(item.lastOpenedAt)}</div></div><div class="creator-game-code">${item.code}</div></div><div class="creator-game-meta">Region: ${regionLabel} • Trip area: ${playAreaCount} state${playAreaCount === 1 ? ‘’ : ‘s’}</div><div class="creator-game-actions"><button class="btn btn-secondary btn-small" type="button" data-action="play" data-code="${item.code}">▶️ Play</button><button class="btn btn-secondary btn-small" type="button" data-action="edit" data-code="${item.code}">✏️ Edit</button><button class="btn btn-secondary btn-small" type="button" data-action="copy" data-code="${item.code}">📋 Copy Code</button><button class="btn btn-secondary btn-small" type="button" data-action="remove" data-code="${item.code}">🗑️ Remove</button></div></div>`; }).join(‘’); listEl.querySelectorAll(‘button[data-action]’).forEach((btn) => { btn.addEventListener(‘click’, async () => { const action = btn.dataset.action; const code = btn.dataset.code; if (action === ‘remove’) { await removeCreatedGame(code); return; } if (action === ‘edit’) { await openEditPackModalForCode(code); return; } if (action === ‘copy’) { if (typeof copyToClipboard === ‘function’) copyToClipboard(code, ‘Pack code copied! 📋’); return; } if (action === ‘play’) { const joinInput = document.getElementById(‘joinCodeInput’); if (joinInput) joinInput.value = code; if (typeof startGame === ‘function’ && document.getElementById(‘game’)?.style.display !== ‘block’) startGame(); if (!getSavedIdentity()) { if (typeof showToast === ‘function’) showToast(‘Set your identity first, then tap Play again.’, ‘info’); return; } if (typeof joinGame === ‘function’) await joinGame(code); } }); }); }
         function startCreatorLibrarySync() { const creatorKey = getCreatorKey(); const db = getFirebaseDb(); if (!creatorKey || !db) return; stopCreatorLibrarySync(); currentCreatorListener = db.ref(getCreatorLibraryPath(creatorKey)); currentCreatorListener.on(‘value’, async () => { await renderCreatedGamesLibrary(); }); }
         function stopCreatorLibrarySync() { if (currentCreatorListener) { currentCreatorListener.off(); currentCreatorListener = null; } }
 
@@ -627,9 +629,82 @@
         function updateEditPlayAreaSummary() { const summary = document.getElementById(‘editPlayAreaSummary’); if (!summary) return; const states = Array.from(editPlayAreaStates).sort(); summary.textContent = states.length ? `${states.length} state${states.length === 1 ? ‘’ : ‘s’} selected: ${states.join(‘, ‘)}` : ‘Select the U.S. states included in this pack’s travel area.’; }
         function renderEditPlayAreaMap() { const map = document.getElementById(‘editPlayAreaMap’); if (!map) return; map.innerHTML = ‘’; getUsStateChips().forEach(([name, abbr]) => { const chip = document.createElement(‘button’); chip.type = ‘button’; chip.className = ‘edit-play-area-chip’; chip.textContent = abbr; chip.title = name; if (editPlayAreaStates.has(name)) chip.classList.add(‘selected’); chip.addEventListener(‘click’, () => { if (editPlayAreaStates.has(name)) editPlayAreaStates.delete(name); else editPlayAreaStates.add(name); renderEditPlayAreaMap(); }); map.appendChild(chip); }); updateEditPlayAreaSummary(); }
         function applyEditPlayAreaPreset(presetKey) { (getPlayAreaPresets()[presetKey] || []).forEach((abbr) => { const match = getUsStateChips().find((item) => item[1] === abbr); if (match) editPlayAreaStates.add(match[0]); }); renderEditPlayAreaMap(); }
-        function openEditPackModal() { if (!isCurrentHost()) { if (typeof showToast === ‘function’) showToast(‘Only the host can edit pack settings.’, ‘info’); return; } const room = window.gameData || null; if (!room) return; document.getElementById(‘editPackNameInput’).value = room.name || ‘’; document.getElementById(‘editPrimaryRegionSelect’).value = room.settings?.playRegion || ‘’; document.getElementById(‘editPlateScopeSelect’).value = room.settings?.plateScope || ‘us_only’; editPlayAreaStates = new Set(room.settings?.playAreaStates || []); renderEditPlayAreaMap(); document.getElementById(‘editPackModal’).classList.add(‘visible’); }
-        function closeEditPackModal() { document.getElementById(‘editPackModal’).classList.remove(‘visible’); }
-        async function saveEditedPack() { if (!isCurrentHost()) { if (typeof showToast === ‘function’) showToast(‘Only the host can edit pack settings.’, ‘info’); return; } const room = window.gameData || null; const code = window.currentGameCode || null; const db = getFirebaseDb(); if (!room || !code || !db) { if (typeof showToast === ‘function’) showToast(‘Pack data is not ready yet.’, ‘error’); return; } const nextName = document.getElementById(‘editPackNameInput’).value.trim(); const nextRegion = document.getElementById(‘editPrimaryRegionSelect’).value || ‘’; const nextScope = document.getElementById(‘editPlateScopeSelect’).value || ‘us_only’; const nextPlayAreaStates = Array.from(editPlayAreaStates).sort(); if (!nextName) { if (typeof showToast === ‘function’) showToast(‘Please enter a pack name.’, ‘error’); return; } if (!nextRegion) { if (typeof showToast === ‘function’) showToast(‘Please choose a primary play region.’, ‘error’); return; } if (!nextPlayAreaStates.length) { if (typeof showToast === ‘function’) showToast(‘Select at least one trip-area state.’, ‘error’); return; } const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name))); if (nextScope === ‘us_only’ && hasCanadianProgress) { if (typeof showToast === ‘function’) showToast(‘Cannot turn Canada off because this pack already contains Canadian plate progress.’, ‘error’); return; } const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() }; try { await db.ref(`games/${code}`).update(payload); try { await upsertCreatedGame({ code, name: nextName, playRegion: nextRegion, playAreaStates: nextPlayAreaStates }); } catch (e) {} closeEditPackModal(); if (typeof showToast === ‘function’) showToast(‘Pack settings updated.’, ‘success’); } catch (e) { console.warn(‘Failed to save pack edits:’, e); if (typeof showToast === ‘function’) showToast(‘Failed to save pack settings.’, ‘error’); } }
+
+        function populateEditModal(room) {
+            document.getElementById(‘editPackNameInput’).value = room.name || ‘’;
+            document.getElementById(‘editPrimaryRegionSelect’).value = room.settings?.playRegion || ‘’;
+            document.getElementById(‘editPlateScopeSelect’).value = room.settings?.plateScope || ‘us_only’;
+            editPlayAreaStates = new Set(room.settings?.playAreaStates || []);
+            renderEditPlayAreaMap();
+            document.getElementById(‘editPackModal’).classList.add(‘visible’);
+        }
+
+        // Opens edit modal from within a live game (host only).
+        function openEditPackModal() {
+            if (!isCurrentHost()) { if (typeof showToast === ‘function’) showToast(‘Only the host can edit pack settings.’, ‘info’); return; }
+            const room = window.gameData || null;
+            if (!room) return;
+            editTargetCode = window.currentGameCode;
+            editTargetRoom = room;
+            populateEditModal(room);
+        }
+
+        // Opens edit modal from the creator library by fetching pack from Firebase.
+        async function openEditPackModalForCode(code) {
+            const identity = getSavedIdentity();
+            if (!identity) { if (typeof showToast === ‘function’) showToast(‘Set your identity first.’, ‘info’); return; }
+            const db = getFirebaseDb();
+            if (!db) { if (typeof showToast === ‘function’) showToast(‘Not connected to Firebase.’, ‘error’); return; }
+            if (typeof showLoading === ‘function’) showLoading(‘Loading pack…’);
+            try {
+                const snap = await db.ref(`games/${code}`).once(‘value’);
+                if (!snap.exists()) { if (typeof showToast === ‘function’) showToast(‘Pack not found. It may have been deleted.’, ‘error’); return; }
+                const room = snap.val();
+                if (room.hostPlayerKey !== identity.playerKey) { if (typeof showToast === ‘function’) showToast(‘Only the pack host can edit settings.’, ‘info’); return; }
+                editTargetCode = code;
+                editTargetRoom = room;
+                populateEditModal(room);
+            } catch (e) {
+                console.warn(‘Failed to load pack for editing:’, e);
+                if (typeof showToast === ‘function’) showToast(‘Could not load pack settings.’, ‘error’);
+            } finally {
+                if (typeof hideLoading === ‘function’) hideLoading();
+            }
+        }
+
+        function closeEditPackModal() {
+            document.getElementById(‘editPackModal’).classList.remove(‘visible’);
+            editTargetCode = null;
+            editTargetRoom = null;
+        }
+
+        async function saveEditedPack() {
+            const room = editTargetRoom || window.gameData || null;
+            const code = editTargetCode || window.currentGameCode || null;
+            const identity = getSavedIdentity();
+            const db = getFirebaseDb();
+            if (!room || !code || !db) { if (typeof showToast === ‘function’) showToast(‘Pack data is not ready yet.’, ‘error’); return; }
+            if (room.hostPlayerKey !== identity?.playerKey) { if (typeof showToast === ‘function’) showToast(‘Only the host can edit pack settings.’, ‘info’); return; }
+            const nextName = document.getElementById(‘editPackNameInput’).value.trim();
+            const nextRegion = document.getElementById(‘editPrimaryRegionSelect’).value || ‘’;
+            const nextScope = document.getElementById(‘editPlateScopeSelect’).value || ‘us_only’;
+            const nextPlayAreaStates = Array.from(editPlayAreaStates).sort();
+            if (!nextName) { if (typeof showToast === ‘function’) showToast(‘Please enter a pack name.’, ‘error’); return; }
+            if (!nextRegion) { if (typeof showToast === ‘function’) showToast(‘Please choose a primary play region.’, ‘error’); return; }
+            if (!nextPlayAreaStates.length) { if (typeof showToast === ‘function’) showToast(‘Select at least one trip-area state.’, ‘error’); return; }
+            const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name)));
+            if (nextScope === ‘us_only’ && hasCanadianProgress) { if (typeof showToast === ‘function’) showToast(‘Cannot turn Canada off — this pack already has Canadian plate progress.’, ‘error’); return; }
+            const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() };
+            try {
+                await db.ref(`games/${code}`).update(payload);
+                try { await upsertCreatedGame({ code, name: nextName, playRegion: nextRegion, playAreaStates: nextPlayAreaStates }); } catch (e) {}
+                closeEditPackModal();
+                if (typeof showToast === ‘function’) showToast(‘Pack settings updated.’, ‘success’);
+            } catch (e) {
+                console.warn(‘Failed to save pack edits:’, e);
+                if (typeof showToast === ‘function’) showToast(‘Failed to save pack settings.’, ‘error’);
+            }
+        }
 
         function bindEditPackButtons() {
             const openBtn = document.getElementById(‘editPackBtn’);
