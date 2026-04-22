@@ -1,112 +1,85 @@
 # PlateQuest
 
-A license plate spotting game for road trips, family travel, school travel, and group adventures.
+**The road trip game that turns every license plate into a mini victory.**
+
+Miles of highway. A car full of people. Someone just spotted a Wyoming plate in the middle of New Jersey and absolutely lost their mind about it. That's PlateQuest.
 
 Created by **Jess Bliss** · Player tag: **JcWoLF76**
 
 ---
 
-## Play Styles
+## What's the game?
 
-PlateQuest supports three ways to play:
+Simple premise: spot license plates, claim them, beat your friends to them.
 
-| Mode | Description |
-|---|---|
-| **Solo** | One player, one device — no setup required |
-| **Shared-device family** | Multiple contributors on one phone or tablet |
-| **Live multiplayer** | Each player on their own device, joined into the same live pack |
+Every plate you see is a point. Every state you unlock lights up the board. And the further from home that plate came from, the sweeter it feels. PlateQuest keeps track of all of it — who found what, who got there first, and how your whole group is doing together.
+
+It works on one phone passed around the back seat, or on everyone's own device competing in real time. Solo, family, or full multiplayer — you pick how you want to play.
 
 ---
 
-## Single-Player and Shared-Device Play
+## Three ways to play
 
-### Solo
+### Just you
 
-1. Open the game and create a trip.
-2. Tap a plate entry whenever you spot that plate.
-3. Your progress is saved automatically — close and reopen whenever you like.
+Open the game, start a trip, tap plates as you spot them. That's it. Your progress saves automatically so you can close the app, take a nap, and pick right back up when you wake up to a Montana plate going 80 mph on the interstate.
 
-### Family / Shared-Device
+### One phone, whole family
 
-1. Create a trip and choose **Family** mode.
-2. When a plate is spotted, select the contributor who found it from the picker.
-3. The game records individual finds within the shared trip.
+Switch to Family mode and the game tracks who found what on a single shared device. When someone spots a plate, pick their name from the list — no typing, no arguing, just credit where credit is due. Great for when the kids are fighting over the phone anyway.
 
----
+### Everyone on their own device
 
-## Multiplayer
+This is where things get competitive.
 
-### Setup
+The host creates a **pack** and shares a six-character code. Everyone enters the code, and suddenly you're all looking at the same live board. Spot a plate before anyone else and your tag is permanently stamped on it as **First Finder** — even if everyone else finds it later, that glory is yours forever.
 
-1. Set your player identity — a name and short tag.
-2. **Create a pack** or **join one** using a six-character code.
-
-### Pack Creation Options
-
-- **Pack name** — a label for your trip or game
-- **Primary play region** — East Coast, Southeast, Midwest, Mountain West, West Coast, or National / Balanced
-- **Plate coverage** — U.S. States Only or U.S. + Canada
-- **Trip play area** — the U.S. states your trip will actually pass through
-
-### Joining
-
-Enter the six-character pack code. The app prefills the code automatically when opening a shared link.
-
-### How It Works
-
-- Every player marks plates from their own device.
-- The pack board updates live for all members.
-- The **first player** to claim a plate becomes the permanent **first finder** — their tag stays on that plate even if others find it later.
-- Each player also keeps their own individual found count.
-- The **leaderboard** shows everyone's progress and percentages.
-
-### Session Safety
-
-- Your identity and last active pack are saved — refresh the page and you reconnect automatically.
-- **Back to Setup** returns to the create/join screen without leaving or deleting your current pack.
+The leaderboard updates in real time. The trash talk is up to you.
 
 ---
 
-## Canada
+## Setting up a multiplayer pack
 
-When **U.S. + Canada** is selected at pack creation (or via Edit Pack), all Canadian provinces and territories are added to the playable board beneath the U.S. states.
+The host picks a few things when creating a pack:
 
-Included: Alberta, British Columbia, Manitoba, New Brunswick, Newfoundland and Labrador, Northwest Territories, Nova Scotia, Nunavut, Ontario, Prince Edward Island, Quebec, Saskatchewan, Yukon.
+- **Pack name** — call it whatever the trip deserves
+- **Play region** — East Coast, Southeast, Midwest, Mountain West, West Coast, or National / Balanced
+- **Plate coverage** — U.S. only, or throw Canada into the mix for extra chaos
+- **Trip play area** — the states you're actually driving through (this matters for rarity scoring down the road)
 
----
-
-## Creator Pack Library
-
-If you create packs regularly, the creator library saves them for you — no need to remember codes manually. From the library you can reopen a pack, copy its code, or remove it from the list. The library is Firebase-backed with local cache for offline access.
-
----
-
-## Edit Pack
-
-Hosts can update pack settings after creation without losing any progress:
-
-- Pack name, primary region, plate coverage, trip play area
-- Found plates, individual scores, and first-finder tags are never affected by edits
+Share the six-character code and your crew is in. Opening a shared link prefills the code automatically.
 
 ---
 
-## Hosting the Game
+## Canada? Oh yes.
 
-To run PlateQuest locally:
+Enable **U.S. + Canada** and the whole board expands — all thirteen provinces and territories, sitting right there waiting to be found.
 
-1. Clone or download this repository.
-2. Open `index.html` in any browser — no build step required.
-3. For multiplayer features, Firebase credentials must be configured in the app.
-
-To host publicly, upload to GitHub Pages or any static file host.
+Quebec and Ontario are solid gets on an East Coast run. But Nunavut? Northwest Territories? Yukon? Those are the white whales. Good luck.
 
 ---
 
-## Documentation
+## Your progress is safe
 
-- [`docs/GAME_OVERVIEW_AND_ROADMAP.md`](docs/GAME_OVERVIEW_AND_ROADMAP.md) — full game design overview, feature descriptions, and development roadmap
-- [`docs/QA_CHECKLIST.md`](docs/QA_CHECKLIST.md) — QA checklist for multiplayer, single-player, and share/import flows
+Refresh the page, close the tab, lose signal for an hour — when you come back, your identity and your pack reconnect automatically. No re-entering codes, no lost progress.
+
+And if the host needs to tweak the pack settings mid-trip (add Canada, rename the game, update the play area), that's all editable without touching a single found plate or first-finder tag.
 
 ---
 
-Happy spotting!
+## Running the game
+
+Clone the repo, open `index.html` in any browser, and you're playing. No build step, no install, no nonsense. Works offline for single-player; multiplayer features need Firebase credentials configured in the app.
+
+Want to share it? Upload to GitHub Pages or any static host and hand out the link.
+
+---
+
+## Docs
+
+- [`docs/GAME_OVERVIEW_AND_ROADMAP.md`](docs/GAME_OVERVIEW_AND_ROADMAP.md) — full design overview, feature breakdown, and development roadmap
+- [`docs/QA_CHECKLIST.md`](docs/QA_CHECKLIST.md) — QA checklist for all game modes
+
+---
+
+Happy spotting.
