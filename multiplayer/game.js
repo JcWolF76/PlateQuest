@@ -136,29 +136,29 @@ const STATE_NEIGHBORS = {
     'Florida':        ['Alabama','Georgia'],
     'Georgia':        ['Alabama','Florida','North Carolina','South Carolina','Tennessee'],
     'Hawaii':         [],
-    'Idaho':          ['Montana','Nevada','Oregon','Utah','Washington','Wyoming'],
+    'Idaho':          ['British Columbia','Montana','Nevada','Oregon','Utah','Washington','Wyoming'],
     'Illinois':       ['Indiana','Iowa','Kentucky','Missouri','Wisconsin'],
     'Indiana':        ['Illinois','Kentucky','Michigan','Ohio'],
     'Iowa':           ['Illinois','Minnesota','Missouri','Nebraska','South Dakota','Wisconsin'],
     'Kansas':         ['Colorado','Missouri','Nebraska','Oklahoma'],
     'Kentucky':       ['Illinois','Indiana','Missouri','Ohio','Tennessee','Virginia','West Virginia'],
     'Louisiana':      ['Arkansas','Mississippi','Texas'],
-    'Maine':          ['New Hampshire'],
+    'Maine':          ['New Brunswick','New Hampshire','Quebec'],
     'Maryland':       ['Delaware','Pennsylvania','Virginia','West Virginia'],
     'Massachusetts':  ['Connecticut','New Hampshire','New York','Rhode Island','Vermont'],
-    'Michigan':       ['Indiana','Ohio','Wisconsin'],
-    'Minnesota':      ['Iowa','North Dakota','South Dakota','Wisconsin'],
+    'Michigan':       ['Indiana','Ohio','Ontario','Wisconsin'],
+    'Minnesota':      ['Iowa','Manitoba','North Dakota','Ontario','South Dakota','Wisconsin'],
     'Mississippi':    ['Alabama','Arkansas','Louisiana','Tennessee'],
     'Missouri':       ['Arkansas','Illinois','Iowa','Kansas','Kentucky','Nebraska','Oklahoma','Tennessee'],
-    'Montana':        ['Idaho','North Dakota','South Dakota','Wyoming'],
+    'Montana':        ['Alberta','British Columbia','Idaho','North Dakota','Saskatchewan','South Dakota','Wyoming'],
     'Nebraska':       ['Colorado','Iowa','Kansas','Missouri','South Dakota','Wyoming'],
     'Nevada':         ['Arizona','California','Idaho','Oregon','Utah'],
-    'New Hampshire':  ['Maine','Massachusetts','Vermont'],
+    'New Hampshire':  ['Maine','Massachusetts','Quebec','Vermont'],
     'New Jersey':     ['Delaware','New York','Pennsylvania'],
     'New Mexico':     ['Arizona','Colorado','Oklahoma','Texas'],
-    'New York':       ['Connecticut','Massachusetts','New Jersey','Pennsylvania','Vermont'],
+    'New York':       ['Connecticut','Massachusetts','New Jersey','Ontario','Pennsylvania','Quebec','Vermont'],
     'North Carolina': ['Georgia','South Carolina','Tennessee','Virginia'],
-    'North Dakota':   ['Minnesota','Montana','South Dakota'],
+    'North Dakota':   ['Manitoba','Minnesota','Montana','Saskatchewan','South Dakota'],
     'Ohio':           ['Indiana','Kentucky','Michigan','Pennsylvania','West Virginia'],
     'Oklahoma':       ['Arkansas','Colorado','Kansas','Missouri','New Mexico','Texas'],
     'Oregon':         ['California','Idaho','Nevada','Washington'],
@@ -169,60 +169,64 @@ const STATE_NEIGHBORS = {
     'Tennessee':      ['Alabama','Arkansas','Georgia','Kentucky','Mississippi','Missouri','North Carolina','Virginia'],
     'Texas':          ['Arkansas','Louisiana','New Mexico','Oklahoma'],
     'Utah':           ['Arizona','Colorado','Idaho','Nevada','New Mexico','Wyoming'],
-    'Vermont':        ['Massachusetts','New Hampshire','New York'],
+    'Vermont':        ['Massachusetts','New Hampshire','New York','Quebec'],
     'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','West Virginia'],
-    'Washington':     ['Idaho','Oregon'],
+    'Washington':     ['British Columbia','Idaho','Oregon'],
     'West Virginia':  ['Kentucky','Maryland','Ohio','Pennsylvania','Virginia'],
     'Wisconsin':      ['Illinois','Iowa','Michigan','Minnesota'],
-    'Wyoming':        ['Colorado','Idaho','Montana','Nebraska','South Dakota','Utah']
+    'Wyoming':        ['Colorado','Idaho','Montana','Nebraska','South Dakota','Utah'],
+    // Canadian provinces (participate in BFS; territories are caught early as gold-elite)
+    'Alberta':                   ['British Columbia','Saskatchewan','Montana','Northwest Territories'],
+    'British Columbia':          ['Alberta','Washington','Idaho','Montana','Yukon'],
+    'Manitoba':                  ['Saskatchewan','Ontario','North Dakota','Minnesota'],
+    'New Brunswick':             ['Quebec','Nova Scotia','Maine'],
+    'Newfoundland and Labrador': ['Quebec'],
+    'Nova Scotia':               ['New Brunswick','Prince Edward Island'],
+    'Northwest Territories':     ['Yukon','Alberta','Saskatchewan','Manitoba'],
+    'Nunavut':                   ['Northwest Territories','Manitoba','Quebec'],
+    'Ontario':                   ['Manitoba','Quebec','Minnesota','Michigan','New York'],
+    'Prince Edward Island':      ['New Brunswick'],
+    'Quebec':                    ['Ontario','New Brunswick','Newfoundland and Labrador','New York','Vermont','New Hampshire','Maine'],
+    'Saskatchewan':              ['Alberta','Manitoba','Montana','North Dakota','Minnesota'],
+    'Yukon':                     ['British Columbia','Northwest Territories']
 };
 
-// Canada fixed tiers — corridor is US-only so Canadian rarity is fixed relative to proximity to US.
-const CANADA_RARITY = {
-    'Ontario':'uncommon','Quebec':'uncommon','British Columbia':'uncommon',
-    'Alberta':'rare',
-    'Manitoba':'rare','Saskatchewan':'rare','Nova Scotia':'rare',
-    'New Brunswick':'rare','Prince Edward Island':'rare','Newfoundland and Labrador':'rare',
-    'Yukon':'elite','Northwest Territories':'elite','Nunavut':'elite'
-};
-
-const TERRITORY_NAMES = new Set(['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
-const NON_CONTIGUOUS = new Set(['Alaska','Hawaii']);
+const TERRITORY_NAMES    = new Set(['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
+const CANADIAN_TERRITORIES = new Set(['Yukon','Northwest Territories','Nunavut']);
+const NON_CONTIGUOUS     = new Set(['Alaska','Hawaii']);
 
 // Returns the rarity tier for a plate given the pack's travel corridor.
-// Tiers: common (2pt) → uncommon (4pt) → rare (6pt) → epic (10pt) → elite (20pt) → ultra (30pt)
-// - In corridor             → common   (driving right through it)
-// - 1 hop from corridor     → uncommon (neighboring state, quite likely)
-// - 2 hops from corridor    → rare     (regional but not adjacent)
-// - 3+ hops from corridor   → epic     (far away, a real surprise)
-// - Alaska/Hawaii not in corridor → elite (non-contiguous, almost impossible)
-// - Territories             → ultra    (always, can't drive there)
-// - No corridor set         → flat uncommon for all states (AK/HI still elite)
+// BFS hop-distance from the corridor determines tier for contiguous US and Canadian provinces.
+// Special fixed tiers: AK/HI not in corridor → silver-elite; Canadian territories → gold-elite; US territories → ultra.
+// No corridor set → flat occasional for all states (AK/HI still silver-elite).
 function computeRarityForState(stateName, corridorStates) {
-    if (TERRITORY_NAMES.has(stateName)) return 'ultra';
-    if (CANADA_RARITY[stateName]) return CANADA_RARITY[stateName];
+    if (TERRITORY_NAMES.has(stateName))    return 'ultra';
+    if (CANADIAN_TERRITORIES.has(stateName)) return 'gold-elite';
 
     const corridorSet = new Set(corridorStates || []);
 
-    // No corridor set → flat scoring, still special-case non-contiguous
     if (corridorSet.size === 0) {
-        return NON_CONTIGUOUS.has(stateName) ? 'elite' : 'uncommon';
+        return NON_CONTIGUOUS.has(stateName) ? 'silver-elite' : 'occasional';
     }
 
     if (corridorSet.has(stateName)) return 'common';
-    if (NON_CONTIGUOUS.has(stateName)) return 'elite'; // AK/HI unreachable unless in corridor
+    if (NON_CONTIGUOUS.has(stateName)) return 'silver-elite'; // AK/HI unreachable by road unless in corridor
 
-    // BFS from corridor states outward — stops at 3 hops
+    // BFS from corridor states outward — up to 7 hops across contiguous US + Canadian provinces
     const visited = new Set(corridorSet);
     let frontier = new Set(corridorSet);
-    for (let hop = 1; hop <= 3; hop++) {
+    for (let hop = 1; hop <= 7; hop++) {
         const next = new Set();
         for (const state of frontier) {
             for (const neighbor of (STATE_NEIGHBORS[state] || [])) {
                 if (neighbor === stateName) {
-                    if (hop === 1) return 'uncommon';
-                    if (hop === 2) return 'rare';
-                    return 'epic';
+                    if (hop === 1) return 'occasional';
+                    if (hop === 2) return 'scarce';
+                    if (hop === 3) return 'semi-rare';
+                    if (hop === 4) return 'rare';
+                    if (hop === 5) return 'mega-rare';
+                    if (hop === 6) return 'epic';
+                    return 'legendary'; // hop === 7
                 }
                 if (!visited.has(neighbor)) { visited.add(neighbor); next.add(neighbor); }
             }
@@ -230,16 +234,21 @@ function computeRarityForState(stateName, corridorStates) {
         frontier = next;
         if (!frontier.size) break;
     }
-    return 'epic'; // 3+ hops — distant region
+    return 'legendary'; // 7+ hops — extremely distant
 }
 
 const RARITY_CONFIG = {
-    common:   { label: 'Common',      points: 2,  color: '#7f8c8d' },
-    uncommon: { label: 'Uncommon',    points: 4,  color: '#27ae60' },
-    rare:     { label: 'Rare',        points: 6,  color: '#3498db' },
-    epic:     { label: 'Epic',        points: 10, color: '#9b59b6' },
-    elite:    { label: 'Elite',       points: 20, color: '#f39c12' },
-    ultra:    { label: 'Ultra Elite', points: 30, color: '#e74c3c' }
+    'common':       { label: 'Common',       points: 2,   color: '#7f8c8d' },
+    'occasional':   { label: 'Occasional',   points: 4,   color: '#27ae60' },
+    'scarce':       { label: 'Scarce',       points: 6,   color: '#16a085' },
+    'semi-rare':    { label: 'Semi-Rare',    points: 10,  color: '#2980b9' },
+    'rare':         { label: 'Rare',         points: 20,  color: '#3498db' },
+    'mega-rare':    { label: 'Mega-Rare',    points: 30,  color: '#7d3c98' },
+    'epic':         { label: 'Epic',         points: 40,  color: '#9b59b6' },
+    'legendary':    { label: 'Legendary',    points: 50,  color: '#e67e22' },
+    'silver-elite': { label: 'Silver Elite', points: 60,  color: '#a0aec0' },
+    'gold-elite':   { label: 'Gold Elite',   points: 70,  color: '#d4ac0d' },
+    'ultra':        { label: 'Ultra',        points: 100, color: '#e74c3c' }
 };
 
 // ── Badge Definitions ─────────────────────────────────────────────────────────
@@ -1126,7 +1135,7 @@ function openPlayerDetail(playerKey) {
             byTier[tier].count++;
             byTier[tier].pts += isFirst ? pts : pts / 2;
         });
-        const tierOrder = ['ultra', 'elite', 'epic', 'rare', 'uncommon', 'common'];
+        const tierOrder = ['ultra','gold-elite','silver-elite','legendary','epic','mega-rare','rare','semi-rare','scarce','occasional','common'];
         const rows = tierOrder.filter(t => byTier[t]).map(t => {
             const cfg = RARITY_CONFIG[t];
             const d = byTier[t];
@@ -1140,7 +1149,7 @@ function openPlayerDetail(playerKey) {
     // Found plates chips sorted rarity-first
     const foundGrid = document.getElementById('detailFoundGrid');
     if (foundGrid) {
-        const tierRank = { ultra: 0, elite: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
+        const tierRank = { ultra: 0, 'gold-elite': 1, 'silver-elite': 2, legendary: 3, epic: 4, 'mega-rare': 5, rare: 6, 'semi-rare': 7, scarce: 8, occasional: 9, common: 10 };
         const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES];
         const sorted = Array.from(stats.foundSet).sort((a, b) => {
             const ta = tierRank[computeRarityForState(a, detailCorridor)] ?? 5;
