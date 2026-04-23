@@ -765,7 +765,8 @@ async function joinGame(codeOverride = null) {
     try { await connectToGame(code, { showJoinedToast: true }); clearPendingJoinReload(); }
     catch (error) {
         console.error('Error joining game:', error);
-        const shouldReloadOnce = !getPendingJoinReload() && (/not found/i.test(error.message || '') || /permission_denied/i.test(error.message || '') || /network/i.test(error.message || ''));
+        // Only reload for network/permission issues — reloading cannot fix a genuinely missing pack
+        const shouldReloadOnce = !getPendingJoinReload() && (/permission_denied/i.test(error.message || '') || /network/i.test(error.message || ''));
         if (shouldReloadOnce) { showToast('Refreshing once to join the pack…', 'info'); reloadForJoin(code); return; }
         clearPendingJoinReload();
         showToast(error.message || 'Failed to join pack.', 'error');
@@ -854,7 +855,7 @@ async function attemptAutoResume() {
     if (urlCode) {
         document.getElementById('joinCodeInput').value = urlCode;
         try { await connectToGame(urlCode, { showJoinedToast: true, joinedMessage: `Rejoined pack ${urlCode}.` }); pendingGameCodeFromUrl = null; clearPendingJoinReload(); return; }
-        catch (error) { console.warn('URL join failed:', error); showToast(error.message || 'Could not join the shared pack.', 'error'); clearPendingJoinReload(); }
+        catch (error) { console.warn('URL join failed:', error); showToast(error.message || 'Could not join the shared pack.', 'error'); clearPendingJoinReload(); clearGameCodeFromUrl(); }
     }
     if (!savedSession || !savedSession.gameCode || savedSession.playerKey !== currentPlayer.playerKey) { updateDiagnosticsPanel(); return; }
     const age = Date.now() - (savedSession.savedAt || 0);
