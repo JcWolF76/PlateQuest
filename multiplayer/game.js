@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423d';
+const APP_VERSION = '20260423e';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -1272,6 +1272,13 @@ function showToast(message, type = 'info') { const container = document.getEleme
 
 // ── Scoring Engine ────────────────────────────────────────────────────────────
 
+function getCompletionTime(playerStates, stateNames) {
+    // Returns the unix timestamp when this player completed all states in the group,
+    // or null if any state is missing. Used to determine who finished first.
+    for (const s of stateNames) { if (!playerStates[s]) return null; }
+    return Math.max(...stateNames.map(s => playerStates[s]?.foundAt || 0));
+}
+
 function computePlayerStats(playerKey) {
     const player = playersData[playerKey];
     if (!player) return null;
@@ -1298,38 +1305,41 @@ function computePlayerStats(playerKey) {
         .map(([key]) => key);
 
     completedSubs.forEach(key => {
-        const anyOtherCompleted = Object.entries(playersData).some(([pKey, pData]) => {
+        const myTime = getCompletionTime(player.states, SUB_REGIONS[key].states);
+        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
             if (pKey === playerKey) return false;
-            const pFound = new Set(Object.keys(pData?.states || {}));
-            return SUB_REGIONS[key].states.every(s => pFound.has(s));
+            const theirTime = getCompletionTime(pData?.states || {}, SUB_REGIONS[key].states);
+            return theirTime !== null && theirTime < myTime;
         });
-        score += anyOtherCompleted ? 30 : 60;
+        score += someoneFinishedEarlier ? 30 : 60;
     });
 
-    // Primary region completions — +100 pts first in pack, +50 pts otherwise
+    // Primary region completions — +100 pts first to finish, +50 pts otherwise
     const completedRegions = Object.entries(REGION_STATES)
         .filter(([, states]) => states.every(s => foundSet.has(s)))
         .map(([key]) => key);
 
     completedRegions.forEach(key => {
-        const anyOtherCompleted = Object.entries(playersData).some(([pKey, pData]) => {
+        const myTime = getCompletionTime(player.states, REGION_STATES[key]);
+        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
             if (pKey === playerKey) return false;
-            const pFound = new Set(Object.keys(pData?.states || {}));
-            return REGION_STATES[key].every(s => pFound.has(s));
+            const theirTime = getCompletionTime(pData?.states || {}, REGION_STATES[key]);
+            return theirTime !== null && theirTime < myTime;
         });
-        score += anyOtherCompleted ? 50 : 100;
+        score += someoneFinishedEarlier ? 50 : 100;
     });
 
-    // Travel corridor completion — +150 pts first in pack, +75 pts otherwise
+    // Travel corridor completion — +150 pts first to finish, +75 pts otherwise
     const corridorStates = gameData?.settings?.playAreaStates || [];
     const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
     if (corridorComplete) {
-        const anyOtherCompleted = Object.entries(playersData).some(([pKey, pData]) => {
+        const myTime = getCompletionTime(player.states, corridorStates);
+        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
             if (pKey === playerKey) return false;
-            const pFound = new Set(Object.keys(pData?.states || {}));
-            return corridorStates.every(s => pFound.has(s));
+            const theirTime = getCompletionTime(pData?.states || {}, corridorStates);
+            return theirTime !== null && theirTime < myTime;
         });
-        score += anyOtherCompleted ? 75 : 150;
+        score += someoneFinishedEarlier ? 75 : 150;
     }
 
     return { foundSet, foundCount, firstCount, score, completedSubs, completedRegions, corridorComplete };
