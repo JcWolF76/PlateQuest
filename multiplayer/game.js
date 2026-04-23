@@ -97,6 +97,22 @@ const SUB_REGIONS = {
     canada_territories:{ label: 'Canadian Territories', states: ['Yukon','Northwest Territories','Nunavut'] }
 };
 
+// Primary regions with state lists for completion tracking and badges.
+// Keys match PRIMARY_REGIONS; state names match US_PLATES exactly.
+const REGION_STATES = {
+    northeast:         ['Maine','New Hampshire','Vermont','Massachusetts','Rhode Island','Connecticut','New York','New Jersey','Pennsylvania'],
+    mid_atlantic:      ['New York','New Jersey','Pennsylvania','Delaware','Maryland','Virginia','West Virginia'],
+    southeast:         ['Virginia','North Carolina','South Carolina','Georgia','Florida'],
+    south:             ['Tennessee','Kentucky','Alabama','Mississippi','Arkansas','Louisiana'],
+    gulf_coast:        ['Florida','Alabama','Mississippi','Louisiana','Texas'],
+    midwest:           ['Ohio','Michigan','Indiana','Illinois','Wisconsin','Minnesota','Iowa','Missouri'],
+    great_plains:      ['North Dakota','South Dakota','Nebraska','Kansas','Missouri','Iowa'],
+    mountain_west:     ['Montana','Idaho','Wyoming','Colorado','Utah','Nevada'],
+    southwest:         ['Arizona','New Mexico','Texas','Nevada'],
+    pacific_northwest: ['Washington','Oregon'],
+    west_coast:        ['Washington','Oregon','California'],
+};
+
 const PLAY_AREA_PRESETS = {
     northeast:         ['ME','NH','VT','MA','RI','CT','NY','NJ','PA'],
     mid_atlantic:      ['NY','NJ','PA','DE','MD','VA','WV'],
@@ -291,6 +307,23 @@ const BADGE_DEFS = [
     { id:'sub_pacific_nw',    group:'region', icon:'🌲', label:'Pacific NW',         desc:'Completed Pacific Northwest', test:s=>s.completedSubs.includes('pacific_northwest') },
     { id:'sub_pacific_coast', group:'region', icon:'🏄', label:'Pacific Coast',      desc:'Completed Pacific Coast',     test:s=>s.completedSubs.includes('pacific_coast') },
     { id:'sub_non_contiguous',group:'region', icon:'✈️', label:'Non-Contiguous',     desc:'Found Alaska & Hawaii',       test:s=>s.completedSubs.includes('non_contiguous') },
+    // Canadian sub-region completions
+    { id:'sub_canada_east',        group:'region', icon:'🍁', label:'Eastern Canada',    desc:'Completed Eastern Canada',           test:s=>s.completedSubs.includes('canada_east') },
+    { id:'sub_canada_central',     group:'region', icon:'🦌', label:'Central Canada',    desc:'Completed Central Canada',           test:s=>s.completedSubs.includes('canada_central') },
+    { id:'sub_canada_west',        group:'region', icon:'🦫', label:'Western Canada',    desc:'Completed Western Canada',           test:s=>s.completedSubs.includes('canada_west') },
+    { id:'sub_canada_territories', group:'region', icon:'🌌', label:'Great White North', desc:'Completed the Canadian Territories', test:s=>s.completedSubs.includes('canada_territories') },
+    // Primary region completions
+    { id:'region_northeast',     group:'region', icon:'🗽', label:'The Northeast',   desc:'Completed the Northeast',         test:s=>s.completedRegions?.includes('northeast') },
+    { id:'region_mid_atlantic',  group:'region', icon:'🦀', label:'Mid-Atlantic',    desc:'Completed the Mid-Atlantic',      test:s=>s.completedRegions?.includes('mid_atlantic') },
+    { id:'region_southeast',     group:'region', icon:'🌴', label:'The Southeast',   desc:'Completed the Southeast',         test:s=>s.completedRegions?.includes('southeast') },
+    { id:'region_south',         group:'region', icon:'🎸', label:'The South',       desc:'Completed the South',             test:s=>s.completedRegions?.includes('south') },
+    { id:'region_gulf_coast',    group:'region', icon:'🦐', label:'Gulf Coast',      desc:'Completed the Gulf Coast',        test:s=>s.completedRegions?.includes('gulf_coast') },
+    { id:'region_midwest',       group:'region', icon:'🌽', label:'The Midwest',     desc:'Completed the Midwest',           test:s=>s.completedRegions?.includes('midwest') },
+    { id:'region_great_plains',  group:'region', icon:'🦬', label:'Great Plains',    desc:'Completed the Great Plains',      test:s=>s.completedRegions?.includes('great_plains') },
+    { id:'region_mountain_west', group:'region', icon:'🏔️',label:'Mountain West',   desc:'Completed the Mountain West',     test:s=>s.completedRegions?.includes('mountain_west') },
+    { id:'region_southwest',     group:'region', icon:'🌵', label:'The Southwest',   desc:'Completed the Southwest',         test:s=>s.completedRegions?.includes('southwest') },
+    { id:'region_pacific_nw',    group:'region', icon:'🌲', label:'Pacific NW',      desc:'Completed the Pacific Northwest', test:s=>s.completedRegions?.includes('pacific_northwest') },
+    { id:'region_west_coast',    group:'region', icon:'🏄', label:'West Coast',      desc:'Completed the West Coast',        test:s=>s.completedRegions?.includes('west_coast') },
     // Travel corridor
     { id:'corridor_complete', group:'corridor', icon:'🛣️',label:'Home Ground',       desc:'Found all corridor plates',   test:s=>s.corridorComplete },
 ];
@@ -1060,22 +1093,35 @@ function computePlayerStats(playerKey) {
         score += isFirst ? pts : pts / 2;
     });
 
-    // Sub-region completions
+    // Sub-region completions — +60 pts first in pack, +30 pts otherwise
     const completedSubs = Object.entries(SUB_REGIONS)
         .filter(([, region]) => region.states.every(s => foundSet.has(s)))
         .map(([key]) => key);
 
-    // Sub-region completion bonuses: +15 pts if first in pack, +8 pts otherwise
     completedSubs.forEach(key => {
         const anyOtherCompleted = Object.entries(playersData).some(([pKey, pData]) => {
             if (pKey === playerKey) return false;
             const pFound = new Set(Object.keys(pData?.states || {}));
             return SUB_REGIONS[key].states.every(s => pFound.has(s));
         });
-        score += anyOtherCompleted ? 8 : 15;
+        score += anyOtherCompleted ? 30 : 60;
     });
 
-    // Travel corridor completion: +20 pts if first, +10 pts otherwise
+    // Primary region completions — +100 pts first in pack, +50 pts otherwise
+    const completedRegions = Object.entries(REGION_STATES)
+        .filter(([, states]) => states.every(s => foundSet.has(s)))
+        .map(([key]) => key);
+
+    completedRegions.forEach(key => {
+        const anyOtherCompleted = Object.entries(playersData).some(([pKey, pData]) => {
+            if (pKey === playerKey) return false;
+            const pFound = new Set(Object.keys(pData?.states || {}));
+            return REGION_STATES[key].every(s => pFound.has(s));
+        });
+        score += anyOtherCompleted ? 50 : 100;
+    });
+
+    // Travel corridor completion — +150 pts first in pack, +75 pts otherwise
     const corridorStates = gameData?.settings?.playAreaStates || [];
     const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
     if (corridorComplete) {
@@ -1084,10 +1130,10 @@ function computePlayerStats(playerKey) {
             const pFound = new Set(Object.keys(pData?.states || {}));
             return corridorStates.every(s => pFound.has(s));
         });
-        score += anyOtherCompleted ? 10 : 20;
+        score += anyOtherCompleted ? 75 : 150;
     }
 
-    return { foundSet, foundCount, firstCount, score, completedSubs, corridorComplete };
+    return { foundSet, foundCount, firstCount, score, completedSubs, completedRegions, corridorComplete };
 }
 
 function getPlayerBadges(playerKey) {
@@ -1141,8 +1187,9 @@ function openPlayerDetail(playerKey) {
             const d = byTier[t];
             return `<div class="breakdown-row"><span class="rarity-badge rarity-${t}">${cfg.label}</span><span class="breakdown-count">${d.count} plate${d.count !== 1 ? 's' : ''}</span><span class="breakdown-pts">${d.pts} pts</span></div>`;
         });
-        if (stats.completedSubs.length) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Regional bonuses</span><span class="breakdown-count">${stats.completedSubs.length} region${stats.completedSubs.length !== 1 ? 's' : ''}</span><span class="breakdown-pts">+${stats.completedSubs.length * 8}–${stats.completedSubs.length * 15} pts</span></div>`);
-        if (stats.corridorComplete) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Corridor complete</span><span class="breakdown-count"></span><span class="breakdown-pts">+10–20 pts</span></div>`);
+        if (stats.completedSubs.length) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Sub-region bonuses</span><span class="breakdown-count">${stats.completedSubs.length} sub-region${stats.completedSubs.length !== 1 ? 's' : ''}</span><span class="breakdown-pts">+30–60 pts ea</span></div>`);
+        if (stats.completedRegions?.length) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Regional bonuses</span><span class="breakdown-count">${stats.completedRegions.length} region${stats.completedRegions.length !== 1 ? 's' : ''}</span><span class="breakdown-pts">+50–100 pts ea</span></div>`);
+        if (stats.corridorComplete) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Corridor complete</span><span class="breakdown-count"></span><span class="breakdown-pts">+75–150 pts</span></div>`);
         breakdownEl.innerHTML = rows.join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
