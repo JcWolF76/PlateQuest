@@ -352,6 +352,7 @@ let playersData = {};
 let prevPlayerStates = null;    // null = not yet initialized; reset on game exit
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
 let gameListenerAttached = false;
+let playerConfirmedInPack = false;
 let eventsBound = false;
 let attemptedAutoResume = false;
 let currentConnectionState = 'connecting';
@@ -661,7 +662,16 @@ function bindEventListeners() {
     document.getElementById('shareCodeBtn').addEventListener('click', shareGameCode);
     document.getElementById('inviteNewBtn').addEventListener('click', inviteNewPlayer);
     document.addEventListener('visibilitychange', () => { if (document.hidden) saveGameSession(); else if (currentGameCode && currentPlayer && currentConnectionState === 'online') { setupPresence(); updateDiagnosticsPanel(); } });
-    window.addEventListener('pageshow', async (event) => { if (event.persisted && currentPlayer && !currentGameCode) await attemptAutoResume(); else if (event.persisted && currentGameCode && currentPlayer && currentConnectionState === 'online') { setupPresence(); updateDiagnosticsPanel(); } });
+    window.addEventListener('pageshow', async (event) => {
+        if (!event.persisted) return;
+        if (currentPlayer && !currentGameCode) { await attemptAutoResume(); return; }
+        if (currentGameCode && currentPlayer) {
+            // Restore from bfcache: re-attach listener and presence regardless of connection state
+            if (!gameListenerAttached && currentGameRef) setupGameListeners();
+            setupPresence();
+            updateDiagnosticsPanel();
+        }
+    });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
         if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); }
@@ -808,7 +818,11 @@ function setupGameListeners() {
         gameData = snapshot.val();
         window.gameData = gameData; // expose for companion inline script
         playersData = normalizePlayers(gameData.players || {});
-        if (!playersData[currentPlayer.playerKey]) { showToast('You are no longer in this pack.', 'info'); returnToSetup(true); return; }
+        if (!playersData[currentPlayer.playerKey]) {
+            if (!playerConfirmedInPack) { return; } // grace period: first snapshot may arrive before write propagates
+            showToast('You are no longer in this pack.', 'info'); returnToSetup(true); return;
+        }
+        playerConfirmedInPack = true;
         lastSyncAt = Date.now();
         updateGameUI();
     });
@@ -846,7 +860,7 @@ async function attemptAutoResume() {
     const age = Date.now() - (savedSession.savedAt || 0);
     if (age > 7 * 24 * 60 * 60 * 1000) { clearGameSession(); return; }
     try { await connectToGame(savedSession.gameCode, { showJoinedToast: true, joinedMessage: `Welcome back to pack ${savedSession.gameCode}!` }); if (game.style.display !== 'block') startGame(); }
-    catch (error) { console.warn('Auto resume failed:', error); clearGameSession(); }
+    catch (error) { console.warn('Auto resume failed:', error); if (/not found|no longer exists|does not exist/i.test(error.message || '')) clearGameSession(); }
 }
 
 function showActiveGame() { if (splash.style.display !== 'none') splash.style.display = 'none'; game.style.display = 'block'; setupSection.style.display = 'none'; gameActive.style.display = 'block'; gameCodeHeader.style.display = 'flex'; updateGameCodeHeader(); updateDiagnosticsPanel(); }
@@ -1055,6 +1069,8 @@ async function leaveGame() {
 }
 
 function returnToSetup(clearSessionToo = false) {
+    // Capture code before any teardown so we can pre-fill the join input
+    const codeForInput = currentGameCode || pendingGameCodeFromUrl || getSavedSession()?.gameCode || '';
     // Capture pack state before teardown so the setup screen can offer
     // "update settings for your active pack" when clearSessionToo is false.
     if (!clearSessionToo && currentGameCode && gameData) {
@@ -1065,10 +1081,10 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null;
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false;
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
-    document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl || '';
+    document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
     document.getElementById('gameSubtitle').textContent = 'Live adventure with your pack!';
     if (currentPlayer) enableGameCards(); else disableGameCards();
     updateConnectionBadgeText(); updateDiagnosticsPanel();
