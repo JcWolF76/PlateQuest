@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423f';
+const APP_VERSION = '20260423g';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -1310,12 +1310,27 @@ async function computeAuditCorrections() {
         const players = normalizePlayers(room.players || {});
         const currentClaims = room.claimedStates || {};
 
-        // Find the player with the earliest foundAt for every state
+        // Find the true first-finder for every state.
+        // For the current claimer, use claimedAt (original find time, never cleared on deselect).
+        // For other players, use foundAt. Only reassign if another player's foundAt predates claimedAt.
         const earliestByState = {};
+
+        // Seed with current claimers using their original claimedAt timestamp
+        Object.entries(currentClaims).forEach(([stateName, claimData]) => {
+            const playerKey = claimData.playerKey;
+            const playerData = players[playerKey];
+            if (!playerData) return; // claimer no longer in game — will be orphaned below
+            const t = typeof claimData.claimedAt === 'number' ? claimData.claimedAt : 0;
+            earliestByState[stateName] = { playerKey, playerData, foundAt: t };
+        });
+
+        // Override only if another player's foundAt is strictly earlier than the claimer's claimedAt
         Object.entries(players).forEach(([playerKey, playerData]) => {
             Object.entries(playerData.states || {}).forEach(([stateName, stateData]) => {
                 const t = typeof stateData.foundAt === 'number' ? stateData.foundAt : 0;
-                if (!earliestByState[stateName] || t < earliestByState[stateName].foundAt) {
+                if (!earliestByState[stateName]) {
+                    earliestByState[stateName] = { playerKey, playerData, foundAt: t };
+                } else if (playerKey !== earliestByState[stateName].playerKey && t < earliestByState[stateName].foundAt) {
                     earliestByState[stateName] = { playerKey, playerData, foundAt: t };
                 }
             });
