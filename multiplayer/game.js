@@ -349,6 +349,7 @@ let currentGameCode = null;
 let currentPlayer = null;
 let gameData = null;
 let playersData = {};
+let prevPlayerStates = null; // null = not yet initialized; reset on game exit
 let gameListenerAttached = false;
 let eventsBound = false;
 let attemptedAutoResume = false;
@@ -844,6 +845,7 @@ function updateGameCodeHeader() { const persistentGameCode = document.getElement
 
 function updateGameUI() {
     if (!gameData || !currentPlayer) return;
+    detectNewFinds();
     const signature = buildStateSignature();
     if (signature === lastRenderedStateSignature) { updateScores(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
@@ -1050,7 +1052,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; lastRenderedStateSignature = ''; lastSyncAt = null;
+    playersData = {}; prevPlayerStates = null; lastRenderedStateSignature = ''; lastSyncAt = null;
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl || '';
@@ -1069,6 +1071,63 @@ function toggleDarkMode() { document.body.classList.toggle('dark'); const isDark
 function updateConnectionStatus(status) { const statusDot = document.getElementById('statusDot'); const statusText = document.getElementById('statusText'); if (statusDot) statusDot.className = `status-dot ${status}`; if (statusText) { if (status === 'online') statusText.textContent = 'Connected'; if (status === 'offline') statusText.textContent = 'Disconnected'; if (status === 'connecting') statusText.textContent = 'Connecting...'; } }
 function showLoading(text = 'Loading...') { const loadingText = loadingOverlay.querySelector('.loading-text'); if (loadingText) loadingText.textContent = text; loadingOverlay.style.display = 'flex'; }
 function hideLoading() { loadingOverlay.style.display = 'none'; }
+function playChime(isFirstFind = false) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // First find: bright 4-note arpeggio C5-E5-G5-C6; regular find: gentle 2-note E5-G5
+        const notes = isFirstFind ? [523.25, 659.25, 783.99, 1046.5] : [659.25, 783.99];
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const t = ctx.currentTime + i * 0.13;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.25, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+            osc.start(t);
+            osc.stop(t + 0.6);
+        });
+        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 2000);
+    } catch(e) { /* AudioContext unavailable — silent fail */ }
+}
+
+// Compares current player states against the previous snapshot.
+// On first call: silently absorbs existing data (no notifications).
+// On subsequent calls: toasts + chimes for any newly found plates.
+function detectNewFinds() {
+    if (!gameData || !currentPlayer) return;
+    const initOnly = prevPlayerStates === null;
+    if (initOnly) prevPlayerStates = {};
+
+    for (const [playerKey, player] of Object.entries(playersData)) {
+        const currentStates = new Set(Object.keys(player.states || {}));
+        const previousStates = prevPlayerStates[playerKey] || new Set();
+
+        if (!initOnly) {
+            for (const stateName of currentStates) {
+                if (!previousStates.has(stateName)) {
+                    const isMe = playerKey === currentPlayer.playerKey;
+                    const isFirst = gameData?.claimedStates?.[stateName]?.playerKey === playerKey;
+                    if (isMe) {
+                        playChime(isFirst);
+                    } else {
+                        const msg = isFirst
+                            ? `⭐ ${player.displayName} was first to find ${stateName}!`
+                            : `🐾 ${player.displayName} found ${stateName}!`;
+                        showToast(msg, 'pack');
+                        playChime(isFirst);
+                    }
+                }
+            }
+        }
+
+        prevPlayerStates[playerKey] = currentStates;
+    }
+}
+
 function showToast(message, type = 'info') { const container = document.getElementById('toastContainer'); if (!container) return; const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; container.appendChild(toast); setTimeout(() => { if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); } }, 4000); }
 
 // ── Scoring Engine ────────────────────────────────────────────────────────────

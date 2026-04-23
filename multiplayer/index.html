@@ -147,6 +147,8 @@
         .toast.success::before { content: '🐺'; color: rgba(255, 255, 255, 0.7); }
         .toast.error { background: linear-gradient(45deg, #e74c3c, #c0392b); }
         .toast.info { background: linear-gradient(45deg, #3498db, #2980b9); }
+        .toast.pack { background: linear-gradient(45deg, #7d3c98, #9b59b6); }
+        .toast.pack::before { content: '🗺️'; color: rgba(255, 255, 255, 0.7); }
         @keyframes slideInToast { to { transform: translateX(0); } }
 
         /* ── Rarity Badges (on state cards and breakdown) ── */
@@ -570,7 +572,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260422f"></script>
+    <script src="game.js?v=20260422g"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
