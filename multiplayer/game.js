@@ -1194,7 +1194,7 @@ function closeAnnounceModal() {
 function updateAnnounceCounter() {
     const input = document.getElementById('announceInput');
     const counter = document.getElementById('announceCounter');
-    if (input && counter) counter.textContent = `${input.value.length}/500`;
+    if (input && counter) counter.textContent = `${input.value.length}/1000`;
 }
 
 async function sendAnnouncement() {
