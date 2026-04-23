@@ -349,7 +349,8 @@ let currentGameCode = null;
 let currentPlayer = null;
 let gameData = null;
 let playersData = {};
-let prevPlayerStates = null; // null = not yet initialized; reset on game exit
+let prevPlayerStates = null;    // null = not yet initialized; reset on game exit
+let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
 let gameListenerAttached = false;
 let eventsBound = false;
 let attemptedAutoResume = false;
@@ -663,12 +664,20 @@ function bindEventListeners() {
     window.addEventListener('pageshow', async (event) => { if (event.persisted && currentPlayer && !currentGameCode) await attemptAutoResume(); else if (event.persisted && currentGameCode && currentPlayer && currentConnectionState === 'online') { setupPresence(); updateDiagnosticsPanel(); } });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') closePlayerDetail();
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); }
     });
     const closeDetailBtn = document.getElementById('closePlayerDetailBtn');
     if (closeDetailBtn) closeDetailBtn.addEventListener('click', closePlayerDetail);
     const detailModal = document.getElementById('playerDetailModal');
     if (detailModal) detailModal.addEventListener('click', e => { if (e.target === detailModal) closePlayerDetail(); });
+    document.getElementById('announceBtn')?.addEventListener('click', openAnnounceModal);
+    document.getElementById('cancelAnnounceBtn')?.addEventListener('click', closeAnnounceModal);
+    document.getElementById('cancelAnnounceBtn2')?.addEventListener('click', closeAnnounceModal);
+    document.getElementById('announceSendBtn')?.addEventListener('click', sendAnnouncement);
+    document.getElementById('announceInput')?.addEventListener('input', updateAnnounceCounter);
+    document.getElementById('announceInput')?.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendAnnouncement(); });
+    const announceModal = document.getElementById('announceModal');
+    if (announceModal) announceModal.addEventListener('click', e => { if (e.target === announceModal) closeAnnounceModal(); });
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -846,6 +855,10 @@ function updateGameCodeHeader() { const persistentGameCode = document.getElement
 function updateGameUI() {
     if (!gameData || !currentPlayer) return;
     detectNewFinds();
+    detectNewAnnouncements();
+    const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
+    const announceBtn = document.getElementById('announceBtn');
+    if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
     const signature = buildStateSignature();
     if (signature === lastRenderedStateSignature) { updateScores(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
@@ -1052,7 +1065,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; lastRenderedStateSignature = ''; lastSyncAt = null;
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null;
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl || '';
@@ -1125,6 +1138,83 @@ function detectNewFinds() {
         }
 
         prevPlayerStates[playerKey] = currentStates;
+    }
+}
+
+function playAnnouncementChime() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Two-tone fanfare: G4 → D5 (ascending perfect fifth, triangle wave for richness)
+        [[392, 0], [587.33, 0.22]].forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            const t = ctx.currentTime + delay;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.28, t + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+            osc.start(t);
+            osc.stop(t + 0.8);
+        });
+        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 2500);
+    } catch(e) { /* AudioContext unavailable — silent fail */ }
+}
+
+function detectNewAnnouncements() {
+    if (!gameData || !currentPlayer) return;
+    const announcements = gameData.announcements || {};
+    const currentKeys = Object.keys(announcements);
+    if (prevAnnouncementKeys === null) { prevAnnouncementKeys = new Set(currentKeys); return; }
+    for (const key of currentKeys) {
+        if (!prevAnnouncementKeys.has(key)) {
+            prevAnnouncementKeys.add(key);
+            const ann = announcements[key];
+            showToast(`📣 ${ann.sentBy}: ${ann.text}`, 'announcement');
+            playAnnouncementChime();
+        }
+    }
+}
+
+function openAnnounceModal() {
+    const modal = document.getElementById('announceModal');
+    if (!modal) return;
+    const input = document.getElementById('announceInput');
+    if (input) { input.value = ''; updateAnnounceCounter(); }
+    modal.classList.add('visible');
+    setTimeout(() => input?.focus(), 100);
+}
+
+function closeAnnounceModal() {
+    document.getElementById('announceModal')?.classList.remove('visible');
+}
+
+function updateAnnounceCounter() {
+    const input = document.getElementById('announceInput');
+    const counter = document.getElementById('announceCounter');
+    if (input && counter) counter.textContent = `${input.value.length}/140`;
+}
+
+async function sendAnnouncement() {
+    if (!currentGameRef || !currentPlayer) return;
+    const input = document.getElementById('announceInput');
+    const text = input?.value.trim();
+    if (!text) { input?.focus(); return; }
+    const sendBtn = document.getElementById('announceSendBtn');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+    try {
+        await currentGameRef.child('announcements').push({
+            text,
+            sentBy: currentPlayer.displayName,
+            sentAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        closeAnnounceModal();
+    } catch(e) {
+        showToast('Failed to send announcement.', 'error');
+    } finally {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '📣 Send'; }
     }
 }
 
