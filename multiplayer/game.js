@@ -2,6 +2,8 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
+const APP_VERSION = '20260423d';
+
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
     authDomain: "platequest-multiplayer.firebaseapp.com",
@@ -584,6 +586,7 @@ function updateDiagnosticsPanel() {
     document.getElementById('diagLastSync').textContent = formatSyncTime(lastSyncAt);
     const session = getSavedSession();
     document.getElementById('diagSession').textContent = session?.gameCode ? `Saved ${session.gameCode}` : 'None';
+    const diagVer = document.getElementById('diagVersion'); if (diagVer) diagVer.textContent = APP_VERSION;
 }
 
 function setDiagnosticsVisible(forceValue = null) { diagnosticsVisible = typeof forceValue === 'boolean' ? forceValue : !diagnosticsVisible; localStorage.setItem(STORAGE_KEYS.diagnostics, diagnosticsVisible ? 'true' : 'false'); updateDiagnosticsPanel(); }
@@ -609,6 +612,7 @@ function initializeApp() {
             updateConnectionStatus(isConnected ? 'online' : 'offline');
             updateDiagnosticsPanel();
             if (isConnected) {
+                checkAppVersion();
                 if (!attemptedAutoResume) { attemptedAutoResume = true; await attemptAutoResume(); }
                 if (currentGameCode && currentPlayer) setupPresence();
             }
@@ -624,6 +628,35 @@ function initializeApp() {
         pendingGameCodeFromUrl = readGameCodeFromUrl() || getPendingJoinReload();
         updateDiagnosticsPanel();
     }
+}
+
+let versionChecked = false;
+function checkAppVersion() {
+    if (!database || versionChecked) return;
+    versionChecked = true;
+    // Clean up _v cache-buster param left by a previous reload
+    const urlNow = new URL(window.location.href);
+    if (urlNow.searchParams.has('_v')) { urlNow.searchParams.delete('_v'); window.history.replaceState({}, document.title, urlNow.toString()); }
+    const vRef = database.ref('config/latestVersion');
+    // Promote our version in Firebase if we appear to be newest
+    vRef.transaction((current) => { if (!current || APP_VERSION > current) return APP_VERSION; return undefined; });
+    // Check if we're behind and prompt to update
+    vRef.once('value', (snap) => {
+        const latest = snap.val();
+        if (latest && latest !== APP_VERSION && !document.getElementById('updateBanner')) {
+            const banner = document.createElement('div');
+            banner.id = 'updateBanner';
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a73e8;color:#fff;text-align:center;padding:14px 16px;font-size:15px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0.1);';
+            banner.textContent = '🔄 New update available — tap here to reload';
+            banner.addEventListener('click', () => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('_v', Date.now());
+                url.searchParams.delete('joinrefresh');
+                window.location.replace(url.toString());
+            });
+            document.body.prepend(banner);
+        }
+    });
 }
 
 function bindEventListeners() {
@@ -776,7 +809,7 @@ async function joinGame(codeOverride = null) {
 async function connectToGame(code, options = {}) {
     const roomRef = database.ref(`games/${code}`);
     const snapshot = await roomRef.once('value');
-    if (!snapshot.exists()) throw new Error('Pack not found. Please check the code.');
+    if (!snapshot.exists()) throw new Error('Pack not found. Check the code, or reload the app if this pack is active.');
     const room = snapshot.val();
     const normalizedPlayers = normalizePlayers(room.players || {});
     const existingPlayer = normalizedPlayers[currentPlayer.playerKey];
