@@ -152,9 +152,27 @@
         .toast.announcement { background: linear-gradient(45deg, #b7770d, #d4ac0d); color: #1a1a1a; font-weight: 700; }
         .toast.announcement::before { content: '📣'; }
 
-        /* ── Announce button ── */
-        .btn-announce { background: linear-gradient(135deg, #b7770d, #d4ac0d); color: #1a1a1a; font-weight: 800; border: none; }
-        .btn-announce:hover { background: linear-gradient(135deg, #d4ac0d, #f1c40f); }
+        /* ── Audit button ── */
+        .btn-audit { background: linear-gradient(135deg, #1a5276, #2980b9); color: #fff; font-weight: 800; border: none; }
+        .btn-audit:hover { background: linear-gradient(135deg, #2980b9, #3498db); }
+
+        /* ── Audit Modal ── */
+        .audit-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1200; padding:18px; }
+        .audit-dialog { width:min(96vw,540px); max-height:85vh; background:linear-gradient(145deg,rgba(26,44,62,0.99),rgba(36,58,80,0.99)); border-radius:22px; border:2px solid rgba(41,128,185,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:24px; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
+        .audit-header { display:flex; justify-content:space-between; align-items:flex-start; }
+        .audit-title { font-size:18px; font-weight:800; color:#fff; }
+        .audit-subtitle { font-size:12px; color:rgba(255,255,255,0.55); margin-top:3px; }
+        .audit-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .audit-loading { text-align:center; padding:28px 0; color:rgba(255,255,255,0.6); font-size:15px; }
+        .audit-ok { background:rgba(39,174,96,0.15); border:1px solid rgba(39,174,96,0.4); border-radius:10px; padding:16px; color:#2ecc71; font-size:14px; text-align:center; }
+        .audit-error { background:rgba(231,76,60,0.15); border:1px solid rgba(231,76,60,0.4); border-radius:10px; padding:16px; color:#e74c3c; font-size:14px; text-align:center; }
+        .audit-summary { font-size:15px; font-weight:700; color:#f39c12; margin-bottom:10px; }
+        .audit-list { display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .audit-item { background:rgba(255,255,255,0.06); border-radius:8px; padding:9px 12px; font-size:13px; color:rgba(255,255,255,0.85); line-height:1.4; }
+        .audit-item-remove { background:rgba(231,76,60,0.1); }
+        .audit-note { font-size:12px; color:rgba(255,255,255,0.4); line-height:1.5; padding-top:6px; border-top:1px solid rgba(255,255,255,0.08); }
+        .audit-more { font-size:12px; color:rgba(255,255,255,0.4); padding:6px 0; text-align:center; }
+        .audit-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:4px; }
 
         /* ── Announce Modal ── */
         .announce-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.78); z-index:1200; padding:18px; }
@@ -463,6 +481,7 @@
                 </div>
                 <div style="padding: 25px; border-top: 1px solid rgba(52, 152, 219, 0.2); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn btn-announce" id="announceBtn" style="display:none;">📣 Announce</button>
+                    <button class="btn btn-audit" id="auditBtn" style="display:none;">🔍 Audit Scores</button>
                     <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
@@ -590,6 +609,26 @@
             </div>
         </div>
 
+        <!-- Audit Modal (host only) -->
+        <div id="auditModal" class="audit-modal">
+            <div class="audit-dialog">
+                <div class="audit-header">
+                    <div>
+                        <div class="audit-title">🔍 Score Audit</div>
+                        <div class="audit-subtitle">Compares Firebase timestamps to correct first-finder records</div>
+                    </div>
+                    <button class="btn btn-secondary btn-small" id="cancelAuditBtn">✕</button>
+                </div>
+                <div class="audit-body" id="auditBody">
+                    <div class="audit-loading">🔍 Analyzing timestamps…</div>
+                </div>
+                <div class="audit-footer">
+                    <button class="btn btn-secondary" id="cancelAuditBtn2">Cancel</button>
+                    <button class="btn btn-audit" id="auditApplyBtn" disabled>Apply Corrections</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Announcement Modal (host only) -->
         <div id="announceModal" class="announce-modal">
             <div class="announce-dialog">
@@ -615,7 +654,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423e"></script>
+    <script src="game.js?v=20260423f"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

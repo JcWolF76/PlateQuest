@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423e';
+const APP_VERSION = '20260423f';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -707,7 +707,7 @@ function bindEventListeners() {
     });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); }
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeAuditModal(); }
     });
     const closeDetailBtn = document.getElementById('closePlayerDetailBtn');
     if (closeDetailBtn) closeDetailBtn.addEventListener('click', closePlayerDetail);
@@ -721,6 +721,12 @@ function bindEventListeners() {
     document.getElementById('announceInput')?.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendAnnouncement(); });
     const announceModal = document.getElementById('announceModal');
     if (announceModal) announceModal.addEventListener('click', e => { if (e.target === announceModal) closeAnnounceModal(); });
+    document.getElementById('auditBtn')?.addEventListener('click', () => openAuditModal());
+    document.getElementById('cancelAuditBtn')?.addEventListener('click', closeAuditModal);
+    document.getElementById('cancelAuditBtn2')?.addEventListener('click', closeAuditModal);
+    document.getElementById('auditApplyBtn')?.addEventListener('click', applyAuditCorrections);
+    const auditModal = document.getElementById('auditModal');
+    if (auditModal) auditModal.addEventListener('click', e => { if (e.target === auditModal) closeAuditModal(); });
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -907,6 +913,8 @@ function updateGameUI() {
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
     const announceBtn = document.getElementById('announceBtn');
     if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
+    const auditBtn = document.getElementById('auditBtn');
+    if (auditBtn) auditBtn.style.display = isHost ? '' : 'none';
     const signature = buildStateSignature();
     if (signature === lastRenderedStateSignature) { updateScores(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
@@ -1269,6 +1277,167 @@ async function sendAnnouncement() {
 }
 
 function showToast(message, type = 'info') { const container = document.getElementById('toastContainer'); if (!container) return; const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; container.appendChild(toast); setTimeout(() => { if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); } }, 4000); }
+
+// ── Score Audit ───────────────────────────────────────────────────────────────
+
+let pendingAuditResults = null;
+
+async function openAuditModal() {
+    const modal = document.getElementById('auditModal');
+    const body = document.getElementById('auditBody');
+    const applyBtn = document.getElementById('auditApplyBtn');
+    if (!modal) return;
+    pendingAuditResults = null;
+    if (body) body.innerHTML = '<div class="audit-loading">🔍 Analyzing timestamps…</div>';
+    if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Apply Corrections'; }
+    modal.style.display = 'flex';
+    pendingAuditResults = await computeAuditCorrections();
+    renderAuditBody(pendingAuditResults);
+}
+
+function closeAuditModal() {
+    const modal = document.getElementById('auditModal');
+    if (modal) modal.style.display = 'none';
+    pendingAuditResults = null;
+}
+
+async function computeAuditCorrections() {
+    if (!currentGameRef) return null;
+    try {
+        const snapshot = await currentGameRef.once('value');
+        const room = snapshot.val();
+        if (!room) return null;
+        const players = normalizePlayers(room.players || {});
+        const currentClaims = room.claimedStates || {};
+
+        // Find the player with the earliest foundAt for every state
+        const earliestByState = {};
+        Object.entries(players).forEach(([playerKey, playerData]) => {
+            Object.entries(playerData.states || {}).forEach(([stateName, stateData]) => {
+                const t = typeof stateData.foundAt === 'number' ? stateData.foundAt : 0;
+                if (!earliestByState[stateName] || t < earliestByState[stateName].foundAt) {
+                    earliestByState[stateName] = { playerKey, playerData, foundAt: t };
+                }
+            });
+        });
+
+        const corrections = [];
+
+        // States whose first-finder is wrong or missing
+        Object.entries(earliestByState).forEach(([stateName, { playerKey, playerData, foundAt }]) => {
+            const existing = currentClaims[stateName];
+            if (!existing || existing.playerKey !== playerKey) {
+                corrections.push({
+                    type: 'correct',
+                    stateName,
+                    newPlayerKey: playerKey,
+                    newPlayerData: playerData,
+                    foundAt,
+                    oldPlayerName: existing
+                        ? (players[existing.playerKey]?.displayName || existing.displayName || existing.playerKey)
+                        : null,
+                });
+            }
+        });
+
+        // Orphaned claims for states no player currently holds
+        Object.keys(currentClaims).forEach(stateName => {
+            if (!earliestByState[stateName]) {
+                corrections.push({
+                    type: 'remove',
+                    stateName,
+                    oldPlayerName: players[currentClaims[stateName]?.playerKey]?.displayName
+                        || currentClaims[stateName]?.displayName || '?',
+                });
+            }
+        });
+
+        return { corrections, players };
+    } catch (err) {
+        console.error('Audit failed:', err);
+        return null;
+    }
+}
+
+function renderAuditBody(results) {
+    const body = document.getElementById('auditBody');
+    const applyBtn = document.getElementById('auditApplyBtn');
+    if (!body) return;
+
+    if (!results) {
+        body.innerHTML = '<div class="audit-error">⚠️ Could not read game data. Check your connection and try again.</div>';
+        return;
+    }
+
+    const { corrections } = results;
+
+    if (!corrections.length) {
+        body.innerHTML = '<div class="audit-ok">✅ All first-finder records match the timestamps — no corrections needed.</div>';
+        if (applyBtn) applyBtn.disabled = true;
+        return;
+    }
+
+    const MAX_SHOWN = 40;
+    const items = corrections.slice(0, MAX_SHOWN).map(c => {
+        if (c.type === 'remove') {
+            return `<div class="audit-item audit-item-remove">🗑️ <strong>${c.stateName}</strong> — remove orphaned claim (no player has this state)</div>`;
+        }
+        const arrow = c.oldPlayerName
+            ? `${c.oldPlayerName} → <strong>${c.newPlayerData.displayName}</strong>`
+            : `set <strong>${c.newPlayerData.displayName}</strong> as first finder`;
+        return `<div class="audit-item">🔄 <strong>${c.stateName}</strong>: ${arrow}</div>`;
+    }).join('');
+    const overflow = corrections.length > MAX_SHOWN
+        ? `<div class="audit-more">…and ${corrections.length - MAX_SHOWN} more</div>` : '';
+
+    body.innerHTML = `
+        <div class="audit-summary">${corrections.length} correction${corrections.length === 1 ? '' : 's'} found</div>
+        <div class="audit-list">${items}${overflow}</div>
+        <div class="audit-note">Firebase foundAt timestamps determine who found each state first. Applying updates claimedStates and scores refresh automatically for all players.</div>
+    `;
+    if (applyBtn) {
+        applyBtn.disabled = false;
+        applyBtn.textContent = `✅ Apply ${corrections.length} Correction${corrections.length === 1 ? '' : 's'}`;
+    }
+}
+
+async function applyAuditCorrections() {
+    if (!pendingAuditResults || !currentGameRef) return;
+    const { corrections } = pendingAuditResults;
+    if (!corrections.length) { closeAuditModal(); return; }
+
+    const applyBtn = document.getElementById('auditApplyBtn');
+    if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Applying…'; }
+
+    try {
+        const updates = {};
+        corrections.forEach(c => {
+            if (c.type === 'remove') {
+                updates[`claimedStates/${c.stateName}`] = null;
+            } else {
+                updates[`claimedStates/${c.stateName}`] = {
+                    state: c.stateName,
+                    playerKey: c.newPlayerKey,
+                    name: c.newPlayerData.name,
+                    tag: c.newPlayerData.tag,
+                    displayName: c.newPlayerData.displayName,
+                    claimedAt: c.foundAt,
+                };
+            }
+        });
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+        showToast(`✅ ${corrections.length} attribution${corrections.length === 1 ? '' : 's'} corrected — scores updated!`, 'success');
+        closeAuditModal();
+    } catch (err) {
+        console.error('Apply audit failed:', err);
+        showToast('Failed to apply corrections. Try again.', 'error');
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.textContent = `✅ Apply ${corrections.length} Correction${corrections.length === 1 ? '' : 's'}`;
+        }
+    }
+}
 
 // ── Scoring Engine ────────────────────────────────────────────────────────────
 
