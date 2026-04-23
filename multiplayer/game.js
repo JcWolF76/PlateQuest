@@ -650,7 +650,7 @@ function bindEventListeners() {
     playerTagInput.addEventListener('input', () => { playerTagInput.value = normalizeTagInput(playerTagInput.value); });
     playerTagInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') setPlayerName(); });
     document.getElementById('createGameBtn').addEventListener('click', createGame);
-    document.getElementById('joinGameBtn').addEventListener('click', joinGame);
+    document.getElementById('joinGameBtn').addEventListener('click', () => joinGame());
     newGameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') createGame(); });
     joinCodeInput.addEventListener('input', () => { joinCodeInput.value = normalizeCodeInput(joinCodeInput.value); });
     joinCodeInput.addEventListener('paste', (e) => { e.preventDefault(); joinCodeInput.value = normalizeCodeInput((e.clipboardData || window.clipboardData).getData('text')); });
@@ -758,7 +758,7 @@ async function createGame() {
 async function joinGame(codeOverride = null) {
     if (!currentPlayer) { showToast('Please set your name first! 👤', 'error'); return; }
     if (!(await ensureDatabaseReady('join a pack'))) return;
-    const code = normalizeCodeInput(codeOverride || document.getElementById('joinCodeInput').value || '');
+    const code = normalizeCodeInput((typeof codeOverride === 'string' ? codeOverride : null) || document.getElementById('joinCodeInput').value || '');
     document.getElementById('joinCodeInput').value = code;
     if (!code || code.length !== 6) { showToast('Pack code must be 6 characters.', 'error'); document.getElementById('joinCodeInput').focus(); return; }
     showLoading('Joining pack...');
