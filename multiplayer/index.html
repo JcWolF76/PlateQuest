@@ -204,8 +204,38 @@
         .rarity-ultra        { background:#e74c3c; color:#fff; }
         /* Rarity badge pinned to state card */
         .state-card .rarity-badge { position:absolute; bottom:8px; left:8px; }
-        /* First-finder tag pinned to state card */
-        .ff-tag { position:absolute; top:8px; right:8px; min-width:24px; height:24px; padding:0 6px; background:#f39c12; color:#fff; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+        /* First-finder tag pinned to state card — top-left to avoid conflict with clear button */
+        .ff-tag { position:absolute; top:8px; left:8px; min-width:24px; height:24px; padding:0 6px; background:#f39c12; color:#fff; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+
+        /* ── Plate card layout classes (replaces inline styles) ── */
+        .state-card { display:flex; flex-direction:column; }
+        .plate-body { display:flex; align-items:center; justify-content:space-between; padding:15px; flex:1; min-height:0; }
+        .plate-info { flex:1; min-width:0; }
+        .plate-name { font-size:20px; font-weight:bold; margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .plate-abbr { font-size:14px; opacity:0.8; text-transform:uppercase; letter-spacing:2px; font-weight:600; }
+        .state-flag { width:50px; height:35px; border-radius:8px; background:linear-gradient(145deg,#95a5a6,#7f8c8d); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; color:#2c3e50; box-shadow:0 3px 10px rgba(0,0,0,0.2); border:1px solid rgba(52,152,219,0.2); overflow:hidden; position:relative; flex-shrink:0; }
+        .state-flag img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block; }
+
+        /* ── Swipe-to-claim visual feedback ── */
+        .state-card.swipe-active { border-color:#2ecc71 !important; box-shadow:0 0 22px rgba(46,204,113,0.7), 0 8px 25px rgba(0,0,0,0.3) !important; }
+
+        /* ── Clear-request button (top-right of player's own selected cards) ── */
+        .clear-req-btn { position:absolute; top:5px; right:5px; width:22px; height:22px; background:rgba(231,76,60,0.85); color:#fff; border:none; border-radius:50%; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:10; padding:0; touch-action:manipulation; line-height:1; }
+        .clear-req-btn:active { background:#c0392b; transform:scale(0.9); }
+
+        /* ── Clear-request confirmation sheet ── */
+        .clear-confirm-sheet { position:fixed; bottom:0; left:0; right:0; background:linear-gradient(145deg,#1e2d3e,#2c3e50); border-top:2px solid rgba(231,76,60,0.5); border-radius:20px 20px 0 0; padding:22px 20px max(32px,env(safe-area-inset-bottom,0px)); z-index:1400; transform:translateY(100%); transition:transform 0.3s ease; box-shadow:0 -8px 30px rgba(0,0,0,0.45); }
+        .clear-confirm-sheet.visible { transform:translateY(0); }
+        .clear-confirm-title { font-size:17px; font-weight:800; color:#ecf0f1; margin-bottom:6px; }
+        .clear-confirm-msg { font-size:13px; color:#bdc3c7; margin-bottom:20px; line-height:1.5; }
+        .clear-confirm-btns { display:flex; gap:10px; }
+        .clear-confirm-btns .btn { flex:1; }
+
+        /* ── Host clear-request toast action buttons ── */
+        .clear-toast-btns { display:flex; gap:8px; margin-top:10px; }
+        .clear-toast-btns button { flex:1; padding:7px 10px; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+        .clear-toast-approve { background:#27ae60; color:#fff; }
+        .clear-toast-deny { background:rgba(255,255,255,0.2); color:#fff; }
 
         /* ── Score cards ── */
         .score-pts { font-size:30px; font-weight:900; color:#f1c40f; line-height:1.1; margin:4px 0 2px; }
@@ -260,8 +290,9 @@
         .detail-empty { font-size:13px; color:#7f8c8d; font-style:italic; }
 
         @media (max-width: 900px) { .states-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } .game-mode-selector { grid-template-columns: 1fr; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-        @media (max-width: 768px) { .container { padding: 10px; } .states-grid { grid-template-columns: 1fr; } .input-row { flex-direction: column; align-items: stretch; } .game-mode-selector { grid-template-columns: 1fr; } .logo { width: min(250px, 80vw); } .game-code-header { flex-direction: column; gap: 12px; text-align: center; padding-left: 12px; padding-right: 12px; } .share-controls { justify-content: center; width: 100%; flex-wrap: wrap; } .diagnostics-grid { grid-template-columns: 1fr 1fr; } .diagnostics-panel { padding: 10px; } .diagnostics-header span { font-size: 11px !important; } .game-title { font-size: 24px; } .game-subtitle { font-size: 15px; } .game-code-display { font-size: 20px; letter-spacing: 2px; } .welcome-text { padding: 28px 20px; } .setup-section, .game-header, .live-scores, .game-active > div, .game-active > div:last-child { padding-left: 16px !important; padding-right: 16px !important; } .btn { min-height: 46px; } .mode-input { min-height: 48px; } .toast-container { left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top, 0px)); } .toast { max-width: none; width: 100%; margin-bottom: 8px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-        @media (max-width: 520px) { .diagnostics-grid { grid-template-columns: 1fr; } .share-controls .btn { flex: 1 1 30%; } .game-code-info { flex-direction: column; gap: 8px; } .state-card { min-height: 108px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 768px) { .container { padding: 10px; } .states-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } .input-row { flex-direction: column; align-items: stretch; } .game-mode-selector { grid-template-columns: 1fr; } .logo { width: min(250px, 80vw); } .game-code-header { flex-direction: column; gap: 12px; text-align: center; padding-left: 12px; padding-right: 12px; } .share-controls { justify-content: center; width: 100%; flex-wrap: wrap; } .diagnostics-grid { grid-template-columns: 1fr 1fr; } .diagnostics-panel { padding: 10px; } .diagnostics-header span { font-size: 11px !important; } .game-title { font-size: 24px; } .game-subtitle { font-size: 15px; } .game-code-display { font-size: 20px; letter-spacing: 2px; } .welcome-text { padding: 28px 20px; } .setup-section, .game-header, .live-scores, .game-active > div, .game-active > div:last-child { padding-left: 16px !important; padding-right: 16px !important; } .btn { min-height: 46px; } .mode-input { min-height: 48px; } .toast-container { left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top, 0px)); } .toast { max-width: none; width: 100%; margin-bottom: 8px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+          .state-card { min-height: unset; aspect-ratio: unset; } .license-plate-header { padding: 4px 8px; font-size: 8px; letter-spacing: 1px; } .plate-body { padding: 8px 10px; } .plate-name { font-size: 13px; margin-bottom: 3px; } .plate-abbr { font-size: 10px; letter-spacing: 1px; } .state-flag { width: 34px; height: 24px; font-size: 9px; } .state-card .rarity-badge { font-size: 8px; padding: 1px 4px; bottom: 5px; left: 5px; } .ff-tag { top: 5px; left: 5px; min-width: 20px; height: 20px; font-size: 9px; padding: 0 4px; } }
+        @media (max-width: 520px) { .diagnostics-grid { grid-template-columns: 1fr; } .share-controls .btn { flex: 1 1 30%; } .game-code-info { flex-direction: column; gap: 8px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     </style>
 </head>
 <body>
@@ -629,6 +660,16 @@
             </div>
         </div>
 
+        <!-- Clear-request confirmation sheet (player-side) -->
+        <div id="clearConfirmSheet" class="clear-confirm-sheet">
+            <div class="clear-confirm-title" id="clearConfirmTitle">Remove plate?</div>
+            <div class="clear-confirm-msg" id="clearConfirmMsg"></div>
+            <div class="clear-confirm-btns">
+                <button class="btn btn-secondary" id="clearConfirmCancel">Cancel</button>
+                <button class="btn" id="clearConfirmOk" style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;">Request Remove</button>
+            </div>
+        </div>
+
         <!-- Announcement Modal (host only) -->
         <div id="announceModal" class="announce-modal">
             <div class="announce-dialog">
@@ -654,7 +695,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423g"></script>
+    <script src="game.js?v=20260423h"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

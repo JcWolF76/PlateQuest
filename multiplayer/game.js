@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423g';
+const APP_VERSION = '20260423h';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -353,6 +353,8 @@ let gameData = null;
 let playersData = {};
 let prevPlayerStates = null;    // null = not yet initialized; reset on game exit
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
+let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
+let pendingClearState = null;   // stateName waiting for clear-confirm sheet
 let gameListenerAttached = false;
 let playerConfirmedInPack = false;
 let eventsBound = false;
@@ -727,6 +729,8 @@ function bindEventListeners() {
     document.getElementById('auditApplyBtn')?.addEventListener('click', applyAuditCorrections);
     const auditModal = document.getElementById('auditModal');
     if (auditModal) auditModal.addEventListener('click', e => { if (e.target === auditModal) closeAuditModal(); });
+    document.getElementById('clearConfirmCancel')?.addEventListener('click', hideClearConfirmSheet);
+    document.getElementById('clearConfirmOk')?.addEventListener('click', submitClearRequest);
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -910,6 +914,7 @@ function updateGameUI() {
     if (!gameData || !currentPlayer) return;
     detectNewFinds();
     detectNewAnnouncements();
+    detectClearRequests();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
     const announceBtn = document.getElementById('announceBtn');
     if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
@@ -1028,22 +1033,149 @@ function renderStates() {
 
         card.innerHTML = `
             <div class="license-plate-header">${plateTypeLabel}</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:15px;height:calc(100% - 40px);">
-                <div style="flex:1;">
-                    <div style="font-size:20px;font-weight:bold;margin-bottom:8px;">${state.name}</div>
-                    <div style="font-size:14px;opacity:0.8;text-transform:uppercase;letter-spacing:2px;font-weight:600;">${state.abbr}</div>
+            <div class="plate-body">
+                <div class="plate-info">
+                    <div class="plate-name">${state.name}</div>
+                    <div class="plate-abbr">${state.abbr}</div>
                 </div>
-                <div class="state-flag" style="width:50px;height:35px;border-radius:8px;background:linear-gradient(145deg,#95a5a6,#7f8c8d);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;color:#2c3e50;box-shadow:0 3px 10px rgba(0,0,0,0.2);border:1px solid rgba(52,152,219,0.2);overflow:hidden;position:relative;">
-                    <img src="${flagImg}" alt="${state.abbr}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.parentNode.textContent='${state.abbr}';">
+                <div class="state-flag">
+                    <img src="${flagImg}" alt="${state.abbr}" onerror="this.style.display='none';this.parentNode.textContent='${state.abbr}';">
                 </div>
             </div>
             ${rarityBadge}
             ${firstFinderBadge}
+            ${foundByMe ? '<button class="clear-req-btn" aria-label="Request host to remove plate">✕</button>' : ''}
         `;
-        card.addEventListener('click', () => toggleState(state.name, foundByMe));
+        if (foundByMe) {
+            const clearBtn = card.querySelector('.clear-req-btn');
+            clearBtn?.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+            clearBtn?.addEventListener('click', (e) => { e.stopPropagation(); showClearConfirmSheet(state.name); });
+        }
+        addSwipeToSelect(card, state.name, foundByMe);
         card.style.animationDelay = `${index * 0.02}s`;
         statesGrid.appendChild(card);
     });
+}
+
+function addSwipeToSelect(card, stateName, foundByMe) {
+    let startX = 0, startY = 0, swiping = false;
+    const THRESHOLD = 70;
+
+    card.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        swiping = false;
+        card.style.transition = 'none';
+    }, { passive: true });
+
+    card.addEventListener('touchmove', (e) => {
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+        if (!swiping && Math.abs(dy) > Math.abs(dx)) return; // vertical scroll, let it pass
+        if (Math.abs(dx) > 6) {
+            swiping = true;
+            if (dx > 0 && !foundByMe) e.preventDefault(); // intercept right-swipe on unselected
+        }
+        if (swiping && dx > 0 && !foundByMe) {
+            card.style.transform = `translateX(${Math.min(dx * 0.65, 90)}px)`;
+            card.classList.toggle('swipe-active', dx >= THRESHOLD);
+        }
+    }, { passive: false });
+
+    card.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        card.style.transition = 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease';
+        card.style.transform = '';
+        card.classList.remove('swipe-active');
+        if (swiping) {
+            if (dx >= THRESHOLD && !foundByMe) toggleState(stateName, false);
+        } else if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
+            if (foundByMe) toggleState(stateName, true); // tap to deselect
+        }
+    });
+}
+
+function showClearConfirmSheet(stateName) {
+    pendingClearState = stateName;
+    document.getElementById('clearConfirmTitle').textContent = `Remove ${stateName}?`;
+    document.getElementById('clearConfirmMsg').textContent = `This sends a request to the host. If approved, you'll permanently lose all points, badges, and first-finder credit for ${stateName}.`;
+    document.getElementById('clearConfirmSheet').classList.add('visible');
+}
+
+function hideClearConfirmSheet() {
+    document.getElementById('clearConfirmSheet')?.classList.remove('visible');
+    pendingClearState = null;
+}
+
+async function submitClearRequest() {
+    if (!pendingClearState || !currentGameRef || !currentPlayer) return;
+    const stateName = pendingClearState;
+    hideClearConfirmSheet();
+    try {
+        await currentGameRef.child(`clearRequests/${stateName}`).set({
+            stateName,
+            playerKey: currentPlayer.playerKey,
+            displayName: currentPlayer.displayName,
+            requestedAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        showToast(`Clear request sent to host for ${stateName}.`, 'info');
+    } catch (err) {
+        console.error('Clear request failed:', err);
+        showToast('Could not send clear request.', 'error');
+    }
+}
+
+function detectClearRequests() {
+    const isHost = gameData?.hostPlayerKey === currentPlayer?.playerKey;
+    if (!isHost) return;
+    const currentRequests = gameData?.clearRequests || {};
+    const currentKeys = Object.keys(currentRequests).filter(k => currentRequests[k]).sort().join(',');
+    if (prevClearRequestKeys === null) { prevClearRequestKeys = currentKeys; return; }
+    if (currentKeys === prevClearRequestKeys) return;
+    const prevSet = new Set(prevClearRequestKeys.split(',').filter(Boolean));
+    Object.entries(currentRequests).forEach(([stateName, req]) => {
+        if (req && !prevSet.has(stateName)) showClearRequestToast(req, stateName);
+    });
+    prevClearRequestKeys = currentKeys;
+}
+
+function showClearRequestToast(req, stateName) {
+    const container = document.querySelector('.toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast pack';
+    toast.innerHTML = `
+        <div style="font-weight:700;margin-bottom:4px;">Clear Request</div>
+        <div style="font-size:13px;">${req.displayName} wants to remove <strong>${stateName}</strong>.<br><span style="opacity:0.8;">They'll lose all credit permanently.</span></div>
+        <div class="clear-toast-btns">
+            <button class="clear-toast-approve">✓ Approve</button>
+            <button class="clear-toast-deny">✕ Deny</button>
+        </div>`;
+    container.appendChild(toast);
+    toast.querySelector('.clear-toast-approve').addEventListener('click', () => { approveClearRequest(stateName, req); toast.remove(); });
+    toast.querySelector('.clear-toast-deny').addEventListener('click', () => { denyClearRequest(stateName); toast.remove(); });
+}
+
+async function approveClearRequest(stateName, req) {
+    try {
+        const updates = {};
+        updates[`clearRequests/${stateName}`] = null;
+        updates[`claimedStates/${stateName}`] = null;
+        updates[`players/${req.playerKey}/states/${stateName}`] = null;
+        await currentGameRef.update(updates);
+        showToast(`Cleared ${stateName} for ${req.displayName}.`, 'info');
+    } catch (err) {
+        showToast('Failed to apply clear.', 'error');
+    }
+}
+
+async function denyClearRequest(stateName) {
+    try {
+        await currentGameRef.child(`clearRequests/${stateName}`).remove();
+    } catch (err) {
+        showToast('Failed to deny request.', 'error');
+    }
 }
 
 async function toggleState(stateName, currentlySelected) {
@@ -1123,7 +1255,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false;
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; hideClearConfirmSheet();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
