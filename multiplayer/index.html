@@ -599,9 +599,9 @@
                     </div>
                     <button class="btn btn-secondary btn-small" id="cancelAnnounceBtn">✕</button>
                 </div>
-                <textarea id="announceInput" class="announce-input" placeholder="Type your announcement… (Ctrl+Enter to send)" maxlength="140" rows="3"></textarea>
+                <textarea id="announceInput" class="announce-input" placeholder="Type your announcement… (Ctrl+Enter to send)" maxlength="500" rows="4"></textarea>
                 <div class="announce-footer">
-                    <span class="announce-counter" id="announceCounter">0/140</span>
+                    <span class="announce-counter" id="announceCounter">0/500</span>
                     <div style="display:flex;gap:10px;">
                         <button class="btn btn-secondary" id="cancelAnnounceBtn2">Cancel</button>
                         <button class="btn btn-announce" id="announceSendBtn">📣 Send</button>
@@ -614,7 +614,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260422h"></script>
+    <script src="game.js?v=20260422i"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
