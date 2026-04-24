@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423l';
+const APP_VERSION = '20260423m';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -26,8 +26,8 @@ const US_PLATES = [
     { name: "North Carolina", abbr: "NC", category: "us" }, { name: "North Dakota", abbr: "ND", category: "us" }, { name: "Ohio", abbr: "OH", category: "us" }, { name: "Oklahoma", abbr: "OK", category: "us" },
     { name: "Oregon", abbr: "OR", category: "us" }, { name: "Pennsylvania", abbr: "PA", category: "us" }, { name: "Rhode Island", abbr: "RI", category: "us" }, { name: "South Carolina", abbr: "SC", category: "us" },
     { name: "South Dakota", abbr: "SD", category: "us" }, { name: "Tennessee", abbr: "TN", category: "us" }, { name: "Texas", abbr: "TX", category: "us" }, { name: "Utah", abbr: "UT", category: "us" },
-    { name: "Vermont", abbr: "VT", category: "us" }, { name: "Virginia", abbr: "VA", category: "us" }, { name: "Washington", abbr: "WA", category: "us" }, { name: "West Virginia", abbr: "WV", category: "us" },
-    { name: "Wisconsin", abbr: "WI", category: "us" }, { name: "Wyoming", abbr: "WY", category: "us" }
+    { name: "Vermont", abbr: "VT", category: "us" }, { name: "Virginia", abbr: "VA", category: "us" }, { name: "Washington", abbr: "WA", category: "us" }, { name: "Washington D.C.", abbr: "DC", category: "us" },
+    { name: "West Virginia", abbr: "WV", category: "us" }, { name: "Wisconsin", abbr: "WI", category: "us" }, { name: "Wyoming", abbr: "WY", category: "us" }
 ];
 
 const TERRITORY_PLATES = [
@@ -156,8 +156,9 @@ const STATE_NEIGHBORS = {
     'California':     ['Arizona','Nevada','Oregon'],
     'Colorado':       ['Arizona','Kansas','Nebraska','New Mexico','Oklahoma','Utah','Wyoming'],
     'Connecticut':    ['Massachusetts','New York','Rhode Island'],
-    'Delaware':       ['Maryland','New Jersey','Pennsylvania'],
-    'Florida':        ['Alabama','Georgia'],
+    'Delaware':          ['Maryland','New Jersey','Pennsylvania'],
+    'Florida':           ['Alabama','Georgia'],
+    'Washington D.C.':   ['Maryland','Virginia'],
     'Georgia':        ['Alabama','Florida','North Carolina','South Carolina','Tennessee'],
     'Hawaii':         [],
     'Idaho':          ['British Columbia','Montana','Nevada','Oregon','Utah','Washington','Wyoming'],
@@ -168,7 +169,7 @@ const STATE_NEIGHBORS = {
     'Kentucky':       ['Illinois','Indiana','Missouri','Ohio','Tennessee','Virginia','West Virginia'],
     'Louisiana':      ['Arkansas','Mississippi','Texas'],
     'Maine':          ['New Brunswick','New Hampshire','Quebec'],
-    'Maryland':       ['Delaware','Pennsylvania','Virginia','West Virginia'],
+    'Maryland':       ['Delaware','Pennsylvania','Virginia','Washington D.C.','West Virginia'],
     'Massachusetts':  ['Connecticut','New Hampshire','New York','Rhode Island','Vermont'],
     'Michigan':       ['Indiana','Ohio','Ontario','Wisconsin'],
     'Minnesota':      ['Iowa','Manitoba','North Dakota','Ontario','South Dakota','Wisconsin'],
@@ -194,7 +195,7 @@ const STATE_NEIGHBORS = {
     'Texas':          ['Arkansas','Louisiana','New Mexico','Oklahoma'],
     'Utah':           ['Arizona','Colorado','Idaho','Nevada','New Mexico','Wyoming'],
     'Vermont':        ['Massachusetts','New Hampshire','New York','Quebec'],
-    'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','West Virginia'],
+    'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','Washington D.C.','West Virginia'],
     'Washington':     ['British Columbia','Idaho','Oregon'],
     'West Virginia':  ['Kentucky','Maryland','Ohio','Pennsylvania','Virginia'],
     'Wisconsin':      ['Illinois','Iowa','Michigan','Minnesota'],
@@ -218,6 +219,60 @@ const STATE_NEIGHBORS = {
 const TERRITORY_NAMES    = new Set(['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
 const CANADIAN_TERRITORIES = new Set(['Yukon','Northwest Territories','Nunavut']);
 const NON_CONTIGUOUS     = new Set(['Alaska','Hawaii']);
+
+// Approximate geographic centroids for GPS-based rarity (lat, lng).
+const STATE_CENTROIDS = {
+    'Alabama': [32.8, -86.8], 'Alaska': [64.2, -153.4], 'Arizona': [34.3, -111.1],
+    'Arkansas': [35.0, -92.4], 'California': [36.8, -119.4], 'Colorado': [39.1, -105.4],
+    'Connecticut': [41.6, -72.7], 'Delaware': [39.0, -75.5], 'Washington D.C.': [38.9, -77.0],
+    'Florida': [28.7, -82.5], 'Georgia': [32.7, -83.4], 'Hawaii': [20.7, -156.3],
+    'Idaho': [44.1, -114.5], 'Illinois': [40.1, -88.8], 'Indiana': [40.3, -86.1],
+    'Iowa': [42.0, -93.2], 'Kansas': [38.5, -96.7], 'Kentucky': [37.5, -85.3],
+    'Louisiana': [31.1, -91.9], 'Maine': [45.4, -69.0], 'Maryland': [39.1, -76.6],
+    'Massachusetts': [42.2, -71.5], 'Michigan': [44.4, -85.4], 'Minnesota': [46.4, -93.1],
+    'Mississippi': [32.7, -89.7], 'Missouri': [38.5, -92.5], 'Montana': [47.0, -110.0],
+    'Nebraska': [41.5, -99.9], 'Nevada': [39.9, -116.4], 'New Hampshire': [43.7, -71.6],
+    'New Jersey': [40.1, -74.4], 'New Mexico': [34.5, -106.0], 'New York': [42.9, -75.4],
+    'North Carolina': [35.6, -79.4], 'North Dakota': [47.5, -100.5], 'Ohio': [40.4, -82.7],
+    'Oklahoma': [35.6, -96.9], 'Oregon': [43.9, -120.6], 'Pennsylvania': [40.6, -77.2],
+    'Rhode Island': [41.7, -71.5], 'South Carolina': [33.9, -80.9], 'South Dakota': [44.4, -100.2],
+    'Tennessee': [35.8, -86.7], 'Texas': [31.5, -99.3], 'Utah': [39.4, -111.1],
+    'Vermont': [44.1, -72.7], 'Virginia': [37.8, -78.2], 'Washington': [47.4, -120.4],
+    'West Virginia': [38.6, -80.5], 'Wisconsin': [44.5, -90.0], 'Wyoming': [43.0, -107.6],
+};
+
+function getStateFromCoords(lat, lng) {
+    let nearest = null, minDist = Infinity;
+    for (const [name, [sLat, sLng]] of Object.entries(STATE_CENTROIDS)) {
+        const d = Math.hypot(lat - sLat, lng - sLng);
+        if (d < minDist) { minDist = d; nearest = name; }
+    }
+    return nearest;
+}
+
+async function getPlayerGpsState() {
+    return new Promise(resolve => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve(getStateFromCoords(pos.coords.latitude, pos.coords.longitude)),
+            () => resolve(null),
+            { timeout: 5000, maximumAge: 120000 }
+        );
+    });
+}
+
+function formatFoundAt(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const now = new Date();
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const day = d.getDate();
+    const h = d.getHours() % 12 || 12;
+    const mins = d.getMinutes().toString().padStart(2, '0');
+    const ampm = d.getHours() >= 12 ? 'p' : 'a';
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay ? `${h}:${mins}${ampm}` : `${month} ${day} ${h}:${mins}${ampm}`;
+}
 
 // Returns the rarity tier for a plate given the pack's travel corridor.
 // BFS hop-distance from the corridor determines tier for contiguous US and Canadian provinces.
@@ -717,6 +772,7 @@ function bindEventListeners() {
     });
     const closeDetailBtn = document.getElementById('closePlayerDetailBtn');
     if (closeDetailBtn) closeDetailBtn.addEventListener('click', closePlayerDetail);
+    document.getElementById('closeBadgeDetailBtn')?.addEventListener('click', closeBadgeDetail);
     const detailModal = document.getElementById('playerDetailModal');
     if (detailModal) detailModal.addEventListener('click', e => { if (e.target === detailModal) closePlayerDetail(); });
     document.getElementById('announceBtn')?.addEventListener('click', openAnnounceModal);
@@ -773,6 +829,7 @@ async function createGame() {
     const gameName = document.getElementById('newGameInput').value.trim();
     const playRegion = document.getElementById('primaryRegionSelect')?.value || '';
     const plateScope = document.getElementById('plateScopeSelect')?.value || 'us_only';
+    const gpsRarity = document.getElementById('gpsRarityToggle')?.checked || false;
     const playAreaStates = getSelectedPlayAreaStates();
     if (!gameName) { showToast('Please enter a pack name! 🎮', 'error'); document.getElementById('newGameInput').focus(); return; }
     if (!playRegion) { showToast('Please choose a primary play region. 🧭', 'error'); document.getElementById('primaryRegionSelect')?.focus(); return; }
@@ -786,7 +843,7 @@ async function createGame() {
             name: gameName,
             code,
             status: 'active',
-            settings: { maxPlayers: MAX_PLAYERS, playRegion, plateScope, playAreaStates },
+            settings: { maxPlayers: MAX_PLAYERS, playRegion, plateScope, playAreaStates, gpsRarity },
             hostPlayerKey: currentPlayer.playerKey,
             createdAt: firebase.database.ServerValue.TIMESTAMP,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -1034,7 +1091,9 @@ function renderStates() {
         const flagImg = `../flags/${state.abbr.toLowerCase()}.png`;
         const plateTypeLabel = state.category === 'canada' ? 'PROVINCE PLATE' : state.category === 'territory' ? 'TERRITORY PLATE' : 'LICENSE PLATE';
         const corridor = gameData?.settings?.playAreaStates || [];
-        const rarityTier = computeRarityForState(state.name, corridor);
+        const myStateData = getMyStatesMap()[state.name];
+        const cardCorridor = (gameData?.settings?.gpsRarity && myStateData?.foundNearState) ? [myStateData.foundNearState] : corridor;
+        const rarityTier = computeRarityForState(state.name, cardCorridor);
         const rarityCfg = RARITY_CONFIG[rarityTier];
         const rarityBadge = `<div class="rarity-badge rarity-${rarityTier}" title="${rarityCfg.label} · ${rarityCfg.points} pts first find">${rarityCfg.points}pt</div>`;
         const firstFinderBadge = claim ? `<div class="ff-tag" title="First found by ${claim.displayName}">${claim.tag}</div>` : '';
@@ -1195,7 +1254,10 @@ async function toggleState(stateName, currentlySelected) {
             await playerStatesRef.child(stateName).remove();
         } else {
             await stateClaimRef.transaction((existingClaim) => existingClaim || ({ state: stateName, playerKey: currentPlayer.playerKey, name: currentPlayer.name, tag: currentPlayer.tag, displayName: currentPlayer.displayName, claimedAt: Date.now() }));
-            await playerStatesRef.child(stateName).set({ state: stateName, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey });
+            const foundNearState = gameData?.settings?.gpsRarity ? (await getPlayerGpsState()) : null;
+            const stateRecord = { state: stateName, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey };
+            if (foundNearState) stateRecord.foundNearState = foundNearState;
+            await playerStatesRef.child(stateName).set(stateRecord);
             showToast(`Found ${stateName}! 🎉`, 'success');
             writeRegionCompletions();
         }
@@ -1934,11 +1996,14 @@ function computePlayerStats(playerKey) {
         name => gameData?.claimedStates?.[name]?.playerKey === playerKey
     ).length;
 
-    // Base plate score — rarity is route-aware (BFS from travel corridor)
+    // Base plate score — rarity is route-aware (BFS from corridor, or GPS-based per-plate)
     const corridor = gameData?.settings?.playAreaStates || [];
+    const useGps = gameData?.settings?.gpsRarity;
     let score = 0;
     foundSet.forEach(name => {
-        const tier = computeRarityForState(name, corridor);
+        const stateData = player.states?.[name];
+        const effectiveCorridor = (useGps && stateData?.foundNearState) ? [stateData.foundNearState] : corridor;
+        const tier = computeRarityForState(name, effectiveCorridor);
         const pts = RARITY_CONFIG[tier].points;
         const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
         score += isFirst ? pts : pts / 2;
@@ -1994,6 +2059,74 @@ function getPlayerBadges(playerKey) {
     return BADGE_DEFS.filter(b => b.test(stats));
 }
 
+const SUB_BADGE_TO_KEY = {
+    'sub_appalachia': 'appalachia', 'sub_chesapeake': 'chesapeake_bay', 'sub_carolinas': 'the_carolinas',
+    'sub_deep_south': 'deep_south', 'sub_gulf_coast': 'gulf_coast', 'sub_four_corners': 'four_corners',
+    'sub_rocky_mts': 'rocky_mountains', 'sub_pacific_nw': 'pacific_northwest', 'sub_sw_desert': 'southwest_desert',
+    'sub_corn_belt': 'corn_belt', 'sub_non_contiguous': 'non_contiguous', 'sub_seaboard': 'eastern_seaboard',
+    'sub_canada_east': 'canada_east', 'sub_canada_central': 'canada_central',
+    'sub_canada_west': 'canada_west', 'sub_canada_territories': 'canada_territories',
+};
+
+const ELITE_BADGE_STATES = {
+    'found_ak': ['Alaska'], 'found_hi': ['Hawaii'], 'found_ak_hi': ['Alaska', 'Hawaii'],
+    'found_pr': ['Puerto Rico'], 'found_usvi': ['U.S. Virgin Islands'],
+    'found_as': ['American Samoa'], 'found_guam': ['Guam'], 'found_cnmi': ['Northern Mariana Islands'],
+    'territory_hunter': ['Puerto Rico', 'U.S. Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'],
+};
+
+function getBadgeDetailItems(badgeId, playerStates, claimedStates, corridorStates, playerKey) {
+    const ps = playerStates || {};
+    const toItem = name => ps[name] ? { name, foundAt: ps[name].foundAt, isFirst: claimedStates?.[name]?.playerKey === playerKey } : null;
+    const sortByTime = items => [...items].sort((a, b) => (a.foundAt || 0) - (b.foundAt || 0));
+
+    if (badgeId.startsWith('region_')) {
+        const key = badgeId.replace('region_', '');
+        return sortByTime((REGION_STATES[key] || []).map(toItem).filter(Boolean));
+    }
+    if (SUB_BADGE_TO_KEY[badgeId]) {
+        return sortByTime((SUB_REGIONS[SUB_BADGE_TO_KEY[badgeId]]?.states || []).map(toItem).filter(Boolean));
+    }
+    if (badgeId === 'corridor_complete') {
+        return sortByTime(corridorStates.map(toItem).filter(Boolean));
+    }
+    if (ELITE_BADGE_STATES[badgeId]) {
+        return sortByTime(ELITE_BADGE_STATES[badgeId].map(toItem).filter(Boolean));
+    }
+    if (badgeId.startsWith('milestone_')) {
+        return sortByTime(Object.entries(ps).map(([name, d]) => ({ name, foundAt: d.foundAt, isFirst: claimedStates?.[name]?.playerKey === playerKey })));
+    }
+    if (badgeId.startsWith('ff_')) {
+        return sortByTime(Object.entries(ps)
+            .filter(([name]) => claimedStates?.[name]?.playerKey === playerKey)
+            .map(([name, d]) => ({ name, foundAt: d.foundAt, isFirst: true })));
+    }
+    return [];
+}
+
+function openBadgeDetail(badgeId, playerKey) {
+    const badge = BADGE_DEFS.find(b => b.id === badgeId);
+    const player = playersData[playerKey];
+    if (!badge || !player) return;
+    const overlay = document.getElementById('badgeDetailOverlay');
+    if (!overlay) return;
+    document.getElementById('badgeDetailTitle').textContent = `${badge.icon} ${badge.label}`;
+    document.getElementById('badgeDetailDesc').textContent = badge.desc;
+    const items = getBadgeDetailItems(badgeId, player.states, gameData?.claimedStates, gameData?.settings?.playAreaStates || [], playerKey);
+    const list = document.getElementById('badgeDetailList');
+    list.innerHTML = items.length
+        ? items.map(({ name, foundAt, isFirst }) =>
+            `<div class="badge-detail-item"><span class="badge-detail-state">${isFirst ? '⭐ ' : ''}${name}</span><span class="badge-detail-time">${formatFoundAt(foundAt)}</span></div>`
+          ).join('')
+        : '<div class="detail-empty">No detail available for this badge.</div>';
+    overlay.style.display = 'flex';
+}
+
+function closeBadgeDetail() {
+    const overlay = document.getElementById('badgeDetailOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
 // ── Player Detail Modal ───────────────────────────────────────────────────────
 
 function openPlayerDetail(playerKey) {
@@ -2016,7 +2149,7 @@ function openPlayerDetail(playerKey) {
     const badgeGrid = document.getElementById('detailBadgeGrid');
     if (badgeGrid) {
         badgeGrid.innerHTML = badges.length
-            ? badges.map(b => `<div class="badge-item"><div class="badge-item-icon">${b.icon}</div><div class="badge-item-label">${b.label}</div><div class="badge-item-desc">${b.desc}</div></div>`).join('')
+            ? badges.map(b => `<div class="badge-item badge-item-clickable" onclick="openBadgeDetail('${b.id}','${playerKey}')"><div class="badge-item-icon">${b.icon}</div><div class="badge-item-label">${b.label}</div><div class="badge-item-desc">${b.desc}</div></div>`).join('')
             : '<div class="detail-empty">No badges yet — keep spotting!</div>';
     }
 
@@ -2024,9 +2157,12 @@ function openPlayerDetail(playerKey) {
     const detailCorridor = gameData?.settings?.playAreaStates || [];
     const breakdownEl = document.getElementById('detailBreakdownGrid');
     if (breakdownEl) {
+        const detailUseGps = gameData?.settings?.gpsRarity;
         const byTier = {};
         stats.foundSet.forEach(name => {
-            const tier = computeRarityForState(name, detailCorridor);
+            const sd = player.states?.[name];
+            const effectiveCorridor = (detailUseGps && sd?.foundNearState) ? [sd.foundNearState] : detailCorridor;
+            const tier = computeRarityForState(name, effectiveCorridor);
             if (!byTier[tier]) byTier[tier] = { count: 0, pts: 0 };
             const pts = RARITY_CONFIG[tier].points;
             const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
@@ -2072,15 +2208,21 @@ function openPlayerDetail(playerKey) {
         const tierRank = { ultra: 0, 'gold-elite': 1, 'silver-elite': 2, legendary: 3, epic: 4, 'mega-rare': 5, rare: 6, 'semi-rare': 7, scarce: 8, occasional: 9, common: 10 };
         const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES];
         const sorted = Array.from(stats.foundSet).sort((a, b) => {
-            const ta = tierRank[computeRarityForState(a, detailCorridor)] ?? 5;
-            const tb = tierRank[computeRarityForState(b, detailCorridor)] ?? 5;
+            const sdA = player.states?.[a]; const sdB = player.states?.[b];
+            const ca = (detailUseGps && sdA?.foundNearState) ? [sdA.foundNearState] : detailCorridor;
+            const cb = (detailUseGps && sdB?.foundNearState) ? [sdB.foundNearState] : detailCorridor;
+            const ta = tierRank[computeRarityForState(a, ca)] ?? 5;
+            const tb = tierRank[computeRarityForState(b, cb)] ?? 5;
             return ta !== tb ? ta - tb : a.localeCompare(b);
         });
         foundGrid.innerHTML = sorted.map(name => {
-            const tier = computeRarityForState(name, detailCorridor);
+            const sd = player.states?.[name];
+            const ec = (detailUseGps && sd?.foundNearState) ? [sd.foundNearState] : detailCorridor;
+            const tier = computeRarityForState(name, ec);
             const abbr = allPlates.find(p => p.name === name)?.abbr || name.slice(0, 2).toUpperCase();
             const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
-            return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}">${abbr}${isFirst ? '⭐' : ''}</div>`;
+            const ts = formatFoundAt(sd?.foundAt);
+            return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}"><div class="found-chip-abbr">${abbr}${isFirst ? '⭐' : ''}</div>${ts ? `<div class="found-chip-time">${ts}</div>` : ''}</div>`;
         }).join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
@@ -2088,5 +2230,6 @@ function openPlayerDetail(playerKey) {
 }
 
 function closePlayerDetail() {
+    closeBadgeDetail();
     document.getElementById('playerDetailModal')?.classList.remove('visible');
 }
