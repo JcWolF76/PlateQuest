@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423k';
+const APP_VERSION = '20260423l';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -356,6 +356,7 @@ let playersData = {};
 let prevPlayerStates = null;    // null = not yet initialized; reset on game exit
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
+let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let pendingClearState = null;   // stateName waiting for clear-confirm sheet
 let regionMigrationDone = false; // one-time migration guard per session
 let gameListenerAttached = false;
@@ -918,6 +919,9 @@ function updateGameUI() {
     detectNewFinds();
     detectNewAnnouncements();
     detectClearRequests();
+    detectRegionClearRequests();
+    autoCleanRegionBackups();
+    updateAuditBadge();
     maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
     const announceBtn = document.getElementById('announceBtn');
@@ -1260,7 +1264,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; hideClearConfirmSheet();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; hideClearConfirmSheet();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1433,6 +1437,138 @@ async function openAuditModal() {
     renderAuditBody(pendingAuditResults);
 }
 
+// ── Region Completion Dispute Flow ────────────────────────────────────────────
+
+async function requestRegionClear(type, key, label) {
+    if (!currentGameRef || !currentPlayer) return;
+    const reqPath = type === 'corridor' ? 'regionClearRequests/corridor' : `regionClearRequests/${type}/${key}`;
+    const existing = type === 'corridor'
+        ? gameData?.regionClearRequests?.corridor
+        : gameData?.regionClearRequests?.[type]?.[key];
+    if (existing) { showToast('Dispute already pending — waiting for host.', 'info'); return; }
+    if (!confirm(`Dispute "${label}" completion?\n\nThe host must approve. If approved, your bonus is removed — but they have 7 days to undo if it was a mistake.`)) return;
+    try {
+        await currentGameRef.child(reqPath).set({ playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, label, requestedAt: Date.now() });
+        showToast('Dispute sent to host.', 'info');
+    } catch (err) { showToast('Could not send dispute.', 'error'); }
+}
+
+function detectRegionClearRequests() {
+    const isHost = gameData?.hostPlayerKey === currentPlayer?.playerKey;
+    if (!isHost) return;
+    const reqs = gameData?.regionClearRequests || {};
+    const allFlat = {};
+    Object.entries(reqs.regions || {}).forEach(([k, r]) => { allFlat[`regions/${k}`] = r; });
+    Object.entries(reqs.subRegions || {}).forEach(([k, r]) => { allFlat[`subRegions/${k}`] = r; });
+    if (reqs.corridor && typeof reqs.corridor === 'object') allFlat['corridor'] = reqs.corridor;
+    const currentKeys = Object.keys(allFlat).sort().join(',');
+    if (prevRegionClearRequestKeys === null) { prevRegionClearRequestKeys = currentKeys; return; }
+    if (currentKeys === prevRegionClearRequestKeys) return;
+    const prevSet = new Set(prevRegionClearRequestKeys.split(',').filter(Boolean));
+    Object.keys(allFlat).filter(k => !prevSet.has(k)).forEach(flatKey => showRegionClearRequestToast(flatKey, allFlat[flatKey]));
+    prevRegionClearRequestKeys = currentKeys;
+}
+
+function showRegionClearRequestToast(flatKey, req) {
+    const container = document.querySelector('.toast-container');
+    if (!container) return;
+    const parts = flatKey.split('/');
+    const type = parts[0], key = parts[1] || '';
+    const toast = document.createElement('div');
+    toast.className = 'toast pack';
+    toast.innerHTML = `
+        <div style="font-weight:700;margin-bottom:4px;">Region Dispute</div>
+        <div style="font-size:13px;">${req.displayName} wants to clear <strong>${req.label}</strong>.<br><span style="opacity:0.75;">7-day undo window if approved.</span></div>
+        <div class="clear-toast-btns">
+            <button class="clear-toast-approve">✓ Approve</button>
+            <button class="clear-toast-deny">✕ Deny</button>
+        </div>`;
+    container.appendChild(toast);
+    toast.querySelector('.clear-toast-approve').addEventListener('click', () => { approveRegionClearRequest(type, key, req); toast.remove(); });
+    toast.querySelector('.clear-toast-deny').addEventListener('click', () => { denyRegionClearRequest(type, key); toast.remove(); });
+}
+
+async function _clearRegionRecordWithBackup(type, key, label) {
+    const livePath = type === 'corridor' ? 'completedCorridor'
+        : type === 'regions' ? `completedRegions/${key}` : `completedSubRegions/${key}`;
+    const backupPath = type === 'corridor' ? 'regionCompletionBackups/corridor'
+        : `regionCompletionBackups/${type}/${key}`;
+    const liveSnap = await currentGameRef.child(livePath).once('value');
+    const liveRecord = liveSnap.val();
+    const now = Date.now();
+    const updates = {};
+    if (liveRecord) updates[backupPath] = { ...liveRecord, label, clearedAt: now, expiresAt: now + 7 * 24 * 60 * 60 * 1000 };
+    updates[livePath] = null;
+    updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+    await currentGameRef.update(updates);
+}
+
+async function approveRegionClearRequest(type, key, req) {
+    if (!currentGameRef) return;
+    const reqPath = type === 'corridor' ? 'regionClearRequests/corridor' : `regionClearRequests/${type}/${key}`;
+    try {
+        await _clearRegionRecordWithBackup(type, key, req.label);
+        await currentGameRef.child(reqPath).set(null);
+        showToast(`${req.label} cleared. 7 days to undo.`, 'info');
+    } catch (err) { console.error('approveRegionClearRequest failed:', err); showToast('Failed to approve dispute.', 'error'); }
+}
+
+async function denyRegionClearRequest(type, key) {
+    if (!currentGameRef) return;
+    const reqPath = type === 'corridor' ? 'regionClearRequests/corridor' : `regionClearRequests/${type}/${key}`;
+    try { await currentGameRef.child(reqPath).set(null); }
+    catch (err) { showToast('Failed to deny request.', 'error'); }
+}
+
+async function undoRegionClear(type, key) {
+    if (!currentGameRef) return;
+    const backupPath = type === 'corridor' ? 'regionCompletionBackups/corridor' : `regionCompletionBackups/${type}/${key}`;
+    const livePath = type === 'corridor' ? 'completedCorridor'
+        : type === 'regions' ? `completedRegions/${key}` : `completedSubRegions/${key}`;
+    try {
+        const snap = await currentGameRef.child(backupPath).once('value');
+        const backup = snap.val();
+        if (!backup) { showToast('Backup not found.', 'error'); renderRegionRecords(); return; }
+        const updates = {};
+        updates[livePath] = { playerKey: backup.playerKey, displayName: backup.displayName, completedAt: backup.completedAt };
+        updates[backupPath] = null;
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+        showToast(`${backup.label || key} restored.`, 'success');
+    } catch (err) { console.error('undoRegionClear failed:', err); showToast('Failed to undo.', 'error'); }
+}
+
+async function purgeAllRegionBackups() {
+    if (!currentGameRef) return;
+    if (!confirm('Permanently delete all undo records? This cannot be reversed.')) return;
+    try {
+        await currentGameRef.child('regionCompletionBackups').set(null);
+        showToast('All undo records purged.', 'info');
+    } catch (err) { showToast('Failed to purge records.', 'error'); }
+}
+
+function autoCleanRegionBackups() {
+    if (!currentGameRef || !gameData?.regionCompletionBackups) return;
+    const now = Date.now();
+    const backups = gameData.regionCompletionBackups;
+    const updates = {};
+    ['regions', 'subRegions'].forEach(type => {
+        Object.entries(backups[type] || {}).forEach(([key, rec]) => {
+            if (rec?.expiresAt && now > rec.expiresAt) updates[`regionCompletionBackups/${type}/${key}`] = null;
+        });
+    });
+    if (backups.corridor?.expiresAt && now > backups.corridor.expiresAt) updates['regionCompletionBackups/corridor'] = null;
+    if (Object.keys(updates).length) currentGameRef.update(updates).catch(err => console.error('autoCleanRegionBackups failed:', err));
+}
+
+function updateAuditBadge() {
+    const badge = document.getElementById('auditBadge');
+    if (!badge) return;
+    const b = gameData?.regionCompletionBackups;
+    const hasBackups = b && (Object.keys(b.regions || {}).length || Object.keys(b.subRegions || {}).length || b.corridor);
+    badge.style.display = hasBackups ? 'block' : 'none';
+}
+
 function renderRegionRecords() {
     const container = document.getElementById('regionRecordsBody');
     if (!container) return;
@@ -1440,39 +1576,71 @@ function renderRegionRecords() {
     const subRecs = gameData?.completedSubRegions || {};
     const regRecs = gameData?.completedRegions || {};
     const corRec  = gameData?.completedCorridor;
+    const bk      = gameData?.regionCompletionBackups || {};
 
-    const items = [];
+    const liveItems = [];
     Object.entries(subRecs).forEach(([key, rec]) => {
-        items.push({ path: `completedSubRegions/${key}`, icon: '🗺️', label: SUB_REGIONS[key]?.label || key, winner: rec.displayName });
+        liveItems.push({ type: 'subRegions', key, icon: '🗺️', label: SUB_REGIONS[key]?.label || key, winner: rec.displayName });
     });
     Object.entries(regRecs).forEach(([key, rec]) => {
-        items.push({ path: `completedRegions/${key}`, icon: '🏛️', label: PRIMARY_REGIONS[key]?.label || key, winner: rec.displayName });
+        liveItems.push({ type: 'regions', key, icon: '🏛️', label: PRIMARY_REGIONS[key]?.label || key, winner: rec.displayName });
     });
-    if (corRec) items.push({ path: 'completedCorridor', icon: '🚗', label: 'Travel Corridor', winner: corRec.displayName });
+    if (corRec) liveItems.push({ type: 'corridor', key: '', icon: '🚗', label: 'Travel Corridor', winner: corRec.displayName });
 
-    if (!items.length) { container.style.display = 'none'; return; }
+    const backupItems = [];
+    const now = Date.now();
+    ['regions', 'subRegions'].forEach(type => {
+        Object.entries(bk[type] || {}).forEach(([key, rec]) => {
+            if (!rec?.expiresAt || now <= rec.expiresAt) {
+                const daysLeft = rec?.expiresAt ? Math.max(1, Math.ceil((rec.expiresAt - now) / 86400000)) : '?';
+                backupItems.push({ type, key, label: rec.label || key, winner: rec.displayName, daysLeft });
+            }
+        });
+    });
+    if (bk.corridor && (!bk.corridor.expiresAt || now <= bk.corridor.expiresAt)) {
+        const daysLeft = bk.corridor.expiresAt ? Math.max(1, Math.ceil((bk.corridor.expiresAt - now) / 86400000)) : '?';
+        backupItems.push({ type: 'corridor', key: '', label: bk.corridor.label || 'Travel Corridor', winner: bk.corridor.displayName, daysLeft });
+    }
+
+    if (!liveItems.length && !backupItems.length) { container.style.display = 'none'; return; }
 
     container.style.display = '';
-    container.innerHTML = `
-        <div class="region-records-section">
-            <div class="region-records-title">Region Completion Records</div>
-            ${items.map(({ path, icon, label, winner }) =>
-                `<div class="region-record-item">
-                    <span>${icon} ${label} <span class="region-record-winner">• ${winner}</span></span>
-                    <button class="btn-clear-record" onclick="clearRegionRecord('${path}')">Clear</button>
-                </div>`
-            ).join('')}
-            <div class="audit-note" style="margin-top:4px">Clearing removes the bonus and lets the region be re-earned. Use only to correct an accidental selection.</div>
-        </div>`;
+    let html = '<div class="region-records-section">';
+
+    if (liveItems.length) {
+        html += `<div class="region-records-title">Active Records</div>`;
+        html += liveItems.map(({ type, key, icon, label, winner }) =>
+            `<div class="region-record-item">
+                <span>${icon} ${label} <span class="region-record-winner">• ${winner}</span></span>
+                <button class="btn-clear-record" onclick="clearRegionRecord('${type}','${key}','${label.replace(/'/g, "\\'")}')">Clear</button>
+            </div>`
+        ).join('');
+    }
+
+    if (backupItems.length) {
+        html += `<div class="region-records-title" style="margin-top:12px">Pending Undos</div>`;
+        html += backupItems.map(({ type, key, label, winner, daysLeft }) =>
+            `<div class="region-record-item">
+                <span>↩️ ${label} <span class="region-record-winner">• ${winner} • ${daysLeft}d left</span></span>
+                <button class="btn-undo-record" onclick="undoRegionClear('${type}','${key}')">Undo</button>
+            </div>`
+        ).join('');
+        html += `<div style="margin-top:8px;text-align:right"><button class="btn-clear-record" onclick="purgeAllRegionBackups()">Purge All Undos</button></div>`;
+    }
+
+    html += `<div class="audit-note" style="margin-top:8px">Clearing creates a 7-day undo window. Players can dispute their own first-completer records from their score panel.</div>`;
+    html += '</div>';
+    container.innerHTML = html;
 }
 
-async function clearRegionRecord(path) {
+async function clearRegionRecord(type, key, label) {
     if (!currentGameRef) return;
-    if (!confirm('Remove this region completion record? The bonus is lost and the region can be re-earned by the first player to legitimately complete it.')) return;
+    if (!confirm(`Clear "${label}" record? A 7-day undo window will be saved in case this was a mistake.`)) return;
     try {
-        await currentGameRef.child(path).set(null);
-        showToast('Region record cleared.', 'info');
+        await _clearRegionRecordWithBackup(type, key, label);
+        showToast(`${label} cleared. 7-day undo available in Score Audit.`, 'info');
         renderRegionRecords();
+        updateAuditBadge();
     } catch (err) {
         console.error('clearRegionRecord failed:', err);
         showToast('Failed to clear record.', 'error');
@@ -1871,13 +2039,30 @@ function openPlayerDetail(playerKey) {
             const d = byTier[t];
             return `<div class="breakdown-row"><span class="rarity-badge rarity-${t}">${cfg.label}</span><span class="breakdown-count">${d.count} plate${d.count !== 1 ? 's' : ''}</span><span class="breakdown-pts">${d.pts} pts</span></div>`;
         });
-        (stats.completedSubBonuses || []).forEach(({ label, bonus, isFirst }) => {
-            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🗺️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span></div>`);
+        (stats.completedSubBonuses || []).forEach(({ key, label, bonus, isFirst }) => {
+            const hasMyRecord = isMe && gameData?.completedSubRegions?.[key]?.playerKey === playerKey;
+            const pending = gameData?.regionClearRequests?.subRegions?.[key];
+            const disputeBtn = hasMyRecord
+                ? (pending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('subRegions','${key}','${label.replace(/'/g, "\\'")}')">Dispute</button>`)
+                : '';
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🗺️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span>${disputeBtn}</div>`);
         });
-        (stats.completedRegionBonuses || []).forEach(({ label, bonus, isFirst }) => {
-            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🏛️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span></div>`);
+        (stats.completedRegionBonuses || []).forEach(({ key, label, bonus, isFirst }) => {
+            const hasMyRecord = isMe && gameData?.completedRegions?.[key]?.playerKey === playerKey;
+            const pending = gameData?.regionClearRequests?.regions?.[key];
+            const disputeBtn = hasMyRecord
+                ? (pending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('regions','${key}','${label.replace(/'/g, "\\'")}')">Dispute</button>`)
+                : '';
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🏛️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span>${disputeBtn}</div>`);
         });
-        if (stats.corridorComplete) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🛣️ Corridor Complete</span><span class="breakdown-count">${stats.corridorBonus === 150 ? '1st' : 'later'}</span><span class="breakdown-pts">+${stats.corridorBonus || 75} pts</span></div>`);
+        if (stats.corridorComplete) {
+            const hasCorridorRecord = isMe && gameData?.completedCorridor?.playerKey === playerKey;
+            const corridorPending = gameData?.regionClearRequests?.corridor;
+            const disputeBtn = hasCorridorRecord
+                ? (corridorPending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('corridor','','Corridor Complete')">Dispute</button>`)
+                : '';
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🛣️ Corridor Complete</span><span class="breakdown-count">${stats.corridorBonus === 150 ? '1st' : 'later'}</span><span class="breakdown-pts">+${stats.corridorBonus || 75} pts</span>${disputeBtn}</div>`);
+        }
         breakdownEl.innerHTML = rows.join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
