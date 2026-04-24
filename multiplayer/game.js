@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423i';
+const APP_VERSION = '20260423j';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -357,6 +357,7 @@ let prevPlayerStates = null;    // null = not yet initialized; reset on game exi
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let pendingClearState = null;   // stateName waiting for clear-confirm sheet
+let regionMigrationDone = false; // one-time migration guard per session
 let gameListenerAttached = false;
 let playerConfirmedInPack = false;
 let eventsBound = false;
@@ -917,6 +918,7 @@ function updateGameUI() {
     detectNewFinds();
     detectNewAnnouncements();
     detectClearRequests();
+    maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
     const announceBtn = document.getElementById('announceBtn');
     if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
@@ -1191,6 +1193,7 @@ async function toggleState(stateName, currentlySelected) {
             await stateClaimRef.transaction((existingClaim) => existingClaim || ({ state: stateName, playerKey: currentPlayer.playerKey, name: currentPlayer.name, tag: currentPlayer.tag, displayName: currentPlayer.displayName, claimedAt: Date.now() }));
             await playerStatesRef.child(stateName).set({ state: stateName, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey });
             showToast(`Found ${stateName}! 🎉`, 'success');
+            writeRegionCompletions();
         }
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
         lastSyncAt = Date.now();
@@ -1257,7 +1260,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; hideClearConfirmSheet();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; hideClearConfirmSheet();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1588,6 +1591,108 @@ async function applyAuditCorrections() {
     }
 }
 
+// ── Region Completion Records ─────────────────────────────────────────────────
+
+async function writeRegionCompletions() {
+    if (!currentGameRef || !currentPlayer) return;
+    // Use latest snapshot from playersData (may lag by one Firebase event, which is fine —
+    // the migration pass will catch anything missed on the first selection).
+    const player = playersData[currentPlayer.playerKey];
+    if (!player) return;
+    const foundSet = new Set(Object.keys(player.states || {}));
+    const now = Date.now();
+    const writes = [];
+
+    Object.entries(SUB_REGIONS).forEach(([key, region]) => {
+        if (!region.states.every(s => foundSet.has(s))) return;
+        writes.push(currentGameRef.child(`completedSubRegions/${key}`).transaction(existing => {
+            if (existing) return undefined;
+            return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
+        }));
+    });
+
+    Object.entries(REGION_STATES).forEach(([key, states]) => {
+        if (!states.every(s => foundSet.has(s))) return;
+        writes.push(currentGameRef.child(`completedRegions/${key}`).transaction(existing => {
+            if (existing) return undefined;
+            return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
+        }));
+    });
+
+    const corridorStates = gameData?.settings?.playAreaStates || [];
+    if (corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s))) {
+        writes.push(currentGameRef.child('completedCorridor').transaction(existing => {
+            if (existing) return undefined;
+            return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
+        }));
+    }
+
+    try { await Promise.all(writes); } catch (err) { console.error('writeRegionCompletions failed:', err); }
+}
+
+async function maybeRunRegionMigration() {
+    if (regionMigrationDone || !currentGameRef || !currentPlayer) return;
+    regionMigrationDone = true;
+    await migrateRegionCompletions();
+}
+
+async function migrateRegionCompletions() {
+    try {
+        const snapshot = await currentGameRef.once('value');
+        const room = snapshot.val();
+        if (!room) return;
+        const players = normalizePlayers(room.players || {});
+        const writes = [];
+
+        const findEarliest = (stateNames, existing) => {
+            if (existing) return null; // already recorded — skip
+            let best = null;
+            Object.entries(players).forEach(([playerKey, playerData]) => {
+                const pStates = playerData.states || {};
+                if (!stateNames.every(s => pStates[s])) return;
+                const t = getCompletionTime(pStates, stateNames);
+                if (t !== null && (best === null || t < best.t)) {
+                    best = { playerKey, displayName: playerData.displayName, t };
+                }
+            });
+            return best;
+        };
+
+        Object.entries(SUB_REGIONS).forEach(([key, region]) => {
+            const best = findEarliest(region.states, room.completedSubRegions?.[key]);
+            if (!best) return;
+            writes.push(currentGameRef.child(`completedSubRegions/${key}`).transaction(existing => {
+                if (existing) return undefined;
+                return { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t };
+            }));
+        });
+
+        Object.entries(REGION_STATES).forEach(([key, states]) => {
+            const best = findEarliest(states, room.completedRegions?.[key]);
+            if (!best) return;
+            writes.push(currentGameRef.child(`completedRegions/${key}`).transaction(existing => {
+                if (existing) return undefined;
+                return { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t };
+            }));
+        });
+
+        const corridorStates = room.settings?.playAreaStates || [];
+        if (corridorStates.length > 0) {
+            const best = findEarliest(corridorStates, room.completedCorridor);
+            if (best) {
+                writes.push(currentGameRef.child('completedCorridor').transaction(existing => {
+                    if (existing) return undefined;
+                    return { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t };
+                }));
+            }
+        }
+
+        await Promise.all(writes);
+    } catch (err) {
+        console.error('migrateRegionCompletions failed:', err);
+    }
+}
+
 // ── Scoring Engine ────────────────────────────────────────────────────────────
 
 function getCompletionTime(playerStates, stateNames) {
@@ -1631,16 +1736,12 @@ function computePlayerStats(playerKey) {
 
     const completedSubBonuses = [];
     completedSubs.forEach(key => {
-        const myTime = getCompletionTime(player.states, SUB_REGIONS[key].states);
-        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
-            if (pKey === playerKey) return false;
-            const theirTime = getCompletionTime(pData?.states || {}, SUB_REGIONS[key].states);
-            return theirTime !== null && theirTime < myTime;
-        });
+        const record = gameData?.completedSubRegions?.[key];
+        const isFirst = record ? record.playerKey === playerKey : true;
         const firstBonus = computeRegionBonus(SUB_REGIONS[key].states, corridor, 1.5, 60);
-        const awarded = someoneFinishedEarlier ? Math.ceil(firstBonus / 2) : firstBonus;
+        const awarded = isFirst ? firstBonus : Math.ceil(firstBonus / 2);
         score += awarded;
-        completedSubBonuses.push({ key, label: SUB_REGIONS[key].label, bonus: awarded, isFirst: !someoneFinishedEarlier, firstBonus });
+        completedSubBonuses.push({ key, label: SUB_REGIONS[key].label, bonus: awarded, isFirst, firstBonus });
     });
 
     // Primary region completions — rarity-weighted: max(100, raritySum × 1.5), first/later split
@@ -1650,16 +1751,12 @@ function computePlayerStats(playerKey) {
 
     const completedRegionBonuses = [];
     completedRegions.forEach(key => {
-        const myTime = getCompletionTime(player.states, REGION_STATES[key]);
-        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
-            if (pKey === playerKey) return false;
-            const theirTime = getCompletionTime(pData?.states || {}, REGION_STATES[key]);
-            return theirTime !== null && theirTime < myTime;
-        });
+        const record = gameData?.completedRegions?.[key];
+        const isFirst = record ? record.playerKey === playerKey : true;
         const firstBonus = computeRegionBonus(REGION_STATES[key], corridor, 1.5, 100);
-        const awarded = someoneFinishedEarlier ? Math.ceil(firstBonus / 2) : firstBonus;
+        const awarded = isFirst ? firstBonus : Math.ceil(firstBonus / 2);
         score += awarded;
-        completedRegionBonuses.push({ key, label: PRIMARY_REGIONS[key]?.label || key, bonus: awarded, isFirst: !someoneFinishedEarlier, firstBonus });
+        completedRegionBonuses.push({ key, label: PRIMARY_REGIONS[key]?.label || key, bonus: awarded, isFirst, firstBonus });
     });
 
     // Travel corridor completion — flat 150/75 (corridor states are always Common by definition)
@@ -1667,13 +1764,9 @@ function computePlayerStats(playerKey) {
     const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
     let corridorBonus = 0;
     if (corridorComplete) {
-        const myTime = getCompletionTime(player.states, corridorStates);
-        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
-            if (pKey === playerKey) return false;
-            const theirTime = getCompletionTime(pData?.states || {}, corridorStates);
-            return theirTime !== null && theirTime < myTime;
-        });
-        corridorBonus = someoneFinishedEarlier ? 75 : 150;
+        const record = gameData?.completedCorridor;
+        const isFirst = record ? record.playerKey === playerKey : true;
+        corridorBonus = isFirst ? 150 : 75;
         score += corridorBonus;
     }
 
