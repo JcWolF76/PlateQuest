@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423h';
+const APP_VERSION = '20260423i';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -55,80 +55,86 @@ const CANADA_PLATES = [
 ];
 
 const PRIMARY_REGIONS = {
-    // Broad regions
-    eastern_us:        { label: 'Eastern US' },
-    western_us:        { label: 'Western US' },
-    // East
+    // Eight non-overlapping primary regions — all 50 US states, exactly once
+    new_england:   { label: 'New England' },
+    mid_atlantic:  { label: 'Mid-Atlantic' },
+    southeast:     { label: 'Southeast' },
+    gulf_south:    { label: 'Gulf South' },
+    great_lakes:   { label: 'Great Lakes' },
+    great_plains:  { label: 'Great Plains' },
+    mountain_west: { label: 'Mountain West' },
+    pacific:       { label: 'Pacific' },
+    // Broad presets
+    eastern_us:    { label: 'Eastern US' },
+    western_us:    { label: 'Western US' },
+    national:      { label: 'National / Balanced' },
+    // Legacy keys — kept so existing packs continue to display correctly
     northeast:         { label: 'Northeast' },
-    mid_atlantic:      { label: 'Mid-Atlantic' },
-    southeast:         { label: 'Southeast' },
     south:             { label: 'Southern States' },
     gulf_coast:        { label: 'Gulf Coast' },
-    // Central
     midwest:           { label: 'Midwest' },
-    great_plains:      { label: 'Great Plains' },
-    // West
-    mountain_west:     { label: 'Mountain West' },
     southwest:         { label: 'Southwest' },
     pacific_northwest: { label: 'Pacific Northwest' },
     west_coast:        { label: 'West Coast' },
-    // National
-    national:          { label: 'National / Balanced' },
-    // Legacy keys (existing packs may use these)
-    east_coast:        { label: 'East Coast' }
+    east_coast:        { label: 'East Coast' },
 };
 
 const SUB_REGIONS = {
-    new_england:      { label: 'New England',       states: ['Maine','New Hampshire','Vermont','Massachusetts','Rhode Island','Connecticut'] },
-    mid_atlantic:     { label: 'Mid-Atlantic',       states: ['New York','New Jersey','Pennsylvania','Delaware','Maryland'] },
-    appalachian:      { label: 'Appalachian',        states: ['West Virginia','Virginia','Kentucky','Tennessee','North Carolina'] },
+    // US sub-regions — thematic groupings, distinct names from all primary regions
+    appalachia:       { label: 'Appalachia',        states: ['West Virginia','Virginia','Kentucky','Tennessee','North Carolina'] },
+    chesapeake_bay:   { label: 'Chesapeake Bay',    states: ['Maryland','Delaware','Virginia'] },
+    the_carolinas:    { label: 'The Carolinas',     states: ['North Carolina','South Carolina'] },
+    deep_south:       { label: 'Deep South',        states: ['Alabama','Mississippi','Georgia','South Carolina'] },
+    gulf_coast:       { label: 'Gulf Coast',        states: ['Florida','Alabama','Mississippi','Louisiana','Texas'] },
+    four_corners:     { label: 'Four Corners',      states: ['Utah','Colorado','Arizona','New Mexico'] },
+    rocky_mountains:  { label: 'Rocky Mountains',   states: ['Montana','Idaho','Wyoming','Colorado'] },
+    pacific_northwest:{ label: 'Pacific Northwest', states: ['Washington','Oregon'] },
+    southwest_desert: { label: 'Southwest Desert',  states: ['Arizona','New Mexico','Nevada'] },
+    corn_belt:        { label: 'Corn Belt',         states: ['Iowa','Illinois','Indiana','Ohio','Missouri'] },
+    non_contiguous:   { label: 'Non-Contiguous',    states: ['Alaska','Hawaii'] },
     eastern_seaboard: { label: 'Eastern Seaboard',  states: ['Maine','New Hampshire','Massachusetts','Rhode Island','Connecticut','New York','New Jersey','Pennsylvania','Delaware','Maryland','Virginia','North Carolina','South Carolina','Georgia','Florida'] },
-    great_lakes:      { label: 'Great Lakes',        states: ['Michigan','Ohio','Indiana','Illinois','Wisconsin','Minnesota'] },
-    midwest_plains:   { label: 'Midwest Plains',     states: ['Iowa','Missouri','North Dakota','South Dakota','Nebraska','Kansas'] },
-    deep_south:       { label: 'Deep South',         states: ['Alabama','Mississippi','Georgia','South Carolina'] },
-    gulf_coast:       { label: 'Gulf Coast',         states: ['Florida','Alabama','Mississippi','Louisiana','Texas'] },
-    south_central:    { label: 'South Central',      states: ['Arkansas','Louisiana','Oklahoma','Texas'] },
-    mountain_west:    { label: 'Mountain West',      states: ['Montana','Idaho','Wyoming','Colorado','Utah','Nevada'] },
-    desert_southwest: { label: 'Desert Southwest',   states: ['Arizona','New Mexico','Nevada'] },
-    pacific_northwest:{ label: 'Pacific Northwest',  states: ['Washington','Oregon'] },
-    pacific_coast:    { label: 'Pacific Coast',      states: ['California','Oregon','Washington'] },
-    non_contiguous:   { label: 'Non-Contiguous',     states: ['Alaska','Hawaii'] },
-    canada_east:      { label: 'Eastern Canada',     states: ['Ontario','Quebec','New Brunswick','Nova Scotia','Prince Edward Island','Newfoundland and Labrador'] },
-    canada_central:   { label: 'Central Canada',     states: ['Manitoba','Saskatchewan'] },
-    canada_west:      { label: 'Western Canada',     states: ['Alberta','British Columbia'] },
-    canada_territories:{ label: 'Canadian Territories', states: ['Yukon','Northwest Territories','Nunavut'] }
+    // Canadian sub-regions
+    canada_east:        { label: 'Eastern Canada',       states: ['Ontario','Quebec','New Brunswick','Nova Scotia','Prince Edward Island','Newfoundland and Labrador'] },
+    canada_central:     { label: 'Central Canada',       states: ['Manitoba','Saskatchewan'] },
+    canada_west:        { label: 'Western Canada',       states: ['Alberta','British Columbia'] },
+    canada_territories: { label: 'Canadian Territories', states: ['Yukon','Northwest Territories','Nunavut'] },
 };
 
 // Primary regions with state lists for completion tracking and badges.
 // Keys match PRIMARY_REGIONS; state names match US_PLATES exactly.
 const REGION_STATES = {
-    northeast:         ['Maine','New Hampshire','Vermont','Massachusetts','Rhode Island','Connecticut','New York','New Jersey','Pennsylvania'],
-    mid_atlantic:      ['New York','New Jersey','Pennsylvania','Delaware','Maryland','Virginia','West Virginia'],
-    southeast:         ['Virginia','North Carolina','South Carolina','Georgia','Florida'],
-    south:             ['Tennessee','Kentucky','Alabama','Mississippi','Arkansas','Louisiana'],
-    gulf_coast:        ['Florida','Alabama','Mississippi','Louisiana','Texas'],
-    midwest:           ['Ohio','Michigan','Indiana','Illinois','Wisconsin','Minnesota','Iowa','Missouri'],
-    great_plains:      ['North Dakota','South Dakota','Nebraska','Kansas','Missouri','Iowa'],
-    mountain_west:     ['Montana','Idaho','Wyoming','Colorado','Utah','Nevada'],
-    southwest:         ['Arizona','New Mexico','Texas','Nevada'],
-    pacific_northwest: ['Washington','Oregon'],
-    west_coast:        ['Washington','Oregon','California'],
+    new_england:   ['Maine','New Hampshire','Vermont','Massachusetts','Rhode Island','Connecticut'],
+    mid_atlantic:  ['New York','New Jersey','Pennsylvania','Delaware','Maryland','Virginia','West Virginia'],
+    southeast:     ['North Carolina','South Carolina','Georgia','Florida','Tennessee','Kentucky'],
+    gulf_south:    ['Alabama','Mississippi','Louisiana','Arkansas','Texas','Oklahoma'],
+    great_lakes:   ['Ohio','Michigan','Indiana','Illinois','Wisconsin','Minnesota'],
+    great_plains:  ['Iowa','Missouri','North Dakota','South Dakota','Nebraska','Kansas'],
+    mountain_west: ['Montana','Idaho','Wyoming','Colorado','Utah','Nevada','Arizona','New Mexico'],
+    pacific:       ['Washington','Oregon','California','Alaska','Hawaii'],
 };
 
 const PLAY_AREA_PRESETS = {
+    // Primary region presets — match new 8-region structure
+    new_england:   ['ME','NH','VT','MA','RI','CT'],
+    mid_atlantic:  ['NY','NJ','PA','DE','MD','VA','WV'],
+    southeast:     ['NC','SC','GA','FL','TN','KY'],
+    gulf_south:    ['AL','MS','LA','AR','TX','OK'],
+    great_lakes:   ['OH','MI','IN','IL','WI','MN'],
+    great_plains:  ['IA','MO','ND','SD','NE','KS'],
+    mountain_west: ['MT','ID','WY','CO','UT','NV','AZ','NM'],
+    pacific:       ['WA','OR','CA','AK','HI'],
+    // Broad presets
+    eastern_us:    ['ME','NH','VT','MA','RI','CT','NY','NJ','PA','DE','MD','VA','WV','NC','SC','GA','FL','OH','MI','IN','IL','WI','MN','IA','MO','KY','TN','AL','MS','AR','LA'],
+    western_us:    ['MT','ID','WY','CO','UT','NV','AZ','NM','WA','OR','CA','ND','SD','NE','KS','OK','TX','AK','HI'],
+    national:      ['ME','NH','VT','MA','RI','CT','NY','NJ','PA','DE','MD','VA','WV','NC','SC','GA','FL','OH','MI','IN','IL','WI','MN','IA','MO','TN','KY','AL','MS','AR','LA','ND','SD','NE','KS','OK','TX','MT','ID','WY','CO','UT','NV','AZ','NM','WA','OR','CA'],
+    // Legacy presets — backward compatibility
     northeast:         ['ME','NH','VT','MA','RI','CT','NY','NJ','PA'],
-    mid_atlantic:      ['NY','NJ','PA','DE','MD','VA','WV'],
-    southeast:         ['VA','NC','SC','GA','FL'],
     gulf_coast:        ['FL','AL','MS','LA','TX'],
     midwest:           ['OH','MI','IN','IL','WI','MN','IA','MO'],
-    great_plains:      ['ND','SD','NE','KS','MO','IA'],
-    mountain_west:     ['MT','ID','WY','CO','UT','NV'],
     southwest:         ['AZ','NM','TX','NV'],
     pacific_northwest: ['WA','OR'],
     west_coast:        ['WA','OR','CA'],
-    eastern_us:        ['ME','NH','VT','MA','RI','CT','NY','NJ','PA','DE','MD','VA','WV','NC','SC','GA','FL','OH','MI','IN','IL','WI','MN','IA','MO','KY','TN','AL','MS','AR','LA'],
-    western_us:        ['MT','ID','WY','CO','UT','NV','AZ','NM','WA','OR','CA','ND','SD','NE','KS','OK','TX','AK','HI'],
-    west:              ['WA','OR','CA','ID','NV','UT','AZ','MT','WY','CO','NM','AK','HI']  // legacy
+    west:              ['WA','OR','CA','ID','NV','UT','AZ','MT','WY','CO','NM','AK','HI'],
 };
 
 // Expose shared constants so the companion inline script can reference them
@@ -295,37 +301,33 @@ const BADGE_DEFS = [
     { id:'found_guam',        group:'elite',       icon:'🌐', label:'Pacific Rim',      desc:'Found Guam',                     test:s=>s.foundSet.has('Guam') },
     { id:'found_cnmi',        group:'elite',       icon:'🗺️',label:'Marianas',         desc:'Found Northern Mariana Islands', test:s=>s.foundSet.has('Northern Mariana Islands') },
     { id:'territory_hunter',  group:'elite',       icon:'🎖️',label:'Territory Hunter', desc:'Found all 5 U.S. territories',  test:s=>['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands'].every(t=>s.foundSet.has(t)) },
-    // Sub-region completions
-    { id:'sub_new_england',   group:'region', icon:'🦞', label:'New England',       desc:'Completed New England',       test:s=>s.completedSubs.includes('new_england') },
-    { id:'sub_mid_atlantic',  group:'region', icon:'🗽', label:'Mid-Atlantic',       desc:'Completed Mid-Atlantic',      test:s=>s.completedSubs.includes('mid_atlantic') },
-    { id:'sub_appalachian',   group:'region', icon:'⛰️', label:'Appalachian',        desc:'Completed Appalachian',       test:s=>s.completedSubs.includes('appalachian') },
-    { id:'sub_great_lakes',   group:'region', icon:'🚢', label:'Great Lakes',        desc:'Completed Great Lakes',       test:s=>s.completedSubs.includes('great_lakes') },
-    { id:'sub_midwest_plains',group:'region', icon:'🌾', label:'Midwest Plains',     desc:'Completed Midwest Plains',    test:s=>s.completedSubs.includes('midwest_plains') },
-    { id:'sub_deep_south',    group:'region', icon:'🌿', label:'Deep South',         desc:'Completed Deep South',        test:s=>s.completedSubs.includes('deep_south') },
-    { id:'sub_gulf_coast',    group:'region', icon:'🦈', label:'Gulf Coast',         desc:'Completed Gulf Coast',        test:s=>s.completedSubs.includes('gulf_coast') },
-    { id:'sub_south_central', group:'region', icon:'🤠', label:'South Central',      desc:'Completed South Central',     test:s=>s.completedSubs.includes('south_central') },
-    { id:'sub_mountain_west', group:'region', icon:'🏔️', label:'Mountain West',      desc:'Completed Mountain West',     test:s=>s.completedSubs.includes('mountain_west') },
-    { id:'sub_desert_sw',     group:'region', icon:'🌵', label:'Desert Southwest',   desc:'Completed Desert Southwest',  test:s=>s.completedSubs.includes('desert_southwest') },
-    { id:'sub_pacific_nw',    group:'region', icon:'🌲', label:'Pacific NW',         desc:'Completed Pacific Northwest', test:s=>s.completedSubs.includes('pacific_northwest') },
-    { id:'sub_pacific_coast', group:'region', icon:'🏄', label:'Pacific Coast',      desc:'Completed Pacific Coast',     test:s=>s.completedSubs.includes('pacific_coast') },
-    { id:'sub_non_contiguous',group:'region', icon:'✈️', label:'Non-Contiguous',     desc:'Found Alaska & Hawaii',       test:s=>s.completedSubs.includes('non_contiguous') },
+    // Sub-region completions (12 US + 4 Canada, distinct from primary region names)
+    { id:'sub_appalachia',     group:'region', icon:'⛰️', label:'Appalachia',        desc:'Completed Appalachia',             test:s=>s.completedSubs.includes('appalachia') },
+    { id:'sub_chesapeake',     group:'region', icon:'🦀', label:'Chesapeake Bay',    desc:'Completed the Chesapeake Bay',     test:s=>s.completedSubs.includes('chesapeake_bay') },
+    { id:'sub_carolinas',      group:'region', icon:'🌿', label:'The Carolinas',     desc:'Completed the Carolinas',          test:s=>s.completedSubs.includes('the_carolinas') },
+    { id:'sub_deep_south',     group:'region', icon:'🌴', label:'Deep South',        desc:'Completed the Deep South',         test:s=>s.completedSubs.includes('deep_south') },
+    { id:'sub_gulf_coast',     group:'region', icon:'🦈', label:'Gulf Coast',        desc:'Completed the Gulf Coast',         test:s=>s.completedSubs.includes('gulf_coast') },
+    { id:'sub_four_corners',   group:'region', icon:'🗿', label:'Four Corners',      desc:'Completed the Four Corners',       test:s=>s.completedSubs.includes('four_corners') },
+    { id:'sub_rocky_mts',      group:'region', icon:'🏔️', label:'Rocky Mountains',  desc:'Completed the Rocky Mountains',    test:s=>s.completedSubs.includes('rocky_mountains') },
+    { id:'sub_pacific_nw',     group:'region', icon:'🌲', label:'Pacific Northwest', desc:'Completed the Pacific Northwest',  test:s=>s.completedSubs.includes('pacific_northwest') },
+    { id:'sub_sw_desert',      group:'region', icon:'🌵', label:'Southwest Desert',  desc:'Completed the Southwest Desert',   test:s=>s.completedSubs.includes('southwest_desert') },
+    { id:'sub_corn_belt',      group:'region', icon:'🌾', label:'Corn Belt',         desc:'Completed the Corn Belt',          test:s=>s.completedSubs.includes('corn_belt') },
+    { id:'sub_non_contiguous', group:'region', icon:'✈️', label:'Non-Contiguous',   desc:'Found Alaska & Hawaii',            test:s=>s.completedSubs.includes('non_contiguous') },
+    { id:'sub_seaboard',       group:'region', icon:'🌊', label:'Eastern Seaboard', desc:'Completed the Eastern Seaboard',   test:s=>s.completedSubs.includes('eastern_seaboard') },
     // Canadian sub-region completions
     { id:'sub_canada_east',        group:'region', icon:'🍁', label:'Eastern Canada',    desc:'Completed Eastern Canada',           test:s=>s.completedSubs.includes('canada_east') },
     { id:'sub_canada_central',     group:'region', icon:'🦌', label:'Central Canada',    desc:'Completed Central Canada',           test:s=>s.completedSubs.includes('canada_central') },
     { id:'sub_canada_west',        group:'region', icon:'🦫', label:'Western Canada',    desc:'Completed Western Canada',           test:s=>s.completedSubs.includes('canada_west') },
     { id:'sub_canada_territories', group:'region', icon:'🌌', label:'Great White North', desc:'Completed the Canadian Territories', test:s=>s.completedSubs.includes('canada_territories') },
-    // Primary region completions
-    { id:'region_northeast',     group:'region', icon:'🗽', label:'The Northeast',   desc:'Completed the Northeast',         test:s=>s.completedRegions?.includes('northeast') },
-    { id:'region_mid_atlantic',  group:'region', icon:'🦀', label:'Mid-Atlantic',    desc:'Completed the Mid-Atlantic',      test:s=>s.completedRegions?.includes('mid_atlantic') },
-    { id:'region_southeast',     group:'region', icon:'🌴', label:'The Southeast',   desc:'Completed the Southeast',         test:s=>s.completedRegions?.includes('southeast') },
-    { id:'region_south',         group:'region', icon:'🎸', label:'The South',       desc:'Completed the South',             test:s=>s.completedRegions?.includes('south') },
-    { id:'region_gulf_coast',    group:'region', icon:'🦐', label:'Gulf Coast',      desc:'Completed the Gulf Coast',        test:s=>s.completedRegions?.includes('gulf_coast') },
-    { id:'region_midwest',       group:'region', icon:'🌽', label:'The Midwest',     desc:'Completed the Midwest',           test:s=>s.completedRegions?.includes('midwest') },
-    { id:'region_great_plains',  group:'region', icon:'🦬', label:'Great Plains',    desc:'Completed the Great Plains',      test:s=>s.completedRegions?.includes('great_plains') },
-    { id:'region_mountain_west', group:'region', icon:'🏔️',label:'Mountain West',   desc:'Completed the Mountain West',     test:s=>s.completedRegions?.includes('mountain_west') },
-    { id:'region_southwest',     group:'region', icon:'🌵', label:'The Southwest',   desc:'Completed the Southwest',         test:s=>s.completedRegions?.includes('southwest') },
-    { id:'region_pacific_nw',    group:'region', icon:'🌲', label:'Pacific NW',      desc:'Completed the Pacific Northwest', test:s=>s.completedRegions?.includes('pacific_northwest') },
-    { id:'region_west_coast',    group:'region', icon:'🏄', label:'West Coast',      desc:'Completed the West Coast',        test:s=>s.completedRegions?.includes('west_coast') },
+    // Primary region completions (8 non-overlapping regions covering all 50 states)
+    { id:'region_new_england',   group:'region', icon:'🦞', label:'New England',   desc:'Completed New England',      test:s=>s.completedRegions?.includes('new_england') },
+    { id:'region_mid_atlantic',  group:'region', icon:'🗽', label:'Mid-Atlantic',  desc:'Completed the Mid-Atlantic', test:s=>s.completedRegions?.includes('mid_atlantic') },
+    { id:'region_southeast',     group:'region', icon:'🌴', label:'Southeast',     desc:'Completed the Southeast',    test:s=>s.completedRegions?.includes('southeast') },
+    { id:'region_gulf_south',    group:'region', icon:'🤠', label:'Gulf South',    desc:'Completed the Gulf South',   test:s=>s.completedRegions?.includes('gulf_south') },
+    { id:'region_great_lakes',   group:'region', icon:'🚢', label:'Great Lakes',   desc:'Completed the Great Lakes',  test:s=>s.completedRegions?.includes('great_lakes') },
+    { id:'region_great_plains',  group:'region', icon:'🦬', label:'Great Plains',  desc:'Completed the Great Plains', test:s=>s.completedRegions?.includes('great_plains') },
+    { id:'region_mountain_west', group:'region', icon:'🏔️',label:'Mountain West', desc:'Completed the Mountain West',test:s=>s.completedRegions?.includes('mountain_west') },
+    { id:'region_pacific',       group:'region', icon:'🌊', label:'Pacific',       desc:'Completed the Pacific',      test:s=>s.completedRegions?.includes('pacific') },
     // Travel corridor
     { id:'corridor_complete', group:'corridor', icon:'🛣️',label:'Home Ground',       desc:'Found all corridor plates',   test:s=>s.corridorComplete },
 ];
@@ -1595,6 +1597,13 @@ function getCompletionTime(playerStates, stateNames) {
     return Math.max(...stateNames.map(s => playerStates[s]?.foundAt || 0));
 }
 
+function computeRegionBonus(stateNames, corridor, multiplier, floor) {
+    const raritySum = stateNames.reduce((total, name) => {
+        return total + RARITY_CONFIG[computeRarityForState(name, corridor)].points;
+    }, 0);
+    return Math.round(Math.max(floor, raritySum * multiplier) / 5) * 5;
+}
+
 function computePlayerStats(playerKey) {
     const player = playersData[playerKey];
     if (!player) return null;
@@ -1615,11 +1624,12 @@ function computePlayerStats(playerKey) {
         score += isFirst ? pts : pts / 2;
     });
 
-    // Sub-region completions — +60 pts first in pack, +30 pts otherwise
+    // Sub-region completions — rarity-weighted: max(60, raritySum × 1.5), first/later split
     const completedSubs = Object.entries(SUB_REGIONS)
         .filter(([, region]) => region.states.every(s => foundSet.has(s)))
         .map(([key]) => key);
 
+    const completedSubBonuses = [];
     completedSubs.forEach(key => {
         const myTime = getCompletionTime(player.states, SUB_REGIONS[key].states);
         const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
@@ -1627,14 +1637,18 @@ function computePlayerStats(playerKey) {
             const theirTime = getCompletionTime(pData?.states || {}, SUB_REGIONS[key].states);
             return theirTime !== null && theirTime < myTime;
         });
-        score += someoneFinishedEarlier ? 30 : 60;
+        const firstBonus = computeRegionBonus(SUB_REGIONS[key].states, corridor, 1.5, 60);
+        const awarded = someoneFinishedEarlier ? Math.ceil(firstBonus / 2) : firstBonus;
+        score += awarded;
+        completedSubBonuses.push({ key, label: SUB_REGIONS[key].label, bonus: awarded, isFirst: !someoneFinishedEarlier, firstBonus });
     });
 
-    // Primary region completions — +100 pts first to finish, +50 pts otherwise
+    // Primary region completions — rarity-weighted: max(100, raritySum × 1.5), first/later split
     const completedRegions = Object.entries(REGION_STATES)
         .filter(([, states]) => states.every(s => foundSet.has(s)))
         .map(([key]) => key);
 
+    const completedRegionBonuses = [];
     completedRegions.forEach(key => {
         const myTime = getCompletionTime(player.states, REGION_STATES[key]);
         const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
@@ -1642,12 +1656,16 @@ function computePlayerStats(playerKey) {
             const theirTime = getCompletionTime(pData?.states || {}, REGION_STATES[key]);
             return theirTime !== null && theirTime < myTime;
         });
-        score += someoneFinishedEarlier ? 50 : 100;
+        const firstBonus = computeRegionBonus(REGION_STATES[key], corridor, 1.5, 100);
+        const awarded = someoneFinishedEarlier ? Math.ceil(firstBonus / 2) : firstBonus;
+        score += awarded;
+        completedRegionBonuses.push({ key, label: PRIMARY_REGIONS[key]?.label || key, bonus: awarded, isFirst: !someoneFinishedEarlier, firstBonus });
     });
 
-    // Travel corridor completion — +150 pts first to finish, +75 pts otherwise
+    // Travel corridor completion — flat 150/75 (corridor states are always Common by definition)
     const corridorStates = gameData?.settings?.playAreaStates || [];
     const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
+    let corridorBonus = 0;
     if (corridorComplete) {
         const myTime = getCompletionTime(player.states, corridorStates);
         const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
@@ -1655,10 +1673,11 @@ function computePlayerStats(playerKey) {
             const theirTime = getCompletionTime(pData?.states || {}, corridorStates);
             return theirTime !== null && theirTime < myTime;
         });
-        score += someoneFinishedEarlier ? 75 : 150;
+        corridorBonus = someoneFinishedEarlier ? 75 : 150;
+        score += corridorBonus;
     }
 
-    return { foundSet, foundCount, firstCount, score, completedSubs, completedRegions, corridorComplete };
+    return { foundSet, foundCount, firstCount, score, completedSubs, completedRegions, corridorComplete, completedSubBonuses, completedRegionBonuses, corridorBonus };
 }
 
 function getPlayerBadges(playerKey) {
