@@ -1731,9 +1731,13 @@ function openPlayerDetail(playerKey) {
             const d = byTier[t];
             return `<div class="breakdown-row"><span class="rarity-badge rarity-${t}">${cfg.label}</span><span class="breakdown-count">${d.count} plate${d.count !== 1 ? 's' : ''}</span><span class="breakdown-pts">${d.pts} pts</span></div>`;
         });
-        if (stats.completedSubs.length) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Sub-region bonuses</span><span class="breakdown-count">${stats.completedSubs.length} sub-region${stats.completedSubs.length !== 1 ? 's' : ''}</span><span class="breakdown-pts">+30–60 pts ea</span></div>`);
-        if (stats.completedRegions?.length) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Regional bonuses</span><span class="breakdown-count">${stats.completedRegions.length} region${stats.completedRegions.length !== 1 ? 's' : ''}</span><span class="breakdown-pts">+50–100 pts ea</span></div>`);
-        if (stats.corridorComplete) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">Corridor complete</span><span class="breakdown-count"></span><span class="breakdown-pts">+75–150 pts</span></div>`);
+        (stats.completedSubBonuses || []).forEach(({ label, bonus, isFirst }) => {
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🗺️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span></div>`);
+        });
+        (stats.completedRegionBonuses || []).forEach(({ label, bonus, isFirst }) => {
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🏛️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span></div>`);
+        });
+        if (stats.corridorComplete) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🛣️ Corridor Complete</span><span class="breakdown-count">${stats.corridorBonus === 150 ? '1st' : 'later'}</span><span class="breakdown-pts">+${stats.corridorBonus || 75} pts</span></div>`);
         breakdownEl.innerHTML = rows.join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
