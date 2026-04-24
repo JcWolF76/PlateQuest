@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423j';
+const APP_VERSION = '20260423k';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -1427,9 +1427,56 @@ async function openAuditModal() {
     pendingAuditResults = null;
     if (body) body.innerHTML = '<div class="audit-loading">🔍 Analyzing timestamps…</div>';
     if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Apply Corrections'; }
+    renderRegionRecords();
     modal.style.display = 'flex';
     pendingAuditResults = await computeAuditCorrections();
     renderAuditBody(pendingAuditResults);
+}
+
+function renderRegionRecords() {
+    const container = document.getElementById('regionRecordsBody');
+    if (!container) return;
+
+    const subRecs = gameData?.completedSubRegions || {};
+    const regRecs = gameData?.completedRegions || {};
+    const corRec  = gameData?.completedCorridor;
+
+    const items = [];
+    Object.entries(subRecs).forEach(([key, rec]) => {
+        items.push({ path: `completedSubRegions/${key}`, icon: '🗺️', label: SUB_REGIONS[key]?.label || key, winner: rec.displayName });
+    });
+    Object.entries(regRecs).forEach(([key, rec]) => {
+        items.push({ path: `completedRegions/${key}`, icon: '🏛️', label: PRIMARY_REGIONS[key]?.label || key, winner: rec.displayName });
+    });
+    if (corRec) items.push({ path: 'completedCorridor', icon: '🚗', label: 'Travel Corridor', winner: corRec.displayName });
+
+    if (!items.length) { container.style.display = 'none'; return; }
+
+    container.style.display = '';
+    container.innerHTML = `
+        <div class="region-records-section">
+            <div class="region-records-title">Region Completion Records</div>
+            ${items.map(({ path, icon, label, winner }) =>
+                `<div class="region-record-item">
+                    <span>${icon} ${label} <span class="region-record-winner">• ${winner}</span></span>
+                    <button class="btn-clear-record" onclick="clearRegionRecord('${path}')">Clear</button>
+                </div>`
+            ).join('')}
+            <div class="audit-note" style="margin-top:4px">Clearing removes the bonus and lets the region be re-earned. Use only to correct an accidental selection.</div>
+        </div>`;
+}
+
+async function clearRegionRecord(path) {
+    if (!currentGameRef) return;
+    if (!confirm('Remove this region completion record? The bonus is lost and the region can be re-earned by the first player to legitimately complete it.')) return;
+    try {
+        await currentGameRef.child(path).set(null);
+        showToast('Region record cleared.', 'info');
+        renderRegionRecords();
+    } catch (err) {
+        console.error('clearRegionRecord failed:', err);
+        showToast('Failed to clear record.', 'error');
+    }
 }
 
 function closeAuditModal() {
