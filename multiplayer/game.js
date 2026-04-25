@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423u';
+const APP_VERSION = '20260423v';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -1086,7 +1086,7 @@ function updateScores() {
         const marker = isMe ? '🐺' : (player.connected ? '👤' : '💤');
         const badges = getPlayerBadges(player.playerKey);
         const badgeRow = badges.length
-            ? `<div class="badge-row">${badges.slice(0, 6).map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}</div>`
+            ? `<div class="badge-row">${badges.slice(0, 5).map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}${badges.length > 5 ? `<span class="badge-mini-more">+${badges.length - 5}</span>` : ''}</div>`
             : '';
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
@@ -1633,46 +1633,57 @@ async function openAuditModal() {
         return;
     }
 
-    const { corrections } = results;
+    const { corrections, regionCorrections } = results;
+    const totalFixes = corrections.length + regionCorrections.length;
 
-    if (!corrections.length) {
-        if (body) body.innerHTML = '<div class="audit-ok">✅ All first-finder records are accurate — no changes needed.</div>';
+    if (!totalFixes) {
+        if (body) body.innerHTML = '<div class="audit-ok">✅ All records are accurate — no changes needed.</div>';
         return;
     }
 
-    // Auto-apply corrections immediately
     if (body) body.innerHTML = '<div class="audit-loading">⚙️ Applying corrections…</div>';
     try {
         const updates = {};
+
+        // Plate first-finder fixes
         corrections.forEach(c => {
             if (c.type === 'remove') {
                 updates[`claimedStates/${c.stateName}`] = null;
             } else {
                 updates[`claimedStates/${c.stateName}`] = {
-                    state: c.stateName,
-                    playerKey: c.newPlayerKey,
-                    name: c.newPlayerData.name,
-                    tag: c.newPlayerData.tag,
-                    displayName: c.newPlayerData.displayName,
-                    claimedAt: c.foundAt,
+                    state: c.stateName, playerKey: c.newPlayerKey,
+                    name: c.newPlayerData.name, tag: c.newPlayerData.tag,
+                    displayName: c.newPlayerData.displayName, claimedAt: c.foundAt,
                 };
             }
         });
+
+        // Region / corridor completion fixes (force-write, bypasses transaction guards)
+        regionCorrections.forEach(c => { updates[c.path] = c.value; });
+
         updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         await currentGameRef.update(updates);
 
-        const MAX_SHOWN = 20;
-        const items = corrections.slice(0, MAX_SHOWN).map(c => {
+        const MAX_SHOWN = 25;
+        const plateItems = corrections.slice(0, MAX_SHOWN).map(c => {
             if (c.type === 'remove') return `<div class="audit-item audit-item-remove">🗑️ <strong>${c.stateName}</strong> — removed orphaned claim</div>`;
-            const arrow = c.oldPlayerName
-                ? `${c.oldPlayerName} → <strong>${c.newPlayerData.displayName}</strong>`
-                : `set <strong>${c.newPlayerData.displayName}</strong> as first finder`;
-            return `<div class="audit-item">✅ <strong>${c.stateName}</strong>: ${arrow}</div>`;
+            const arrow = c.oldPlayerName ? `${c.oldPlayerName} → <strong>${c.newPlayerData.displayName}</strong>` : `<strong>${c.newPlayerData.displayName}</strong> set as first finder`;
+            return `<div class="audit-item">🔖 <strong>${c.stateName}</strong>: ${arrow}</div>`;
         }).join('');
-        const overflow = corrections.length > MAX_SHOWN ? `<div class="audit-more">…and ${corrections.length - MAX_SHOWN} more</div>` : '';
+        const regionItems = regionCorrections.map(c => {
+            if (c.type === 'remove') return `<div class="audit-item audit-item-remove">🗑️ <strong>${c.label}</strong> — removed invalid completion record</div>`;
+            const arrow = c.oldName ? `${c.oldName} → <strong>${c.newName}</strong>` : `<strong>${c.newName}</strong> set as first completer`;
+            return `<div class="audit-item">🗺️ <strong>${c.label}</strong>: ${arrow}</div>`;
+        }).join('');
+        const overflow = corrections.length > MAX_SHOWN ? `<div class="audit-more">…and ${corrections.length - MAX_SHOWN} more plate fixes</div>` : '';
+
+        let summary = '';
+        if (corrections.length) summary += `${corrections.length} plate first-finder record${corrections.length === 1 ? '' : 's'}`;
+        if (regionCorrections.length) summary += (summary ? ' · ' : '') + `${regionCorrections.length} region completion record${regionCorrections.length === 1 ? '' : 's'}`;
+
         if (body) body.innerHTML = `
-            <div class="audit-ok">✅ Fixed ${corrections.length} first-finder record${corrections.length === 1 ? '' : 's'} — scores updated for all players.</div>
-            <div class="audit-list" style="margin-top:10px">${items}${overflow}</div>`;
+            <div class="audit-ok">✅ Fixed ${summary} — scores &amp; badges updated for all players.</div>
+            <div class="audit-list" style="margin-top:10px">${plateItems}${overflow}${regionItems}</div>`;
     } catch (err) {
         console.error('Audit auto-apply failed:', err);
         if (body) body.innerHTML = '<div class="audit-error">⚠️ Could not apply corrections. Check your connection and try again.</div>';
@@ -1947,21 +1958,19 @@ async function computeAuditCorrections() {
         const players = normalizePlayers(room.players || {});
         const currentClaims = room.claimedStates || {};
 
-        // Find the true first-finder for every state.
-        // For the current claimer, use claimedAt (original find time, never cleared on deselect).
-        // For other players, use foundAt. Only reassign if another player's foundAt predates claimedAt.
+        // ── Plate first-finder corrections ───────────────────────────────────────
         const earliestByState = {};
 
         // Seed with current claimers using their original claimedAt timestamp
         Object.entries(currentClaims).forEach(([stateName, claimData]) => {
             const playerKey = claimData.playerKey;
             const playerData = players[playerKey];
-            if (!playerData) return; // claimer no longer in game — will be orphaned below
+            if (!playerData) return;
             const t = typeof claimData.claimedAt === 'number' ? claimData.claimedAt : 0;
             earliestByState[stateName] = { playerKey, playerData, foundAt: t };
         });
 
-        // Override only if another player's foundAt is strictly earlier than the claimer's claimedAt
+        // Override only if another player's foundAt is strictly earlier
         Object.entries(players).forEach(([playerKey, playerData]) => {
             Object.entries(playerData.states || {}).forEach(([stateName, stateData]) => {
                 const t = typeof stateData.foundAt === 'number' ? stateData.foundAt : 0;
@@ -1974,120 +1983,82 @@ async function computeAuditCorrections() {
         });
 
         const corrections = [];
-
-        // States whose first-finder is wrong or missing
         Object.entries(earliestByState).forEach(([stateName, { playerKey, playerData, foundAt }]) => {
             const existing = currentClaims[stateName];
             if (!existing || existing.playerKey !== playerKey) {
-                corrections.push({
-                    type: 'correct',
-                    stateName,
-                    newPlayerKey: playerKey,
-                    newPlayerData: playerData,
-                    foundAt,
-                    oldPlayerName: existing
-                        ? (players[existing.playerKey]?.displayName || existing.displayName || existing.playerKey)
-                        : null,
-                });
+                corrections.push({ type: 'correct', stateName, newPlayerKey: playerKey, newPlayerData: playerData, foundAt,
+                    oldPlayerName: existing ? (players[existing.playerKey]?.displayName || existing.displayName || existing.playerKey) : null });
             }
         });
-
-        // Orphaned claims for states no player currently holds
         Object.keys(currentClaims).forEach(stateName => {
             if (!earliestByState[stateName]) {
-                corrections.push({
-                    type: 'remove',
-                    stateName,
-                    oldPlayerName: players[currentClaims[stateName]?.playerKey]?.displayName
-                        || currentClaims[stateName]?.displayName || '?',
-                });
+                corrections.push({ type: 'remove', stateName,
+                    oldPlayerName: players[currentClaims[stateName]?.playerKey]?.displayName || currentClaims[stateName]?.displayName || '?' });
             }
         });
 
-        return { corrections, players };
+        // ── Region completion corrections ─────────────────────────────────────────
+        // Find the player who completed a set of states first (by max foundAt across those states).
+        const findEarliestCompleter = (stateNames) => {
+            let best = null;
+            Object.entries(players).forEach(([playerKey, playerData]) => {
+                const pStates = playerData.states || {};
+                if (!stateNames.every(s => pStates[s])) return;
+                const t = getCompletionTime(pStates, stateNames);
+                if (t !== null && (best === null || t < best.t)) {
+                    best = { playerKey, displayName: playerData.displayName, t };
+                }
+            });
+            return best;
+        };
+
+        const regionCorrections = [];
+
+        Object.entries(SUB_REGIONS).forEach(([key, region]) => {
+            const best = findEarliestCompleter(region.states);
+            const existing = room.completedSubRegions?.[key];
+            if (!best && existing) {
+                regionCorrections.push({ path: `completedSubRegions/${key}`, value: null, label: region.label, type: 'remove' });
+            } else if (best && (!existing || existing.playerKey !== best.playerKey)) {
+                regionCorrections.push({ path: `completedSubRegions/${key}`, label: region.label, type: 'correct',
+                    oldName: existing ? (players[existing.playerKey]?.displayName || existing.displayName) : null,
+                    newName: best.displayName,
+                    value: { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t } });
+            }
+        });
+
+        Object.entries(REGION_STATES).forEach(([key, states]) => {
+            const best = findEarliestCompleter(states);
+            const existing = room.completedRegions?.[key];
+            const label = PRIMARY_REGIONS[key]?.label || key;
+            if (!best && existing) {
+                regionCorrections.push({ path: `completedRegions/${key}`, value: null, label, type: 'remove' });
+            } else if (best && (!existing || existing.playerKey !== best.playerKey)) {
+                regionCorrections.push({ path: `completedRegions/${key}`, label, type: 'correct',
+                    oldName: existing ? (players[existing.playerKey]?.displayName || existing.displayName) : null,
+                    newName: best.displayName,
+                    value: { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t } });
+            }
+        });
+
+        const corridorStates = room.settings?.playAreaStates || [];
+        if (corridorStates.length > 0) {
+            const best = findEarliestCompleter(corridorStates);
+            const existing = room.completedCorridor;
+            if (!best && existing) {
+                regionCorrections.push({ path: 'completedCorridor', value: null, label: 'Corridor', type: 'remove' });
+            } else if (best && (!existing || existing.playerKey !== best.playerKey)) {
+                regionCorrections.push({ path: 'completedCorridor', label: 'Corridor', type: 'correct',
+                    oldName: existing ? (players[existing.playerKey]?.displayName || existing.displayName) : null,
+                    newName: best.displayName,
+                    value: { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t } });
+            }
+        }
+
+        return { corrections, regionCorrections, players };
     } catch (err) {
         console.error('Audit failed:', err);
         return null;
-    }
-}
-
-function renderAuditBody(results) {
-    const body = document.getElementById('auditBody');
-    const applyBtn = document.getElementById('auditApplyBtn');
-    if (!body) return;
-
-    if (!results) {
-        body.innerHTML = '<div class="audit-error">⚠️ Could not read game data. Check your connection and try again.</div>';
-        return;
-    }
-
-    const { corrections } = results;
-
-    if (!corrections.length) {
-        body.innerHTML = '<div class="audit-ok">✅ All first-finder records match the timestamps — no corrections needed.</div>';
-        if (applyBtn) applyBtn.disabled = true;
-        return;
-    }
-
-    const MAX_SHOWN = 40;
-    const items = corrections.slice(0, MAX_SHOWN).map(c => {
-        if (c.type === 'remove') {
-            return `<div class="audit-item audit-item-remove">🗑️ <strong>${c.stateName}</strong> — remove orphaned claim (no player has this state)</div>`;
-        }
-        const arrow = c.oldPlayerName
-            ? `${c.oldPlayerName} → <strong>${c.newPlayerData.displayName}</strong>`
-            : `set <strong>${c.newPlayerData.displayName}</strong> as first finder`;
-        return `<div class="audit-item">🔄 <strong>${c.stateName}</strong>: ${arrow}</div>`;
-    }).join('');
-    const overflow = corrections.length > MAX_SHOWN
-        ? `<div class="audit-more">…and ${corrections.length - MAX_SHOWN} more</div>` : '';
-
-    body.innerHTML = `
-        <div class="audit-summary">${corrections.length} correction${corrections.length === 1 ? '' : 's'} found</div>
-        <div class="audit-list">${items}${overflow}</div>
-        <div class="audit-note">Firebase foundAt timestamps determine who found each state first. Applying updates claimedStates and scores refresh automatically for all players.</div>
-    `;
-    if (applyBtn) {
-        applyBtn.disabled = false;
-        applyBtn.textContent = `✅ Apply ${corrections.length} Correction${corrections.length === 1 ? '' : 's'}`;
-    }
-}
-
-async function applyAuditCorrections() {
-    if (!pendingAuditResults || !currentGameRef) return;
-    const { corrections } = pendingAuditResults;
-    if (!corrections.length) { closeAuditModal(); return; }
-
-    const applyBtn = document.getElementById('auditApplyBtn');
-    if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Applying…'; }
-
-    try {
-        const updates = {};
-        corrections.forEach(c => {
-            if (c.type === 'remove') {
-                updates[`claimedStates/${c.stateName}`] = null;
-            } else {
-                updates[`claimedStates/${c.stateName}`] = {
-                    state: c.stateName,
-                    playerKey: c.newPlayerKey,
-                    name: c.newPlayerData.name,
-                    tag: c.newPlayerData.tag,
-                    displayName: c.newPlayerData.displayName,
-                    claimedAt: c.foundAt,
-                };
-            }
-        });
-        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
-        await currentGameRef.update(updates);
-        showToast(`✅ ${corrections.length} attribution${corrections.length === 1 ? '' : 's'} corrected — scores updated!`, 'success');
-        closeAuditModal();
-    } catch (err) {
-        console.error('Apply audit failed:', err);
-        showToast('Failed to apply corrections. Try again.', 'error');
-        if (applyBtn) {
-            applyBtn.disabled = false;
-            applyBtn.textContent = `✅ Apply ${corrections.length} Correction${corrections.length === 1 ? '' : 's'}`;
-        }
     }
 }
 
