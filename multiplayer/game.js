@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423s';
+const APP_VERSION = '20260423t';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -2353,10 +2353,11 @@ function closeBadgeDetail() {
 // ── Player Detail Modal ───────────────────────────────────────────────────────
 
 function openPlayerDetail(playerKey) {
+    try {
     const player = playersData[playerKey];
-    if (!player) return;
+    if (!player) { showToast('Player data missing — try again', 'error'); return; }
     const modal = document.getElementById('playerDetailModal');
-    if (!modal) return;
+    if (!modal) { showToast('Modal element missing', 'error'); return; }
 
     const stats = computePlayerStats(playerKey) || { score: 0, foundCount: 0, firstCount: 0, foundSet: new Set(), completedSubs: [], corridorComplete: false };
     const badges = getPlayerBadges(playerKey);
@@ -2450,11 +2451,18 @@ function openPlayerDetail(playerKey) {
     }
 
     modal.classList.add('visible');
+    modal.style.removeProperty('display'); // clear any inline override
+    modal.style.display = 'flex';          // belt-and-suspenders
+    } catch(err) {
+        showToast('Player detail error: ' + err.message, 'error');
+        console.error('openPlayerDetail:', err);
+    }
 }
 
 function closePlayerDetail() {
     closeBadgeDetail();
-    document.getElementById('playerDetailModal')?.classList.remove('visible');
+    const m = document.getElementById('playerDetailModal');
+    if (m) { m.classList.remove('visible'); m.style.display = ''; }
 }
 
 // ── End Game ──────────────────────────────────────────────────────────────────
