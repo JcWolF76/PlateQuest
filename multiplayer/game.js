@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424d';
+const APP_VERSION = '20260424e';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -427,6 +427,8 @@ let prevTauntKeys = null;        // null = not yet initialized; reset on game ex
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let prevPlateDisputeKeys = null;         // same, for individual plate first-finder disputes
+let prevChatKeys = null;                  // null = not yet initialized; reset on game exit
+let chatUnreadCount = 0;
 let lastKnownRound = null;       // tracks round number to detect new-round resets
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
 let pendingDeselect = null;     // stateName waiting for direct-deselect confirm
@@ -786,6 +788,20 @@ function bindEventListeners() {
     joinCodeInput.addEventListener('paste', (e) => { e.preventDefault(); joinCodeInput.value = normalizeCodeInput((e.clipboardData || window.clipboardData).getData('text')); });
     joinCodeInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') joinGame(); });
     document.getElementById('refreshBtn')?.addEventListener('click', () => window.location.reload());
+    document.getElementById('chatBtn')?.addEventListener('click', openChat);
+    document.getElementById('closeChatBtn')?.addEventListener('click', closeChatSheet);
+    document.getElementById('chatSendBtn')?.addEventListener('click', sendChatMessage);
+    document.getElementById('chatInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
+    document.getElementById('chatPolicyAgreeBtn')?.addEventListener('click', () => {
+        try { localStorage.setItem('platequest_chat_agreed', '1'); } catch(e) {}
+        document.getElementById('chatPolicyModal')?.classList.remove('visible');
+        _openChatSheet();
+    });
+    document.getElementById('chatPolicyCancelBtn')?.addEventListener('click', () => {
+        document.getElementById('chatPolicyModal')?.classList.remove('visible');
+    });
+    const chatPolicyModal = document.getElementById('chatPolicyModal');
+    if (chatPolicyModal) chatPolicyModal.addEventListener('click', e => { if (e.target === chatPolicyModal) chatPolicyModal.classList.remove('visible'); });
     document.getElementById('newRoundBtn')?.addEventListener('click', startNewRound);
     document.getElementById('tauntBtn')?.addEventListener('click', openTauntModal);
     document.getElementById('closeTauntBtn')?.addEventListener('click', closeTauntModal);
@@ -812,7 +828,7 @@ function bindEventListeners() {
     });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); }
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); }
     });
     // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds
     const liveScores = document.getElementById('liveScores');
@@ -1049,6 +1065,7 @@ function updateGameUI() {
     if (lastKnownRound !== null && currentRound !== lastKnownRound) {
         prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
         prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null;
+        prevChatKeys = null; chatUnreadCount = 0;
         endGameScreenShown = false; lastRenderedStateSignature = '';
         closeEndGameScreen();
         showToast('New round started! 🏁 Plates cleared.', 'success');
@@ -1060,6 +1077,7 @@ function updateGameUI() {
     detectClearRequests();
     detectRegionClearRequests();
     detectPlateDisputeRequests();
+    detectNewChatMessages();
     autoCleanRegionBackups();
     autoCleanPlateBackups();
     updateAuditBadge();
@@ -1532,7 +1550,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1833,6 +1851,116 @@ function showTauntNotification(taunt) {
     setTimeout(() => {
         if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }
     }, 8000);
+}
+
+// ── Pack Chat ─────────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function openChat() {
+    try {
+        if (!localStorage.getItem('platequest_chat_agreed')) {
+            document.getElementById('chatPolicyModal')?.classList.add('visible');
+            return;
+        }
+    } catch(e) {}
+    _openChatSheet();
+}
+
+function _openChatSheet() {
+    const sheet = document.getElementById('chatSheet');
+    if (!sheet) return;
+    sheet.classList.add('open');
+    chatUnreadCount = 0;
+    updateChatBadge();
+    renderChatMessages();
+    setTimeout(() => document.getElementById('chatInput')?.focus(), 300);
+}
+
+function closeChatSheet() {
+    document.getElementById('chatSheet')?.classList.remove('open');
+}
+
+function updateChatBadge() {
+    const badge = document.getElementById('chatUnreadBadge');
+    if (!badge) return;
+    if (chatUnreadCount > 0) {
+        badge.textContent = chatUnreadCount > 9 ? '9+' : String(chatUnreadCount);
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function renderChatMessages() {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    const entries = Object.values(gameData?.chat || {})
+        .sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0))
+        .slice(-100);
+    if (!entries.length) {
+        container.innerHTML = '<div class="chat-empty">No messages yet — say hi! 👋</div>';
+        return;
+    }
+    container.innerHTML = entries.map(msg => {
+        const isMe = msg.playerKey === currentPlayer?.playerKey;
+        const ts = formatFoundAt(msg.sentAt) || '';
+        const sender = isMe ? '' : `<div class="chat-msg-sender">${escapeHtml(msg.displayName || '?')}</div>`;
+        const time = ts ? `<div class="chat-msg-time">${ts}</div>` : '';
+        return `<div class="chat-msg${isMe ? ' mine' : ''}">${sender}<div class="chat-msg-bubble">${escapeHtml(msg.message || '')}</div>${time}</div>`;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendChatMessage() {
+    if (!currentGameRef || !currentPlayer) return;
+    const input = document.getElementById('chatInput');
+    const message = input?.value.trim();
+    if (!message) return;
+    const sendBtn = document.getElementById('chatSendBtn');
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+        await currentGameRef.child('chat').push({
+            playerKey: currentPlayer.playerKey,
+            displayName: currentPlayer.displayName,
+            message,
+            sentAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        if (input) input.value = '';
+    } catch (e) {
+        showToast('Failed to send message.', 'error');
+    } finally {
+        if (sendBtn) sendBtn.disabled = false;
+        input?.focus();
+    }
+}
+
+function detectNewChatMessages() {
+    if (!gameData) return;
+    const chat = gameData.chat || {};
+    const currentKeys = Object.keys(chat);
+    if (prevChatKeys === null) { prevChatKeys = new Set(currentKeys); return; }
+    const newKeys = currentKeys.filter(k => !prevChatKeys.has(k));
+    newKeys.forEach(k => prevChatKeys.add(k));
+    if (!newKeys.length) return;
+    const sheet = document.getElementById('chatSheet');
+    const isOpen = sheet?.classList.contains('open');
+    if (isOpen) {
+        renderChatMessages();
+    } else {
+        newKeys.forEach(k => {
+            const msg = chat[k];
+            if (msg?.playerKey !== currentPlayer?.playerKey) {
+                chatUnreadCount++;
+                showToast(`💬 ${escapeHtml(msg.displayName || '?')}: ${escapeHtml((msg.message || '').slice(0, 60))}`, 'info');
+            }
+        });
+        updateChatBadge();
+    }
 }
 
 // ── Score Audit ───────────────────────────────────────────────────────────────

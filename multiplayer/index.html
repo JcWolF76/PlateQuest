@@ -227,6 +227,42 @@
         .qr-code-wrap img { display:block; width:200px; height:200px; }
         .qr-url { font-size:11px; color:rgba(255,255,255,0.4); text-align:center; word-break:break-all; max-width:260px; }
 
+        /* ── Chat ── */
+        .btn-chat { background: linear-gradient(135deg, #0e6655, #1abc9c); color: #fff; font-weight: 800; border: none; position: relative; }
+        .btn-chat:hover { background: linear-gradient(135deg, #1abc9c, #48c9b0); }
+        .chat-btn-wrap { position: relative; display: inline-block; }
+        .chat-unread-badge { position:absolute; top:-6px; right:-6px; background:#e74c3c; color:#fff; font-size:10px; font-weight:900; border-radius:50%; width:18px; height:18px; display:none; align-items:center; justify-content:center; border:2px solid rgba(0,0,0,0.2); pointer-events:none; z-index:1; }
+
+        .chat-policy-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.85); z-index:1500; padding:18px; }
+        .chat-policy-modal.visible { display:flex; }
+        .chat-policy-dialog { width:min(96vw,440px); background:linear-gradient(145deg,rgba(10,60,50,0.99),rgba(14,102,85,0.99)); border-radius:22px; border:2px solid rgba(26,188,156,0.45); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:24px; display:flex; flex-direction:column; gap:16px; }
+        .chat-policy-title { font-size:18px; font-weight:800; color:#a9dfbf; }
+        .chat-policy-text { font-size:14px; color:#d5f5e3; line-height:1.65; }
+        .chat-policy-btns { display:flex; gap:10px; justify-content:flex-end; }
+        .btn-chat-agree { background:linear-gradient(135deg,#1abc9c,#0e6655); color:#fff; font-weight:800; border:none; }
+        .btn-chat-agree:hover { background:linear-gradient(135deg,#48c9b0,#1abc9c); }
+
+        .chat-sheet { position:fixed; bottom:0; left:0; right:0; height:70vh; background:linear-gradient(180deg,rgba(8,28,22,0.99),rgba(4,16,12,0.99)); border-top:2px solid rgba(26,188,156,0.35); border-radius:22px 22px 0 0; z-index:1300; display:none; flex-direction:column; box-shadow:0 -12px 40px rgba(0,0,0,0.5); }
+        .chat-sheet.open { display:flex; }
+        .chat-hdr { display:flex; justify-content:space-between; align-items:center; padding:16px 20px 12px; border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
+        .chat-hdr-title { font-size:16px; font-weight:800; color:#a9dfbf; }
+        .chat-messages { overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; padding:12px 16px; display:flex; flex-direction:column; gap:8px; }
+        .chat-empty { text-align:center; opacity:0.45; font-size:13px; margin-top:24px; }
+        .chat-msg { display:flex; flex-direction:column; gap:2px; max-width:82%; }
+        .chat-msg.mine { align-self:flex-end; align-items:flex-end; }
+        .chat-msg:not(.mine) { align-self:flex-start; }
+        .chat-msg-sender { font-size:10px; font-weight:700; color:#76d7c4; text-transform:uppercase; letter-spacing:0.5px; }
+        .chat-msg-bubble { border-radius:14px; padding:8px 12px; font-size:14px; color:#d5f5e3; line-height:1.4; word-break:break-word; }
+        .chat-msg:not(.mine) .chat-msg-bubble { background:rgba(26,188,156,0.12); border:1px solid rgba(26,188,156,0.22); }
+        .chat-msg.mine .chat-msg-bubble { background:rgba(26,188,156,0.28); border:1px solid rgba(26,188,156,0.5); }
+        .chat-msg-time { font-size:9px; opacity:0.45; margin-top:1px; }
+        .chat-footer { display:flex; gap:8px; padding:10px 14px; padding-bottom:max(10px,env(safe-area-inset-bottom,0px)); border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0; align-items:center; }
+        .chat-input { flex:1; background:rgba(255,255,255,0.07); border:1.5px solid rgba(26,188,156,0.3); border-radius:22px; padding:10px 16px; color:#fff; font-size:15px; outline:none; -webkit-appearance:none; min-height:44px; }
+        .chat-input::placeholder { color:rgba(255,255,255,0.3); }
+        .chat-input:focus { border-color:rgba(26,188,156,0.65); }
+        .btn-chat-send { background:linear-gradient(135deg,#1abc9c,#0e6655); color:#fff; font-weight:800; border:none; border-radius:22px; padding:10px 18px; flex-shrink:0; touch-action:manipulation; min-height:44px; }
+        .btn-chat-send:disabled { opacity:0.4; }
+
         /* ── Activity Feed ── */
         .activity-sheet { position:fixed; bottom:0; left:0; right:0; max-height:72vh; background:linear-gradient(180deg,rgba(15,25,45,0.99),rgba(8,15,28,0.99)); border-top:2px solid rgba(52,152,219,0.35); border-radius:22px 22px 0 0; z-index:1300; display:none; flex-direction:column; box-shadow:0 -12px 40px rgba(0,0,0,0.5); }
         .activity-sheet.open { display:flex; }
@@ -657,6 +693,7 @@
                     <button class="btn btn-new-round" id="newRoundBtn" style="display:none;">🔁 New Round</button>
                     <button class="btn btn-secondary" id="viewResultsBtn" style="display:none;">📊 View Results</button>
                     <button class="btn btn-secondary" id="activityBtn">📋 Activity</button>
+                    <div class="chat-btn-wrap"><button class="btn btn-chat" id="chatBtn">💬 Chat</button><span class="chat-unread-badge" id="chatUnreadBadge"></span></div>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
                     <button class="btn btn-taunt" id="tauntBtn">😈 Taunt</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
@@ -891,6 +928,35 @@
             </div>
         </div>
 
+        <!-- Chat Policy Modal -->
+        <div id="chatPolicyModal" class="chat-policy-modal">
+            <div class="chat-policy-dialog">
+                <div class="chat-policy-title">💬 Pack Chat Policy</div>
+                <div class="chat-policy-text">
+                    All messages in Pack Chat are <strong>monitored</strong>. This is a family-friendly game — keep it fun and respectful for everyone.<br><br>
+                    Players who send rude, offensive, or bullying messages <strong>will be kicked from the pack immediately</strong>.<br><br>
+                    By tapping <em>I Agree</em> you confirm you understand this policy and will use chat responsibly.
+                </div>
+                <div class="chat-policy-btns">
+                    <button class="btn btn-secondary" id="chatPolicyCancelBtn">Cancel</button>
+                    <button class="btn btn-chat-agree btn" id="chatPolicyAgreeBtn">✓ I Agree</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Sheet -->
+        <div id="chatSheet" class="chat-sheet">
+            <div class="chat-hdr">
+                <div class="chat-hdr-title">💬 Pack Chat</div>
+                <button class="btn btn-secondary btn-small" id="closeChatBtn">✕</button>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-footer">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" autocomplete="off" enterkeyhint="send">
+                <button class="btn btn-chat-send" id="chatSendBtn">Send</button>
+            </div>
+        </div>
+
         <!-- Activity Feed Sheet -->
         <div id="activitySheet" class="activity-sheet">
             <div class="activity-hdr">
@@ -919,7 +985,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260424d"></script>
+    <script src="game.js?v=20260424e"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
