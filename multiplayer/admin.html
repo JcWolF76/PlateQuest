@@ -51,7 +51,6 @@ button:disabled { opacity: 0.4; cursor: default; }
 .plate-first { font-size: 11px; color: #f1c40f; font-weight: 700; }
 
 /* ── Editor ── */
-#editor { display: none; }
 #editor .field-label { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
 #editor .edit-name { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
 .datetime-row { display: flex; gap: 8px; align-items: center; }
@@ -267,8 +266,9 @@ function openEditor(name, foundAt) {
     document.getElementById('editPlateName').textContent = name;
     document.getElementById('editDatetime').value = foundAt ? toDatetimeLocal(foundAt) : '';
     document.getElementById('editStatus').innerHTML = '';
-    document.getElementById('editorCard').style.display = '';
-    document.getElementById('editorCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const card = document.getElementById('editorCard');
+    card.style.display = '';
+    setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 }
 
 function closeEditor() {
