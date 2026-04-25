@@ -180,6 +180,8 @@
         .btn-audit:hover { background: linear-gradient(135deg, #2980b9, #3498db); }
         .btn-end-game { background: linear-gradient(135deg, #7d3c00, #c0392b); color: #fff; font-weight: 800; border: none; }
         .btn-end-game:hover { background: linear-gradient(135deg, #c0392b, #e74c3c); }
+        .btn-new-round { background: linear-gradient(135deg, #117a65, #1abc9c); color: #fff; font-weight: 800; border: none; }
+        .btn-new-round:hover { background: linear-gradient(135deg, #1abc9c, #48c9b0); }
 
         /* ── Taunt button ── */
         .btn-taunt { background: linear-gradient(135deg, #8e44ad, #6c3483); color: #fff; font-weight: 800; border: none; }
@@ -432,7 +434,7 @@
         <div id="game">
             <div class="game-code-header" id="gameCodeHeader" style="display: none;">
                 <div class="game-code-info"><span style="font-size: 16px;">Pack Code:</span><div class="game-code-display" id="persistentGameCode">LOADING...</div></div>
-                <div class="share-controls"><button class="btn btn-secondary btn-small" id="copyCodeBtn">📋 Copy</button><button class="btn btn-secondary btn-small" id="shareCodeBtn">📤 Share</button><button class="btn btn-secondary btn-small" id="inviteNewBtn">➕ Invite</button><button class="btn btn-secondary btn-small" id="qrCodeBtn">📱 QR</button></div>
+                <div class="share-controls"><button class="btn btn-secondary btn-small" id="copyCodeBtn">📋 Copy</button><button class="btn btn-secondary btn-small" id="shareCodeBtn">📤 Share</button><button class="btn btn-secondary btn-small" id="inviteNewBtn">➕ Invite</button><button class="btn btn-secondary btn-small" id="qrCodeBtn">📱 QR</button><button class="btn btn-secondary btn-small" id="refreshBtn">🔄 Refresh</button></div>
             </div>
 
             <div class="game-header">
@@ -650,6 +652,7 @@
                     </div>
                     <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
                     <button class="btn btn-end-game" id="endGameBtn" style="display:none;">🏁 End Game</button>
+                    <button class="btn btn-new-round" id="newRoundBtn" style="display:none;">🔁 New Round</button>
                     <button class="btn btn-secondary" id="viewResultsBtn" style="display:none;">📊 View Results</button>
                     <button class="btn btn-secondary" id="activityBtn">📋 Activity</button>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
@@ -914,7 +917,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260424a"></script>
+    <script src="game.js?v=20260424b"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

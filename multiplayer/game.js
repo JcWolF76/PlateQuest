@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424a';
+const APP_VERSION = '20260424b';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -426,6 +426,7 @@ let prevAnnouncementKeys = null; // null = not yet initialized; reset on game ex
 let prevTauntKeys = null;        // null = not yet initialized; reset on game exit
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
+let lastKnownRound = null;       // tracks round number to detect new-round resets
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
 let pendingDeselect = null;     // stateName waiting for direct-deselect confirm
 let regionMigrationDone = false; // one-time migration guard per session
@@ -783,6 +784,8 @@ function bindEventListeners() {
     joinCodeInput.addEventListener('input', () => { joinCodeInput.value = normalizeCodeInput(joinCodeInput.value); });
     joinCodeInput.addEventListener('paste', (e) => { e.preventDefault(); joinCodeInput.value = normalizeCodeInput((e.clipboardData || window.clipboardData).getData('text')); });
     joinCodeInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') joinGame(); });
+    document.getElementById('refreshBtn')?.addEventListener('click', () => window.location.reload());
+    document.getElementById('newRoundBtn')?.addEventListener('click', startNewRound);
     document.getElementById('tauntBtn')?.addEventListener('click', openTauntModal);
     document.getElementById('closeTauntBtn')?.addEventListener('click', closeTauntModal);
     document.getElementById('cancelTauntBtn')?.addEventListener('click', closeTauntModal);
@@ -956,6 +959,7 @@ async function connectToGame(code, options = {}) {
         normalizedPlayers[currentPlayer.playerKey] = { ...legacyPlayer, playerKey: currentPlayer.playerKey, name: currentPlayer.name, tag: currentPlayer.tag, displayName: currentPlayer.displayName, deviceId: currentPlayer.deviceId };
     }
     if (!normalizedPlayers[currentPlayer.playerKey] && Object.keys(normalizedPlayers).length >= (room.settings?.maxPlayers || MAX_PLAYERS)) throw new Error('Pack is full. Maximum 8 players allowed.');
+    warmUpGpsIfNeeded(room);
     const existing = normalizedPlayers[currentPlayer.playerKey];
     const playerRecord = buildPlayerRoomRecord(currentPlayer, { isHost: existing?.isHost || room.hostPlayerKey === currentPlayer.playerKey, joinedAt: existing?.joinedAt, states: existing?.states || {} });
     await roomRef.child(`players/${currentPlayer.playerKey}`).update(playerRecord);
@@ -1039,6 +1043,16 @@ function updateGameCodeHeader() { const persistentGameCode = document.getElement
 
 function updateGameUI() {
     if (!gameData || !currentPlayer) return;
+    // Detect round reset by host — reinitialize per-round local state
+    const currentRound = gameData.roundNumber || 1;
+    if (lastKnownRound !== null && currentRound !== lastKnownRound) {
+        prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
+        prevClearRequestKeys = null; prevRegionClearRequestKeys = null;
+        endGameScreenShown = false; lastRenderedStateSignature = '';
+        closeEndGameScreen();
+        showToast('New round started! 🏁 Plates cleared.', 'success');
+    }
+    lastKnownRound = currentRound;
     detectNewFinds();
     detectNewAnnouncements();
     detectNewTaunts();
@@ -1056,6 +1070,8 @@ function updateGameUI() {
     if (auditBtn) auditBtn.style.display = isHost ? '' : 'none';
     const endGameBtn = document.getElementById('endGameBtn');
     if (endGameBtn) endGameBtn.style.display = (isHost && !isEnded) ? '' : 'none';
+    const newRoundBtn = document.getElementById('newRoundBtn');
+    if (newRoundBtn) newRoundBtn.style.display = isHost ? '' : 'none';
     const viewResultsBtn = document.getElementById('viewResultsBtn');
     if (viewResultsBtn) viewResultsBtn.style.display = isEnded ? '' : 'none';
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
@@ -1514,7 +1530,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastKnownRound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1671,6 +1687,17 @@ function showToast(message, type = 'info') { const container = document.getEleme
 
 // ── Taunts ────────────────────────────────────────────────────────────────────
 
+function resolveTauntText(template, nameLabel) {
+    if (!nameLabel) {
+        return template
+            .replace(/,\s*\[name\]/g, '')
+            .replace(/\[name\],?\s*/g, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+    return template.replace(/\[name\]/g, nameLabel);
+}
+
 function openTauntModal() {
     if (!currentPlayer || !playersData) return;
     const modal = document.getElementById('tauntModal');
@@ -1754,8 +1781,8 @@ async function sendTaunt() {
     const targetNames = isAll ? [] : selectedChips.map(c => c.querySelector('.taunt-player-chip-label')?.textContent || '?');
     const selectedMsg = document.querySelector('#tauntMessageList .taunt-msg-btn.selected');
     if (!selectedMsg || !targetKeys.length) return;
-    const nameLabel = isAll ? 'everyone' : targetNames.join(' & ');
-    const resolvedMsg = TAUNT_LIST[parseInt(selectedMsg.dataset.index)].replace(/\[name\]/g, nameLabel);
+    const nameLabel = isAll ? null : targetNames.join(' & ');
+    const resolvedMsg = resolveTauntText(TAUNT_LIST[parseInt(selectedMsg.dataset.index)], nameLabel);
     if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
     try {
         await currentGameRef.child('taunts').push({
@@ -2646,6 +2673,39 @@ async function endGame() {
         console.error('Error ending game:', err);
         showToast('Failed to end game.', 'error');
     }
+}
+
+async function startNewRound() {
+    if (!currentGameRef || !currentPlayer) return;
+    if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
+    if (!confirm('Start a new round? This wipes all plates, first-finders, and region completions for everyone. Pack stays together.')) return;
+    try {
+        const snap = await currentGameRef.once('value');
+        const room = snap.val();
+        if (!room) return;
+        const updates = {};
+        Object.keys(room.players || {}).forEach(pKey => { updates[`players/${pKey}/states`] = {}; });
+        updates.claimedStates = null;
+        updates.completedSubRegions = null;
+        updates.completedRegions = null;
+        updates.completedCorridor = null;
+        updates.taunts = null;
+        updates.announcements = null;
+        updates.status = 'active';
+        updates.endedAt = null;
+        updates.roundNumber = (room.roundNumber || 1) + 1;
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+    } catch (err) {
+        console.error('Error starting new round:', err);
+        showToast('Failed to start new round.', 'error');
+    }
+}
+
+function warmUpGpsIfNeeded(room) {
+    if (!room?.settings?.gpsRarity) return;
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(() => {}, () => {}, { timeout: 10000, maximumAge: 300000 });
 }
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
