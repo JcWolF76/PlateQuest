@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423p';
+const APP_VERSION = '20260423q';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -772,6 +772,23 @@ function bindEventListeners() {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
         if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); }
     });
+    // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds
+    const liveScores = document.getElementById('liveScores');
+    if (liveScores) {
+        let _scTouchX = 0, _scTouchY = 0, _scTouchFired = 0;
+        liveScores.addEventListener('touchstart', e => { _scTouchX = e.touches[0].clientX; _scTouchY = e.touches[0].clientY; }, { passive: true });
+        liveScores.addEventListener('touchend', e => {
+            const card = e.target.closest('[data-playerkey]');
+            if (!card) return;
+            const dx = Math.abs(e.changedTouches[0].clientX - _scTouchX);
+            const dy = Math.abs(e.changedTouches[0].clientY - _scTouchY);
+            if (dx < 10 && dy < 10) { _scTouchFired = Date.now(); openPlayerDetail(card.dataset.playerkey); }
+        }, { passive: true });
+        liveScores.addEventListener('click', e => {
+            const card = e.target.closest('[data-playerkey]');
+            if (card && Date.now() - _scTouchFired > 350) openPlayerDetail(card.dataset.playerkey);
+        });
+    }
     const closeDetailBtn = document.getElementById('closePlayerDetailBtn');
     if (closeDetailBtn) closeDetailBtn.addEventListener('click', closePlayerDetail);
     document.getElementById('closeBadgeDetailBtn')?.addEventListener('click', closeBadgeDetail);
@@ -988,6 +1005,7 @@ function updateGameUI() {
     detectClearRequests();
     detectRegionClearRequests();
     autoCleanRegionBackups();
+    autoCleanPlateBackups();
     updateAuditBadge();
     maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
@@ -1054,21 +1072,15 @@ function updateScores() {
             : '';
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
-        scoreCard.style.cursor = 'pointer';
+        scoreCard.dataset.playerkey = player.playerKey;
+        scoreCard.setAttribute('role', 'button');
+        scoreCard.setAttribute('tabindex', '0');
         scoreCard.innerHTML = `
             <div class="score-player-name">${marker} ${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}</div>
             <div class="score-pts">${player.score}<span class="score-pts-label"> pts</span></div>
             <div class="score-meta">${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds</div>
             ${badgeRow}
         `;
-        let _cardTouchX = 0, _cardTouchY = 0, _cardTouchFired = 0;
-        scoreCard.addEventListener('touchstart', e => { _cardTouchX = e.touches[0].clientX; _cardTouchY = e.touches[0].clientY; }, { passive: true });
-        scoreCard.addEventListener('touchend', e => {
-            const dx = Math.abs(e.changedTouches[0].clientX - _cardTouchX);
-            const dy = Math.abs(e.changedTouches[0].clientY - _cardTouchY);
-            if (dx < 8 && dy < 8) { _cardTouchFired = Date.now(); openPlayerDetail(player.playerKey); }
-        }, { passive: true });
-        scoreCard.addEventListener('click', () => { if (Date.now() - _cardTouchFired > 350) openPlayerDetail(player.playerKey); });
         scoresContainer.appendChild(scoreCard);
     });
 
@@ -1164,22 +1176,41 @@ function renderStates() {
 
 function addSwipeToSelect(card, stateName, foundByMe) {
     let startX = 0, startY = 0, swiping = false;
+    let longPressTimer = null, longPressTriggered = false;
     const THRESHOLD = 70;
+    const LONG_PRESS_MS = 600;
+
+    function cancelLongPress() {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        card.classList.remove('long-press-active');
+    }
 
     card.addEventListener('touchstart', (e) => {
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         swiping = false;
+        longPressTriggered = false;
         card.style.transition = 'none';
+        if (foundByMe) {
+            card.classList.add('long-press-active');
+            longPressTimer = setTimeout(() => {
+                longPressTimer = null;
+                longPressTriggered = true;
+                card.classList.remove('long-press-active');
+                if (navigator.vibrate) navigator.vibrate(50);
+                showDeselectConfirm(stateName);
+            }, LONG_PRESS_MS);
+        }
     }, { passive: true });
 
     card.addEventListener('touchmove', (e) => {
         const dx = e.touches[0].clientX - startX;
         const dy = e.touches[0].clientY - startY;
-        if (!swiping && Math.abs(dy) > Math.abs(dx)) return; // vertical scroll, let it pass
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancelLongPress();
+        if (!swiping && Math.abs(dy) > Math.abs(dx)) return;
         if (Math.abs(dx) > 6) {
             swiping = true;
-            if (dx > 0 && !foundByMe) e.preventDefault(); // intercept right-swipe on unselected
+            if (dx > 0 && !foundByMe) e.preventDefault();
         }
         if (swiping && dx > 0 && !foundByMe) {
             card.style.transform = `translateX(${Math.min(dx * 0.65, 90)}px)`;
@@ -1188,16 +1219,13 @@ function addSwipeToSelect(card, stateName, foundByMe) {
     }, { passive: false });
 
     card.addEventListener('touchend', (e) => {
+        cancelLongPress();
         const dx = e.changedTouches[0].clientX - startX;
-        const dy = e.changedTouches[0].clientY - startY;
         card.style.transition = 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease';
         card.style.transform = '';
         card.classList.remove('swipe-active');
-        if (swiping) {
-            if (dx >= THRESHOLD && !foundByMe) toggleState(stateName, false);
-        } else if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
-            if (foundByMe) showDeselectConfirm(stateName);
-        }
+        if (longPressTriggered) return;
+        if (swiping && dx >= THRESHOLD && !foundByMe) toggleState(stateName, false);
     });
 }
 
@@ -1239,7 +1267,7 @@ async function submitClearRequest() {
     if (pendingDeselect) {
         const stateName = pendingDeselect;
         hideClearConfirmSheet();
-        await toggleState(stateName, true);
+        await deselectWithBackup(stateName);
         return;
     }
     if (!pendingClearState || !currentGameRef || !currentPlayer) return;
@@ -1737,6 +1765,50 @@ function autoCleanRegionBackups() {
     });
     if (backups.corridor?.expiresAt && now > backups.corridor.expiresAt) updates['regionCompletionBackups/corridor'] = null;
     if (Object.keys(updates).length) currentGameRef.update(updates).catch(err => console.error('autoCleanRegionBackups failed:', err));
+}
+
+async function deselectWithBackup(stateName) {
+    if (!currentGameRef || !currentPlayer) return;
+    try {
+        const stateData = playersData[currentPlayer.playerKey]?.states?.[stateName];
+        const isFirst = gameData?.claimedStates?.[stateName]?.playerKey === currentPlayer.playerKey;
+        const now = Date.now();
+        const safeKey = stateName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const backup = {
+            stateName,
+            foundAt: stateData?.foundAt || now,
+            foundBy: currentPlayer.displayName,
+            foundByKey: currentPlayer.playerKey,
+            wasFirst: isFirst,
+            clearedAt: now,
+            expiresAt: now + 7 * 24 * 60 * 60 * 1000,
+        };
+        if (stateData?.foundNearState) backup.foundNearState = stateData.foundNearState;
+        const updates = {};
+        updates[`plateBackups/${currentPlayer.playerKey}/${safeKey}`] = backup;
+        updates[`players/${currentPlayer.playerKey}/states/${stateName}`] = null;
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+        showToast(`Removed ${stateName}.`, 'info');
+        writeRegionCompletions();
+        lastSyncAt = Date.now();
+        updateDiagnosticsPanel();
+    } catch (err) {
+        console.error('deselectWithBackup failed:', err);
+        showToast('Failed to remove plate.', 'error');
+    }
+}
+
+function autoCleanPlateBackups() {
+    if (!currentGameRef || !gameData?.plateBackups) return;
+    const now = Date.now();
+    const updates = {};
+    Object.entries(gameData.plateBackups).forEach(([playerKey, states]) => {
+        Object.entries(states || {}).forEach(([safeKey, rec]) => {
+            if (rec?.expiresAt && now > rec.expiresAt) updates[`plateBackups/${playerKey}/${safeKey}`] = null;
+        });
+    });
+    if (Object.keys(updates).length) currentGameRef.update(updates).catch(() => {});
 }
 
 function updateAuditBadge() {
