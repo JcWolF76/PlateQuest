@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423n';
+const APP_VERSION = '20260423o';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -769,7 +769,7 @@ function bindEventListeners() {
     });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeAuditModal(); }
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); }
     });
     const closeDetailBtn = document.getElementById('closePlayerDetailBtn');
     if (closeDetailBtn) closeDetailBtn.addEventListener('click', closePlayerDetail);
@@ -793,7 +793,14 @@ function bindEventListeners() {
     document.getElementById('clearConfirmCancel')?.addEventListener('click', hideClearConfirmSheet);
     document.getElementById('clearConfirmOk')?.addEventListener('click', submitClearRequest);
     document.getElementById('endGameBtn')?.addEventListener('click', endGame);
+    document.getElementById('viewResultsBtn')?.addEventListener('click', showEndGameScreen);
     document.getElementById('closeEndGameBtn')?.addEventListener('click', closeEndGameScreen);
+    document.getElementById('shareResultsBtn')?.addEventListener('click', shareEndGameResults);
+    document.getElementById('qrCodeBtn')?.addEventListener('click', showQRModal);
+    document.getElementById('closeQRBtn')?.addEventListener('click', closeQRModal);
+    document.getElementById('qrModal')?.addEventListener('click', e => { if (e.target === document.getElementById('qrModal')) closeQRModal(); });
+    document.getElementById('activityBtn')?.addEventListener('click', toggleActivityFeed);
+    document.getElementById('closeActivityBtn')?.addEventListener('click', closeActivityFeed);
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -991,7 +998,10 @@ function updateGameUI() {
     if (auditBtn) auditBtn.style.display = isHost ? '' : 'none';
     const endGameBtn = document.getElementById('endGameBtn');
     if (endGameBtn) endGameBtn.style.display = (isHost && !isEnded) ? '' : 'none';
+    const viewResultsBtn = document.getElementById('viewResultsBtn');
+    if (viewResultsBtn) viewResultsBtn.style.display = isEnded ? '' : 'none';
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
+    if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
     const signature = buildStateSignature();
     if (signature === lastRenderedStateSignature) { updateScores(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
@@ -1054,6 +1064,20 @@ function updateScores() {
         scoreCard.addEventListener('click', () => openPlayerDetail(player.playerKey));
         scoresContainer.appendChild(scoreCard);
     });
+
+    // Pack combined progress
+    const wrap = document.getElementById('packProgressWrap');
+    const stat = document.getElementById('packProgressStat');
+    const fill = document.getElementById('packProgressFill');
+    if (wrap && stat && fill && totalPlates > 0) {
+        const packSet = new Set();
+        Object.values(playersData).forEach(p => Object.keys(p.states || {}).forEach(s => packSet.add(s)));
+        const packFound = packSet.size;
+        const pct = Math.round((packFound / totalPlates) * 100);
+        stat.textContent = `${packFound} / ${totalPlates} plates · ${pct}%`;
+        fill.style.width = `${pct}%`;
+        wrap.style.display = packFound > 0 ? '' : 'none';
+    }
 }
 
 function createSectionHeader(title) {
@@ -1334,7 +1358,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; hideClearConfirmSheet(); closeEndGameScreen();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -2400,4 +2424,108 @@ function showEndGameScreen() {
 function closeEndGameScreen() {
     const modal = document.getElementById('endGameModal');
     if (modal) modal.style.display = 'none';
+}
+
+function shareEndGameResults() {
+    if (!gameData) return;
+    const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
+    const sorted = Object.values(playersData).map(p => {
+        const s = computePlayerStats(p.playerKey) || { score: 0, foundCount: 0, firstCount: 0 };
+        return { ...p, ...s };
+    }).sort((a, b) => b.score - a.score || b.foundCount - a.foundCount);
+    const medals = ['🥇', '🥈', '🥉'];
+    const lines = [
+        `🏁 PlateQuest — ${gameData.name || 'Pack'} Final Results`,
+        '',
+        ...sorted.map((p, i) => `${medals[i] || `#${i + 1}`} ${p.displayName || p.name} — ${p.score} pts · ${p.foundCount}/${totalPlates} plates · ${p.firstCount} first-finds`),
+        '',
+        `Play at: ${window.location.origin}${window.location.pathname}`,
+    ];
+    copyToClipboard(lines.join('\n'), '📋 Results copied!');
+}
+
+// ── QR Code ───────────────────────────────────────────────────────────────────
+
+function showQRModal() {
+    const modal = document.getElementById('qrModal');
+    if (!modal || !currentGameCode) return;
+    const url = getCanonicalJoinUrl();
+    const img = document.getElementById('qrCodeImg');
+    if (img) img.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=2`;
+    const urlEl = document.getElementById('qrJoinUrl');
+    if (urlEl) urlEl.textContent = url;
+    modal.classList.add('visible');
+}
+
+function closeQRModal() {
+    document.getElementById('qrModal')?.classList.remove('visible');
+}
+
+// ── Activity Feed ─────────────────────────────────────────────────────────────
+
+const TIER_ICON = { ultra:'💎', 'gold-elite':'🥇', 'silver-elite':'🥈', legendary:'🌟', epic:'✨', 'mega-rare':'💥', rare:'🔵', 'semi-rare':'🟢', scarce:'🟡', occasional:'⬜', common:'⬜' };
+
+function buildActivityEvents() {
+    const events = [];
+    const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES];
+    const corridor = gameData?.settings?.playAreaStates || [];
+    const useGps = gameData?.settings?.gpsRarity;
+
+    Object.values(playersData).forEach(player => {
+        Object.entries(player.states || {}).forEach(([stateName, sd]) => {
+            const isFirst = gameData?.claimedStates?.[stateName]?.playerKey === player.playerKey;
+            const ec = (useGps && sd?.foundNearState) ? [sd.foundNearState] : corridor;
+            const tier = computeRarityForState(stateName, ec);
+            const abbr = allPlates.find(p => p.name === stateName)?.abbr || stateName.slice(0, 2).toUpperCase();
+            events.push({ type: 'find', ts: sd.foundAt || 0, playerName: player.displayName || player.name || 'Player', state: stateName, abbr, tier, isFirst });
+        });
+    });
+
+    Object.values(gameData?.announcements || {}).forEach(ann => {
+        events.push({ type: 'announcement', ts: ann.sentAt || 0, playerName: ann.sentBy || 'Host', message: ann.text });
+    });
+
+    if (gameData?.endedAt) events.push({ type: 'ended', ts: gameData.endedAt });
+
+    return events.sort((a, b) => b.ts - a.ts);
+}
+
+function renderActivityFeed() {
+    const body = document.getElementById('activityBody');
+    if (!body) return;
+    const events = buildActivityEvents();
+    if (!events.length) {
+        body.innerHTML = '<div class="activity-empty">No activity yet — start spotting plates!</div>';
+        return;
+    }
+    body.innerHTML = events.map(ev => {
+        const time = ev.ts ? formatFoundAt(ev.ts) : '';
+        if (ev.type === 'find') {
+            const icon = TIER_ICON[ev.tier] || '⬜';
+            const firstBadge = ev.isFirst ? `<span class="activity-first">⭐ First!</span>` : '';
+            return `<div class="activity-event"><div class="activity-icon">${icon}</div><div class="activity-text"><strong>${ev.playerName}</strong> found <strong>${ev.state}</strong> (${ev.abbr})${firstBadge}</div><div class="activity-time">${time}</div></div>`;
+        }
+        if (ev.type === 'announcement') {
+            return `<div class="activity-event"><div class="activity-icon">📣</div><div class="activity-text"><strong>${ev.playerName}:</strong> ${ev.message}</div><div class="activity-time">${time}</div></div>`;
+        }
+        if (ev.type === 'ended') {
+            return `<div class="activity-event"><div class="activity-icon">🏁</div><div class="activity-text"><strong>Game ended</strong></div><div class="activity-time">${time}</div></div>`;
+        }
+        return '';
+    }).join('');
+}
+
+function toggleActivityFeed() {
+    const sheet = document.getElementById('activitySheet');
+    if (!sheet) return;
+    if (sheet.classList.contains('open')) {
+        sheet.classList.remove('open');
+    } else {
+        sheet.classList.add('open');
+        renderActivityFeed();
+    }
+}
+
+function closeActivityFeed() {
+    document.getElementById('activitySheet')?.classList.remove('open');
 }

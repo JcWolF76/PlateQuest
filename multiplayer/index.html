@@ -173,6 +173,39 @@
         .btn-end-game { background: linear-gradient(135deg, #7d3c00, #c0392b); color: #fff; font-weight: 800; border: none; }
         .btn-end-game:hover { background: linear-gradient(135deg, #c0392b, #e74c3c); }
 
+        /* ── QR Modal ── */
+        .qr-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1600; padding:20px; }
+        .qr-modal.visible { display:flex; }
+        .qr-dialog { width:min(92vw,320px); background:linear-gradient(145deg,rgba(44,62,80,0.99),rgba(52,73,94,0.99)); border-radius:22px; border:1px solid rgba(52,152,219,0.4); box-shadow:0 20px 60px rgba(0,0,0,0.5); padding:28px 24px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+        .qr-title { font-size:18px; font-weight:800; color:#fff; text-align:center; }
+        .qr-subtitle { font-size:13px; color:rgba(255,255,255,0.5); text-align:center; margin-top:-8px; }
+        .qr-code-wrap { background:#fff; padding:12px; border-radius:12px; }
+        .qr-code-wrap img { display:block; width:200px; height:200px; }
+        .qr-url { font-size:11px; color:rgba(255,255,255,0.4); text-align:center; word-break:break-all; max-width:260px; }
+
+        /* ── Activity Feed ── */
+        .activity-sheet { position:fixed; bottom:0; left:0; right:0; max-height:72vh; background:linear-gradient(180deg,rgba(15,25,45,0.99),rgba(8,15,28,0.99)); border-top:2px solid rgba(52,152,219,0.35); border-radius:22px 22px 0 0; z-index:1300; display:none; flex-direction:column; box-shadow:0 -12px 40px rgba(0,0,0,0.5); }
+        .activity-sheet.open { display:flex; }
+        .activity-hdr { display:flex; justify-content:space-between; align-items:center; padding:16px 20px 12px; border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
+        .activity-hdr-title { font-size:16px; font-weight:800; color:#fff; }
+        .activity-body { overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; padding:10px 16px 16px; display:flex; flex-direction:column; gap:7px; }
+        .activity-event { display:flex; align-items:flex-start; gap:9px; font-size:13px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+        .activity-event:last-child { border-bottom:none; }
+        .activity-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
+        .activity-text { flex:1; color:rgba(255,255,255,0.82); line-height:1.45; }
+        .activity-text strong { color:#fff; }
+        .activity-time { font-size:11px; color:rgba(255,255,255,0.38); white-space:nowrap; flex-shrink:0; padding-top:2px; }
+        .activity-first { background:rgba(255,215,0,0.18); color:#ffd700; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:700; margin-left:3px; vertical-align:middle; }
+        .activity-empty { text-align:center; color:rgba(255,255,255,0.38); padding:32px 0; font-size:14px; }
+
+        /* ── Pack Progress ── */
+        .pack-progress-wrap { margin-top:16px; background:rgba(0,0,0,0.2); border-radius:12px; padding:14px 18px; }
+        .pack-progress-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+        .pack-progress-label { font-size:13px; font-weight:700; color:rgba(255,255,255,0.75); }
+        .pack-progress-stat { font-size:13px; font-weight:700; color:#fff; }
+        .pack-progress-bar { height:7px; background:rgba(255,255,255,0.15); border-radius:4px; overflow:hidden; }
+        .pack-progress-fill { height:100%; background:linear-gradient(90deg,#27ae60,#2ecc71); border-radius:4px; transition:width 0.5s ease; }
+
         /* ── End Game Modal ── */
         .end-game-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.92); z-index:1400; padding:16px; overflow-y:auto; }
         .end-game-dialog { width:min(98vw,560px); max-height:92vh; background:linear-gradient(145deg,rgba(10,20,35,0.99),rgba(20,35,55,0.99)); border-radius:24px; border:2px solid rgba(255,215,0,0.35); box-shadow:0 24px 80px rgba(0,0,0,0.7),0 0 60px rgba(255,215,0,0.06); display:flex; flex-direction:column; overflow:hidden; }
@@ -355,7 +388,7 @@
         <div id="game">
             <div class="game-code-header" id="gameCodeHeader" style="display: none;">
                 <div class="game-code-info"><span style="font-size: 16px;">Pack Code:</span><div class="game-code-display" id="persistentGameCode">LOADING...</div></div>
-                <div class="share-controls"><button class="btn btn-secondary btn-small" id="copyCodeBtn">📋 Copy</button><button class="btn btn-secondary btn-small" id="shareCodeBtn">📤 Share</button><button class="btn btn-secondary btn-small" id="inviteNewBtn">➕ Invite</button></div>
+                <div class="share-controls"><button class="btn btn-secondary btn-small" id="copyCodeBtn">📋 Copy</button><button class="btn btn-secondary btn-small" id="shareCodeBtn">📤 Share</button><button class="btn btn-secondary btn-small" id="inviteNewBtn">➕ Invite</button><button class="btn btn-secondary btn-small" id="qrCodeBtn">📱 QR</button></div>
             </div>
 
             <div class="game-header">
@@ -552,6 +585,13 @@
                 <div class="live-scores" id="liveScores">
                     <h3>🏆 Pack Leaderboard</h3>
                     <div class="scores-container" id="scoresContainer"></div>
+                    <div class="pack-progress-wrap" id="packProgressWrap" style="display:none;">
+                        <div class="pack-progress-top">
+                            <span class="pack-progress-label">🗺️ Pack Combined</span>
+                            <span class="pack-progress-stat" id="packProgressStat"></span>
+                        </div>
+                        <div class="pack-progress-bar"><div class="pack-progress-fill" id="packProgressFill" style="width:0%"></div></div>
+                    </div>
                 </div>
                 <div style="padding: 25px;">
                     <h3 style="color: #3498db; margin-bottom: 15px; font-size: 24px;">🗺️ License Plates</h3>
@@ -566,6 +606,8 @@
                     </div>
                     <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
                     <button class="btn btn-end-game" id="endGameBtn" style="display:none;">🏁 End Game</button>
+                    <button class="btn btn-secondary" id="viewResultsBtn" style="display:none;">📊 View Results</button>
+                    <button class="btn btn-secondary" id="activityBtn">📋 Activity</button>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
                     <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
@@ -760,6 +802,28 @@
             </div>
         </div>
 
+        <!-- QR Code Modal -->
+        <div id="qrModal" class="qr-modal">
+            <div class="qr-dialog">
+                <div class="qr-title">📱 Scan to Join</div>
+                <div class="qr-subtitle">Share this with your pack</div>
+                <div class="qr-code-wrap">
+                    <img id="qrCodeImg" src="" alt="QR Code" width="200" height="200" />
+                </div>
+                <div class="qr-url" id="qrJoinUrl"></div>
+                <button class="btn btn-secondary btn-small" id="closeQRBtn">✕ Close</button>
+            </div>
+        </div>
+
+        <!-- Activity Feed Sheet -->
+        <div id="activitySheet" class="activity-sheet">
+            <div class="activity-hdr">
+                <div class="activity-hdr-title">📋 Live Activity</div>
+                <button class="btn btn-secondary btn-small" id="closeActivityBtn">✕</button>
+            </div>
+            <div class="activity-body" id="activityBody"></div>
+        </div>
+
         <!-- End Game Modal -->
         <div id="endGameModal" class="end-game-modal">
             <div class="end-game-dialog">
@@ -769,6 +833,7 @@
                 </div>
                 <div class="end-game-body" id="endGameBody"></div>
                 <div class="end-game-footer">
+                    <button class="btn btn-secondary" id="shareResultsBtn">📋 Copy Results</button>
                     <button class="btn btn-secondary" id="closeEndGameBtn">← Back to Pack</button>
                 </div>
             </div>
@@ -778,7 +843,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423n"></script>
+    <script src="game.js?v=20260423o"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
