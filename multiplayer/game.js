@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423x';
+const APP_VERSION = '20260423y';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -26,13 +26,13 @@ const US_PLATES = [
     { name: "North Carolina", abbr: "NC", category: "us" }, { name: "North Dakota", abbr: "ND", category: "us" }, { name: "Ohio", abbr: "OH", category: "us" }, { name: "Oklahoma", abbr: "OK", category: "us" },
     { name: "Oregon", abbr: "OR", category: "us" }, { name: "Pennsylvania", abbr: "PA", category: "us" }, { name: "Rhode Island", abbr: "RI", category: "us" }, { name: "South Carolina", abbr: "SC", category: "us" },
     { name: "South Dakota", abbr: "SD", category: "us" }, { name: "Tennessee", abbr: "TN", category: "us" }, { name: "Texas", abbr: "TX", category: "us" }, { name: "Utah", abbr: "UT", category: "us" },
-    { name: "Vermont", abbr: "VT", category: "us" }, { name: "Virginia", abbr: "VA", category: "us" }, { name: "Washington", abbr: "WA", category: "us" }, { name: "Washington D.C.", abbr: "DC", category: "us" },
+    { name: "Vermont", abbr: "VT", category: "us" }, { name: "Virginia", abbr: "VA", category: "us" }, { name: "Washington", abbr: "WA", category: "us" }, { name: "Washington DC", abbr: "DC", category: "us" },
     { name: "West Virginia", abbr: "WV", category: "us" }, { name: "Wisconsin", abbr: "WI", category: "us" }, { name: "Wyoming", abbr: "WY", category: "us" }
 ];
 
 const TERRITORY_PLATES = [
     { name: "Puerto Rico",              abbr: "PR",   category: "territory" },
-    { name: "U.S. Virgin Islands",      abbr: "USVI", category: "territory" },
+    { name: "US Virgin Islands",         abbr: "USVI", category: "territory" },
     { name: "American Samoa",           abbr: "AS",   category: "territory" },
     { name: "Guam",                     abbr: "GU",   category: "territory" },
     { name: "Northern Mariana Islands", abbr: "CNMI", category: "territory" }
@@ -158,7 +158,7 @@ const STATE_NEIGHBORS = {
     'Connecticut':    ['Massachusetts','New York','Rhode Island'],
     'Delaware':          ['Maryland','New Jersey','Pennsylvania'],
     'Florida':           ['Alabama','Georgia'],
-    'Washington D.C.':   ['Maryland','Virginia'],
+    'Washington DC':   ['Maryland','Virginia'],
     'Georgia':        ['Alabama','Florida','North Carolina','South Carolina','Tennessee'],
     'Hawaii':         [],
     'Idaho':          ['British Columbia','Montana','Nevada','Oregon','Utah','Washington','Wyoming'],
@@ -169,7 +169,7 @@ const STATE_NEIGHBORS = {
     'Kentucky':       ['Illinois','Indiana','Missouri','Ohio','Tennessee','Virginia','West Virginia'],
     'Louisiana':      ['Arkansas','Mississippi','Texas'],
     'Maine':          ['New Brunswick','New Hampshire','Quebec'],
-    'Maryland':       ['Delaware','Pennsylvania','Virginia','Washington D.C.','West Virginia'],
+    'Maryland':       ['Delaware','Pennsylvania','Virginia','Washington DC','West Virginia'],
     'Massachusetts':  ['Connecticut','New Hampshire','New York','Rhode Island','Vermont'],
     'Michigan':       ['Indiana','Ohio','Ontario','Wisconsin'],
     'Minnesota':      ['Iowa','Manitoba','North Dakota','Ontario','South Dakota','Wisconsin'],
@@ -195,7 +195,7 @@ const STATE_NEIGHBORS = {
     'Texas':          ['Arkansas','Louisiana','New Mexico','Oklahoma'],
     'Utah':           ['Arizona','Colorado','Idaho','Nevada','New Mexico','Wyoming'],
     'Vermont':        ['Massachusetts','New Hampshire','New York','Quebec'],
-    'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','Washington D.C.','West Virginia'],
+    'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','Washington DC','West Virginia'],
     'Washington':     ['British Columbia','Idaho','Oregon'],
     'West Virginia':  ['Kentucky','Maryland','Ohio','Pennsylvania','Virginia'],
     'Wisconsin':      ['Illinois','Iowa','Michigan','Minnesota'],
@@ -216,7 +216,7 @@ const STATE_NEIGHBORS = {
     'Yukon':                     ['British Columbia','Northwest Territories']
 };
 
-const TERRITORY_NAMES    = new Set(['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
+const TERRITORY_NAMES    = new Set(['Puerto Rico','US Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
 const CANADIAN_TERRITORIES = new Set(['Yukon','Northwest Territories','Nunavut']);
 const NON_CONTIGUOUS     = new Set(['Alaska','Hawaii']);
 
@@ -224,7 +224,7 @@ const NON_CONTIGUOUS     = new Set(['Alaska','Hawaii']);
 const STATE_CENTROIDS = {
     'Alabama': [32.8, -86.8], 'Alaska': [64.2, -153.4], 'Arizona': [34.3, -111.1],
     'Arkansas': [35.0, -92.4], 'California': [36.8, -119.4], 'Colorado': [39.1, -105.4],
-    'Connecticut': [41.6, -72.7], 'Delaware': [39.0, -75.5], 'Washington D.C.': [38.9, -77.0],
+    'Connecticut': [41.6, -72.7], 'Delaware': [39.0, -75.5], 'Washington DC': [38.9, -77.0],
     'Florida': [28.7, -82.5], 'Georgia': [32.7, -83.4], 'Hawaii': [20.7, -156.3],
     'Idaho': [44.1, -114.5], 'Illinois': [40.1, -88.8], 'Indiana': [40.3, -86.1],
     'Iowa': [42.0, -93.2], 'Kansas': [38.5, -96.7], 'Kentucky': [37.5, -85.3],
@@ -351,11 +351,11 @@ const BADGE_DEFS = [
     { id:'found_hi',          group:'elite',       icon:'🌺', label:'Aloha!',           desc:'Found Hawaii',                   test:s=>s.foundSet.has('Hawaii') },
     { id:'found_ak_hi',       group:'elite',       icon:'🌊', label:'Non-Contiguous',   desc:'Found Alaska & Hawaii',          test:s=>s.foundSet.has('Alaska')&&s.foundSet.has('Hawaii') },
     { id:'found_pr',          group:'elite',       icon:'🌴', label:'La Isla',          desc:'Found Puerto Rico',              test:s=>s.foundSet.has('Puerto Rico') },
-    { id:'found_usvi',        group:'elite',       icon:'🏝️',label:'Island Hopper',    desc:'Found U.S. Virgin Islands',      test:s=>s.foundSet.has('U.S. Virgin Islands') },
+    { id:'found_usvi',        group:'elite',       icon:'🏝️',label:'Island Hopper',    desc:'Found U.S. Virgin Islands',      test:s=>s.foundSet.has('US Virgin Islands') },
     { id:'found_as',          group:'elite',       icon:'🌏', label:'Pacific Isle',     desc:'Found American Samoa',           test:s=>s.foundSet.has('American Samoa') },
     { id:'found_guam',        group:'elite',       icon:'🌐', label:'Pacific Rim',      desc:'Found Guam',                     test:s=>s.foundSet.has('Guam') },
     { id:'found_cnmi',        group:'elite',       icon:'🗺️',label:'Marianas',         desc:'Found Northern Mariana Islands', test:s=>s.foundSet.has('Northern Mariana Islands') },
-    { id:'territory_hunter',  group:'elite',       icon:'🎖️',label:'Territory Hunter', desc:'Found all 5 U.S. territories',  test:s=>['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands'].every(t=>s.foundSet.has(t)) },
+    { id:'territory_hunter',  group:'elite',       icon:'🎖️',label:'Territory Hunter', desc:'Found all 5 U.S. territories',  test:s=>['Puerto Rico','US Virgin Islands','American Samoa','Guam','Northern Mariana Islands'].every(t=>s.foundSet.has(t)) },
     // Sub-region completions (12 US + 4 Canada, distinct from primary region names)
     { id:'sub_appalachia',     group:'region', icon:'⛰️', label:'Appalachia',        desc:'Completed Appalachia',             test:s=>s.completedSubs.includes('appalachia') },
     { id:'sub_chesapeake',     group:'region', icon:'🦀', label:'Chesapeake Bay',    desc:'Completed the Chesapeake Bay',     test:s=>s.completedSubs.includes('chesapeake_bay') },
@@ -2273,9 +2273,9 @@ const SUB_BADGE_TO_KEY = {
 
 const ELITE_BADGE_STATES = {
     'found_ak': ['Alaska'], 'found_hi': ['Hawaii'], 'found_ak_hi': ['Alaska', 'Hawaii'],
-    'found_pr': ['Puerto Rico'], 'found_usvi': ['U.S. Virgin Islands'],
+    'found_pr': ['Puerto Rico'], 'found_usvi': ['US Virgin Islands'],
     'found_as': ['American Samoa'], 'found_guam': ['Guam'], 'found_cnmi': ['Northern Mariana Islands'],
-    'territory_hunter': ['Puerto Rico', 'U.S. Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'],
+    'territory_hunter': ['Puerto Rico', 'US Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'],
 };
 
 function getBadgeDetailItems(badgeId, playerStates, claimedStates, corridorStates, playerKey) {
@@ -2476,8 +2476,8 @@ function generatePlayerSummary(playerKey, rank, sortedKeys) {
 
     const foundAK = stats.foundSet.has('Alaska');
     const foundHI = stats.foundSet.has('Hawaii');
-    const foundDC = stats.foundSet.has('Washington D.C.');
-    const TERRITORIES = ['Puerto Rico', 'U.S. Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'];
+    const foundDC = stats.foundSet.has('Washington DC');
+    const TERRITORIES = ['Puerto Rico', 'US Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'];
     const territoryCount = TERRITORIES.filter(t => stats.foundSet.has(t)).length;
     const completedCount = (stats.completedRegionBonuses?.length || 0) + (stats.completedSubBonuses?.length || 0);
     const corridorDone = stats.corridorComplete;
@@ -2547,7 +2547,7 @@ function generatePlayerSummary(playerKey, rank, sortedKeys) {
         `With ${firsts} first-finds out of ${found} plates, ${firstName} was clearly on a mission to get there before everyone else.`,
         `First-find ratio of ${Math.round(firstRatio * 100)}% — technically aggressive, officially impressive.`,
     ]));
-    if (foundDC && !foundAK && !foundHI) bonuses.push('Even grabbed Washington D.C., which a surprising number of players just completely miss.');
+    if (foundDC && !foundAK && !foundHI) bonuses.push('Even grabbed Washington DC, which a surprising number of players just completely miss.');
 
     return bonuses.length > 0 ? `${main} ${bonuses[0]}` : main;
 }
