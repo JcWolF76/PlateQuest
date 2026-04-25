@@ -181,6 +181,39 @@
         .btn-end-game { background: linear-gradient(135deg, #7d3c00, #c0392b); color: #fff; font-weight: 800; border: none; }
         .btn-end-game:hover { background: linear-gradient(135deg, #c0392b, #e74c3c); }
 
+        /* ── Taunt button ── */
+        .btn-taunt { background: linear-gradient(135deg, #8e44ad, #6c3483); color: #fff; font-weight: 800; border: none; }
+        .btn-taunt:hover { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+
+        /* ── Taunt toast ── */
+        .toast.taunt { background: linear-gradient(135deg, rgba(74,20,96,0.97), rgba(100,40,130,0.97)); border: 2px solid rgba(155,89,182,0.65); padding: 12px 38px 12px 14px; }
+        .toast.taunt::before { content: '😈'; }
+        .taunt-toast-from { font-size: 11px; font-weight: 700; color: #c39bd3; letter-spacing: 0.6px; margin-bottom: 3px; }
+        .taunt-toast-msg { font-size: 14px; font-weight: 600; color: #e8daef; line-height: 1.4; }
+        .taunt-toast-dismiss { position: absolute; top: 8px; right: 10px; background: none; border: none; color: #a569bd; font-size: 16px; cursor: pointer; padding: 2px 6px; line-height: 1; touch-action: manipulation; }
+
+        /* ── Taunt modal ── */
+        .taunt-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1200; padding:18px; }
+        .taunt-modal.visible { display:flex; }
+        .taunt-dialog { width:min(96vw,460px); max-height:88vh; background:linear-gradient(145deg,rgba(44,28,62,0.99),rgba(60,40,80,0.99)); border-radius:22px; border:2px solid rgba(142,68,173,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:20px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .taunt-header { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        .taunt-title { font-size:18px; font-weight:800; color:#d7bde2; }
+        .taunt-section-label { font-size:11px; font-weight:700; color:#a569bd; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+        .taunt-player-list { display:flex; flex-direction:column; gap:7px; }
+        .taunt-player-chip { display:flex; align-items:center; gap:10px; padding:10px 14px; background:rgba(142,68,173,0.12); border:1.5px solid rgba(142,68,173,0.25); border-radius:12px; cursor:pointer; transition:all 0.15s; touch-action:manipulation; user-select:none; }
+        .taunt-player-chip.selected { background:rgba(142,68,173,0.3); border-color:rgba(155,89,182,0.7); }
+        .taunt-player-chip input[type=checkbox] { width:18px; height:18px; accent-color:#9b59b6; flex-shrink:0; pointer-events:none; }
+        .taunt-player-chip-label { font-weight:600; font-size:14px; flex:1; color:#d7bde2; pointer-events:none; }
+        .taunt-all-chip { background:rgba(155,89,182,0.18); border-color:rgba(155,89,182,0.4); }
+        .taunt-all-chip.selected { background:rgba(155,89,182,0.35); border-color:#9b59b6; }
+        .taunt-message-list { display:flex; flex-direction:column; gap:7px; }
+        .taunt-msg-btn { text-align:left; padding:11px 14px; background:rgba(142,68,173,0.1); border:1.5px solid rgba(142,68,173,0.2); border-radius:12px; color:#c39bd3; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.15s; line-height:1.4; touch-action:manipulation; width:100%; }
+        .taunt-msg-btn.selected { background:rgba(142,68,173,0.32); border-color:#9b59b6; color:#e8daef; }
+        .taunt-send-row { display:flex; gap:10px; justify-content:flex-end; flex-shrink:0; margin-top:2px; }
+        .btn-taunt-send { background:linear-gradient(135deg,#8e44ad,#6c3483); color:#fff; font-weight:800; border:none; }
+        .btn-taunt-send:disabled { opacity:0.4; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+        .btn-taunt-send:not(:disabled):hover { background:linear-gradient(135deg,#9b59b6,#8e44ad); }
+
         /* ── QR Modal ── */
         .qr-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1600; padding:20px; }
         .qr-modal.visible { display:flex; }
@@ -620,6 +653,7 @@
                     <button class="btn btn-secondary" id="viewResultsBtn" style="display:none;">📊 View Results</button>
                     <button class="btn btn-secondary" id="activityBtn">📋 Activity</button>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
+                    <button class="btn btn-taunt" id="tauntBtn">😈 Taunt</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
                     <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
                     <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
@@ -797,6 +831,28 @@
         </div>
 
         <!-- Announcement Modal (host only) -->
+        <!-- Taunt Modal -->
+        <div id="tauntModal" class="taunt-modal">
+            <div class="taunt-dialog">
+                <div class="taunt-header">
+                    <div class="taunt-title">😈 Send a Taunt</div>
+                    <button class="btn btn-secondary btn-small" id="closeTauntBtn">✕</button>
+                </div>
+                <div>
+                    <div class="taunt-section-label">Who to taunt?</div>
+                    <div class="taunt-player-list" id="tauntPlayerList"></div>
+                </div>
+                <div>
+                    <div class="taunt-section-label">Pick your taunt</div>
+                    <div class="taunt-message-list" id="tauntMessageList"></div>
+                </div>
+                <div class="taunt-send-row">
+                    <button class="btn btn-secondary btn-small" id="cancelTauntBtn">Cancel</button>
+                    <button class="btn btn-taunt-send btn btn-small" id="sendTauntBtn" disabled>😈 Send Taunt</button>
+                </div>
+            </div>
+        </div>
+
         <div id="announceModal" class="announce-modal">
             <div class="announce-dialog">
                 <div class="announce-header">
@@ -858,7 +914,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423z"></script>
+    <script src="game.js?v=20260424a"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

@@ -2,7 +2,20 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423z';
+const APP_VERSION = '20260424a';
+
+const TAUNT_LIST = [
+    "Watch out, [name] — I'm coming for that top spot! 🚗💨",
+    "You snooze, you lose that first-finder bonus, [name]! 😴",
+    "Nice score, [name]... if this were last round. 👀",
+    "Better eyes next time, [name]! That plate was right there. 🙈",
+    "I can see first place from here, [name]. Can you? 🏆",
+    "Don't blink, [name] — rare plates don't wait! ⚡",
+    "The scoreboard doesn't lie, [name]. Just saying. 📊",
+    "Found it first, [name]. Maybe next highway! 🛣️",
+    "Keep refreshing — the view from second place isn't getting better, [name]. 😂",
+    "What's that sound? Oh, just me finding plates while you're napping, [name]! 🎉",
+];
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -410,6 +423,7 @@ let gameData = null;
 let playersData = {};
 let prevPlayerStates = null;    // null = not yet initialized; reset on game exit
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
+let prevTauntKeys = null;        // null = not yet initialized; reset on game exit
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
@@ -769,6 +783,12 @@ function bindEventListeners() {
     joinCodeInput.addEventListener('input', () => { joinCodeInput.value = normalizeCodeInput(joinCodeInput.value); });
     joinCodeInput.addEventListener('paste', (e) => { e.preventDefault(); joinCodeInput.value = normalizeCodeInput((e.clipboardData || window.clipboardData).getData('text')); });
     joinCodeInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') joinGame(); });
+    document.getElementById('tauntBtn')?.addEventListener('click', openTauntModal);
+    document.getElementById('closeTauntBtn')?.addEventListener('click', closeTauntModal);
+    document.getElementById('cancelTauntBtn')?.addEventListener('click', closeTauntModal);
+    document.getElementById('sendTauntBtn')?.addEventListener('click', sendTaunt);
+    const tauntModal = document.getElementById('tauntModal');
+    if (tauntModal) tauntModal.addEventListener('click', e => { if (e.target === tauntModal) closeTauntModal(); });
     document.getElementById('resetMyProgressBtn').addEventListener('click', resetMyProgress);
     document.getElementById('leaveGameBtn').addEventListener('click', leaveGame);
     document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
@@ -788,7 +808,7 @@ function bindEventListeners() {
     });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); }
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); }
     });
     // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds
     const liveScores = document.getElementById('liveScores');
@@ -1021,6 +1041,7 @@ function updateGameUI() {
     if (!gameData || !currentPlayer) return;
     detectNewFinds();
     detectNewAnnouncements();
+    detectNewTaunts();
     detectClearRequests();
     detectRegionClearRequests();
     autoCleanRegionBackups();
@@ -1493,7 +1514,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1647,6 +1668,143 @@ async function sendAnnouncement() {
 }
 
 function showToast(message, type = 'info') { const container = document.getElementById('toastContainer'); if (!container) return; const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; container.appendChild(toast); setTimeout(() => { if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); } }, 4000); }
+
+// ── Taunts ────────────────────────────────────────────────────────────────────
+
+function openTauntModal() {
+    if (!currentPlayer || !playersData) return;
+    const modal = document.getElementById('tauntModal');
+    if (!modal) return;
+
+    const playerList = document.getElementById('tauntPlayerList');
+    const otherPlayers = Object.values(playersData).filter(p => p.playerKey !== currentPlayer.playerKey);
+    playerList.innerHTML = '';
+
+    const allChip = document.createElement('div');
+    allChip.className = 'taunt-player-chip taunt-all-chip';
+    allChip.dataset.key = 'all';
+    allChip.innerHTML = `<input type="checkbox"><span class="taunt-player-chip-label">🐺 All Players</span>`;
+    playerList.appendChild(allChip);
+
+    otherPlayers.forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'taunt-player-chip';
+        chip.dataset.key = p.playerKey;
+        chip.innerHTML = `<input type="checkbox"><span class="taunt-player-chip-label">${p.displayName || p.name || 'Player'}</span>`;
+        playerList.appendChild(chip);
+    });
+
+    playerList.querySelectorAll('.taunt-player-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const cb = chip.querySelector('input[type=checkbox]');
+            if (chip.dataset.key === 'all') {
+                const nowChecked = !cb.checked;
+                playerList.querySelectorAll('.taunt-player-chip').forEach(c => {
+                    const cCb = c.querySelector('input[type=checkbox]');
+                    if (c.dataset.key === 'all') { cCb.checked = nowChecked; c.classList.toggle('selected', nowChecked); }
+                    else { cCb.checked = false; c.classList.remove('selected'); }
+                });
+            } else {
+                const allChipEl = playerList.querySelector('[data-key="all"]');
+                if (allChipEl) { allChipEl.querySelector('input').checked = false; allChipEl.classList.remove('selected'); }
+                cb.checked = !cb.checked;
+                chip.classList.toggle('selected', cb.checked);
+            }
+            updateTauntSendBtn();
+        });
+    });
+
+    const msgList = document.getElementById('tauntMessageList');
+    msgList.innerHTML = '';
+    TAUNT_LIST.forEach((taunt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'taunt-msg-btn';
+        btn.textContent = taunt.replace(/\[name\]/g, '…');
+        btn.dataset.index = i;
+        btn.addEventListener('click', () => {
+            msgList.querySelectorAll('.taunt-msg-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            updateTauntSendBtn();
+        });
+        msgList.appendChild(btn);
+    });
+
+    updateTauntSendBtn();
+    modal.classList.add('visible');
+}
+
+function closeTauntModal() {
+    document.getElementById('tauntModal')?.classList.remove('visible');
+}
+
+function updateTauntSendBtn() {
+    const btn = document.getElementById('sendTauntBtn');
+    if (!btn) return;
+    const hasTarget = !!document.querySelector('#tauntPlayerList .taunt-player-chip.selected');
+    const hasMsg = !!document.querySelector('#tauntMessageList .taunt-msg-btn.selected');
+    btn.disabled = !(hasTarget && hasMsg);
+}
+
+async function sendTaunt() {
+    if (!currentGameRef || !currentPlayer) return;
+    const sendBtn = document.getElementById('sendTauntBtn');
+    const selectedChips = [...document.querySelectorAll('#tauntPlayerList .taunt-player-chip.selected')];
+    const isAll = selectedChips.some(c => c.dataset.key === 'all');
+    const targetKeys = isAll ? ['all'] : selectedChips.map(c => c.dataset.key);
+    const targetNames = isAll ? [] : selectedChips.map(c => c.querySelector('.taunt-player-chip-label')?.textContent || '?');
+    const selectedMsg = document.querySelector('#tauntMessageList .taunt-msg-btn.selected');
+    if (!selectedMsg || !targetKeys.length) return;
+    const nameLabel = isAll ? 'everyone' : targetNames.join(' & ');
+    const resolvedMsg = TAUNT_LIST[parseInt(selectedMsg.dataset.index)].replace(/\[name\]/g, nameLabel);
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+    try {
+        await currentGameRef.child('taunts').push({
+            senderKey: currentPlayer.playerKey,
+            senderName: currentPlayer.displayName,
+            targetKeys,
+            targetNames,
+            message: resolvedMsg,
+            sentAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        closeTauntModal();
+        showToast('Taunt sent! 😈', 'success');
+    } catch (e) {
+        showToast('Failed to send taunt.', 'error');
+    } finally {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '😈 Send Taunt'; }
+    }
+}
+
+function detectNewTaunts() {
+    if (!gameData) return;
+    const taunts = gameData.taunts || {};
+    const currentKeys = Object.keys(taunts);
+    if (prevTauntKeys === null) { prevTauntKeys = new Set(currentKeys); return; }
+    currentKeys.forEach(key => {
+        if (!prevTauntKeys.has(key)) {
+            prevTauntKeys.add(key);
+            showTauntNotification(taunts[key]);
+        }
+    });
+}
+
+function showTauntNotification(taunt) {
+    if (!taunt) return;
+    const isAll = taunt.targetKeys?.includes('all');
+    const isTargeted = taunt.targetKeys?.includes(currentPlayer?.playerKey);
+    const isSender = taunt.senderKey === currentPlayer?.playerKey;
+    if (!isAll && !isTargeted && !isSender) return;
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast taunt';
+    toast.innerHTML = `<div class="taunt-toast-from">😈 ${taunt.senderName || '?'}</div><div class="taunt-toast-msg">${taunt.message || ''}</div><button class="taunt-toast-dismiss">✕</button>`;
+    toast.querySelector('.taunt-toast-dismiss').addEventListener('click', () => toast.remove());
+    container.appendChild(toast);
+    setTimeout(() => {
+        if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }
+    }, 8000);
+}
 
 // ── Score Audit ───────────────────────────────────────────────────────────────
 
@@ -2694,6 +2852,11 @@ function buildActivityEvents() {
         events.push({ type: 'announcement', ts: ann.sentAt || 0, playerName: ann.sentBy || 'Host', message: ann.text });
     });
 
+    Object.values(gameData?.taunts || {}).forEach(t => {
+        const targetLabel = t.targetKeys?.includes('all') ? 'everyone' : (t.targetNames || []).join(' & ');
+        events.push({ type: 'taunt', ts: t.sentAt || 0, playerName: t.senderName || '?', targetLabel, message: t.message });
+    });
+
     if (gameData?.endedAt) events.push({ type: 'ended', ts: gameData.endedAt });
 
     return events.sort((a, b) => b.ts - a.ts);
@@ -2716,6 +2879,9 @@ function renderActivityFeed() {
         }
         if (ev.type === 'announcement') {
             return `<div class="activity-event"><div class="activity-icon">📣</div><div class="activity-text"><strong>${ev.playerName}:</strong> ${ev.message}</div><div class="activity-time">${time}</div></div>`;
+        }
+        if (ev.type === 'taunt') {
+            return `<div class="activity-event"><div class="activity-icon">😈</div><div class="activity-text"><strong>${ev.playerName}</strong> → <em>${ev.targetLabel}</em>: ${ev.message}</div><div class="activity-time">${time}</div></div>`;
         }
         if (ev.type === 'ended') {
             return `<div class="activity-event"><div class="activity-icon">🏁</div><div class="activity-text"><strong>Game ended</strong></div><div class="activity-time">${time}</div></div>`;
