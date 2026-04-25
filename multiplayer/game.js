@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423q';
+const APP_VERSION = '20260423r';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -669,6 +669,7 @@ function initializeApp() {
         initializeDarkMode();
         pendingGameCodeFromUrl = readGameCodeFromUrl() || getPendingJoinReload();
         updateDiagnosticsPanel();
+        checkAppVersion(); // run immediately on load, before Firebase connects
         database.ref('.info/connected').on('value', async (snapshot) => {
             const isConnected = snapshot.val() === true;
             currentConnectionState = isConnected ? 'online' : 'offline';
@@ -693,33 +694,50 @@ function initializeApp() {
     }
 }
 
-let versionChecked = false;
+let versionIntervalId = null;
 function checkAppVersion() {
-    if (!database || versionChecked) return;
-    versionChecked = true;
     // Clean up _v cache-buster param left by a previous reload
     const urlNow = new URL(window.location.href);
     if (urlNow.searchParams.has('_v')) { urlNow.searchParams.delete('_v'); window.history.replaceState({}, document.title, urlNow.toString()); }
-    const vRef = database.ref('config/latestVersion');
-    // Promote our version in Firebase if we appear to be newest
-    vRef.transaction((current) => { if (!current || APP_VERSION > current) return APP_VERSION; return undefined; });
-    // Check if we're behind and prompt to update
-    vRef.once('value', (snap) => {
-        const latest = snap.val();
-        if (latest && latest !== APP_VERSION && !document.getElementById('updateBanner')) {
-            const banner = document.createElement('div');
-            banner.id = 'updateBanner';
-            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a73e8;color:#fff;text-align:center;padding:14px 16px;font-size:15px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0.1);';
-            banner.textContent = '🔄 New update available — tap here to reload';
-            banner.addEventListener('click', () => {
-                const url = new URL(window.location.href);
-                url.searchParams.set('_v', Date.now());
-                url.searchParams.delete('joinrefresh');
-                window.location.replace(url.toString());
-            });
-            document.body.prepend(banner);
-        }
+    // Promote our version in Firebase if we appear to be newest (best-effort)
+    if (database) {
+        const vRef = database.ref('config/latestVersion');
+        vRef.transaction((current) => { if (!current || APP_VERSION > current) return APP_VERSION; return undefined; });
+    }
+    const doCheck = async () => {
+        try {
+            const res = await fetch(`version.json?_v=${Date.now()}`, { cache: 'no-store' });
+            if (!res.ok) return;
+            const { version: latest } = await res.json();
+            if (latest && latest !== APP_VERSION) handleVersionMismatch();
+        } catch (e) { /* network error, skip */ }
+    };
+    doCheck();
+    if (!versionIntervalId) versionIntervalId = setInterval(doCheck, 60000);
+}
+
+function handleVersionMismatch() {
+    if (document.getElementById('updateBanner')) return;
+    if (!currentGameCode) {
+        // Not in a game — auto-reload immediately
+        const url = new URL(window.location.href);
+        url.searchParams.set('_v', Date.now());
+        url.searchParams.delete('joinrefresh');
+        window.location.replace(url.toString());
+        return;
+    }
+    // In a game — show a tap-to-reload banner
+    const banner = document.createElement('div');
+    banner.id = 'updateBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a73e8;color:#fff;text-align:center;padding:14px 16px;font-size:15px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0.1);';
+    banner.textContent = '🔄 Update available — tap here to reload';
+    banner.addEventListener('click', () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('_v', Date.now());
+        url.searchParams.delete('joinrefresh');
+        window.location.replace(url.toString());
     });
+    document.body.prepend(banner);
 }
 
 function bindEventListeners() {
@@ -1417,6 +1435,14 @@ function returnToSetup(clearSessionToo = false) {
         window.pausedPack = { code: currentGameCode, data: JSON.parse(JSON.stringify(gameData)) };
     } else {
         window.pausedPack = null;
+    }
+    // If an update is waiting, reload now that we're leaving the game
+    if (document.getElementById('updateBanner')) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('_v', Date.now());
+        url.searchParams.delete('joinrefresh');
+        window.location.replace(url.toString());
+        return;
     }
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
