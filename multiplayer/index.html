@@ -119,7 +119,7 @@
         .live-scores::before { content: '🏆 🐺'; position: absolute; top: 15px; right: 20px; font-size: 20px; opacity: 0.7; }
         .live-scores h3 { text-align: center; margin-bottom: 20px; font-size: 24px; }
         .scores-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
-        .score-card { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 20px; text-align: center; backdrop-filter: blur(10px); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.3); position: relative; }
+        .score-card { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 20px; text-align: center; backdrop-filter: blur(10px); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.3); position: relative; touch-action: manipulation; cursor: pointer; }
         .score-card::before { content: '🐾'; position: absolute; top: 8px; right: 8px; font-size: 10px; opacity: 0.5; }
         .score-card.leader { background: rgba(241, 196, 15, 0.3); border: 2px solid #f1c40f; box-shadow: 0 0 20px rgba(241, 196, 15, 0.4); }
         .score-card.leader::before { content: '🐺'; color: rgba(241, 196, 15, 0.8); font-size: 12px; }
@@ -224,6 +224,7 @@
         .end-player-summary { font-size:13px; color:rgba(255,255,255,0.82); line-height:1.6; font-style:italic; border-top:1px solid rgba(255,255,255,0.07); padding-top:10px; }
         .end-game-footer { padding:16px 20px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }
         .audit-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1200; padding:18px; }
+        .audit-modal.open { display:flex; }
         .audit-dialog { width:min(96vw,540px); max-height:85vh; background:linear-gradient(145deg,rgba(26,44,62,0.99),rgba(36,58,80,0.99)); border-radius:22px; border:2px solid rgba(41,128,185,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:24px; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
         .audit-header { display:flex; justify-content:space-between; align-items:flex-start; }
         .audit-title { font-size:18px; font-weight:800; color:#fff; }
@@ -765,8 +766,7 @@
                 </div>
                 <div id="regionRecordsBody" style="display:none"></div>
                 <div class="audit-footer">
-                    <button class="btn btn-secondary" id="cancelAuditBtn2">Cancel</button>
-                    <button class="btn btn-audit" id="auditApplyBtn" disabled>Apply Corrections</button>
+                    <button class="btn btn-secondary" id="cancelAuditBtn2">Close</button>
                 </div>
             </div>
         </div>
@@ -843,7 +843,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423o"></script>
+    <script src="game.js?v=20260423p"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

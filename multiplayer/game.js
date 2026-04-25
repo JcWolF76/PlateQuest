@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423o';
+const APP_VERSION = '20260423p';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -412,7 +412,8 @@ let prevPlayerStates = null;    // null = not yet initialized; reset on game exi
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
-let pendingClearState = null;   // stateName waiting for clear-confirm sheet
+let pendingClearState = null;   // stateName waiting for host-request confirm sheet
+let pendingDeselect = null;     // stateName waiting for direct-deselect confirm
 let regionMigrationDone = false; // one-time migration guard per session
 let endGameScreenShown = false;  // shown at most once per game session
 let gameListenerAttached = false;
@@ -787,7 +788,6 @@ function bindEventListeners() {
     document.getElementById('auditBtn')?.addEventListener('click', () => openAuditModal());
     document.getElementById('cancelAuditBtn')?.addEventListener('click', closeAuditModal);
     document.getElementById('cancelAuditBtn2')?.addEventListener('click', closeAuditModal);
-    document.getElementById('auditApplyBtn')?.addEventListener('click', applyAuditCorrections);
     const auditModal = document.getElementById('auditModal');
     if (auditModal) auditModal.addEventListener('click', e => { if (e.target === auditModal) closeAuditModal(); });
     document.getElementById('clearConfirmCancel')?.addEventListener('click', hideClearConfirmSheet);
@@ -1061,7 +1061,14 @@ function updateScores() {
             <div class="score-meta">${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds</div>
             ${badgeRow}
         `;
-        scoreCard.addEventListener('click', () => openPlayerDetail(player.playerKey));
+        let _cardTouchX = 0, _cardTouchY = 0, _cardTouchFired = 0;
+        scoreCard.addEventListener('touchstart', e => { _cardTouchX = e.touches[0].clientX; _cardTouchY = e.touches[0].clientY; }, { passive: true });
+        scoreCard.addEventListener('touchend', e => {
+            const dx = Math.abs(e.changedTouches[0].clientX - _cardTouchX);
+            const dy = Math.abs(e.changedTouches[0].clientY - _cardTouchY);
+            if (dx < 8 && dy < 8) { _cardTouchFired = Date.now(); openPlayerDetail(player.playerKey); }
+        }, { passive: true });
+        scoreCard.addEventListener('click', () => { if (Date.now() - _cardTouchFired > 350) openPlayerDetail(player.playerKey); });
         scoresContainer.appendChild(scoreCard);
     });
 
@@ -1189,24 +1196,52 @@ function addSwipeToSelect(card, stateName, foundByMe) {
         if (swiping) {
             if (dx >= THRESHOLD && !foundByMe) toggleState(stateName, false);
         } else if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
-            if (foundByMe) toggleState(stateName, true); // tap to deselect
+            if (foundByMe) showDeselectConfirm(stateName);
         }
     });
 }
 
 function showClearConfirmSheet(stateName) {
+    pendingDeselect = null;
     pendingClearState = stateName;
     document.getElementById('clearConfirmTitle').textContent = `Remove ${stateName}?`;
     document.getElementById('clearConfirmMsg').textContent = `This sends a request to the host. If approved, you'll permanently lose all points, badges, and first-finder credit for ${stateName}.`;
+    document.getElementById('clearConfirmOk').textContent = 'Request Remove';
+    document.getElementById('clearConfirmSheet').classList.add('visible');
+}
+
+function showDeselectConfirm(stateName) {
+    pendingClearState = null;
+    pendingDeselect = stateName;
+    const stats = computePlayerStats(currentPlayer?.playerKey);
+    const corridor = gameData?.settings?.playAreaStates || [];
+    const useGps = gameData?.settings?.gpsRarity;
+    const sd = playersData[currentPlayer?.playerKey]?.states?.[stateName];
+    const ec = (useGps && sd?.foundNearState) ? [sd.foundNearState] : corridor;
+    const tier = computeRarityForState(stateName, ec);
+    const pts = RARITY_CONFIG[tier]?.points || 0;
+    const isFirst = gameData?.claimedStates?.[stateName]?.playerKey === currentPlayer?.playerKey;
+    const ptsLost = isFirst ? pts : Math.ceil(pts / 2);
+    document.getElementById('clearConfirmTitle').textContent = `Remove ${stateName}?`;
+    document.getElementById('clearConfirmMsg').textContent = `You'll lose ${ptsLost} pts${isFirst ? ' including your First Find bonus' : ''}. This cannot be undone.`;
+    document.getElementById('clearConfirmOk').textContent = '🗑️ Remove Find';
     document.getElementById('clearConfirmSheet').classList.add('visible');
 }
 
 function hideClearConfirmSheet() {
     document.getElementById('clearConfirmSheet')?.classList.remove('visible');
     pendingClearState = null;
+    pendingDeselect = null;
 }
 
 async function submitClearRequest() {
+    if (!pendingClearState && !pendingDeselect) return;
+    if (pendingDeselect) {
+        const stateName = pendingDeselect;
+        hideClearConfirmSheet();
+        await toggleState(stateName, true);
+        return;
+    }
     if (!pendingClearState || !currentGameRef || !currentPlayer) return;
     const stateName = pendingClearState;
     hideClearConfirmSheet();
@@ -1358,7 +1393,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1520,15 +1555,64 @@ let pendingAuditResults = null;
 async function openAuditModal() {
     const modal = document.getElementById('auditModal');
     const body = document.getElementById('auditBody');
-    const applyBtn = document.getElementById('auditApplyBtn');
     if (!modal) return;
     pendingAuditResults = null;
-    if (body) body.innerHTML = '<div class="audit-loading">🔍 Analyzing timestamps…</div>';
-    if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Apply Corrections'; }
+    if (body) body.innerHTML = '<div class="audit-loading">🔍 Analyzing &amp; correcting…</div>';
     renderRegionRecords();
-    modal.style.display = 'flex';
-    pendingAuditResults = await computeAuditCorrections();
-    renderAuditBody(pendingAuditResults);
+    modal.classList.add('open');
+
+    const results = await computeAuditCorrections();
+    pendingAuditResults = results;
+
+    if (!results) {
+        if (body) body.innerHTML = '<div class="audit-error">⚠️ Could not read game data. Check your connection and try again.</div>';
+        return;
+    }
+
+    const { corrections } = results;
+
+    if (!corrections.length) {
+        if (body) body.innerHTML = '<div class="audit-ok">✅ All first-finder records are accurate — no changes needed.</div>';
+        return;
+    }
+
+    // Auto-apply corrections immediately
+    if (body) body.innerHTML = '<div class="audit-loading">⚙️ Applying corrections…</div>';
+    try {
+        const updates = {};
+        corrections.forEach(c => {
+            if (c.type === 'remove') {
+                updates[`claimedStates/${c.stateName}`] = null;
+            } else {
+                updates[`claimedStates/${c.stateName}`] = {
+                    state: c.stateName,
+                    playerKey: c.newPlayerKey,
+                    name: c.newPlayerData.name,
+                    tag: c.newPlayerData.tag,
+                    displayName: c.newPlayerData.displayName,
+                    claimedAt: c.foundAt,
+                };
+            }
+        });
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+
+        const MAX_SHOWN = 20;
+        const items = corrections.slice(0, MAX_SHOWN).map(c => {
+            if (c.type === 'remove') return `<div class="audit-item audit-item-remove">🗑️ <strong>${c.stateName}</strong> — removed orphaned claim</div>`;
+            const arrow = c.oldPlayerName
+                ? `${c.oldPlayerName} → <strong>${c.newPlayerData.displayName}</strong>`
+                : `set <strong>${c.newPlayerData.displayName}</strong> as first finder`;
+            return `<div class="audit-item">✅ <strong>${c.stateName}</strong>: ${arrow}</div>`;
+        }).join('');
+        const overflow = corrections.length > MAX_SHOWN ? `<div class="audit-more">…and ${corrections.length - MAX_SHOWN} more</div>` : '';
+        if (body) body.innerHTML = `
+            <div class="audit-ok">✅ Fixed ${corrections.length} first-finder record${corrections.length === 1 ? '' : 's'} — scores updated for all players.</div>
+            <div class="audit-list" style="margin-top:10px">${items}${overflow}</div>`;
+    } catch (err) {
+        console.error('Audit auto-apply failed:', err);
+        if (body) body.innerHTML = '<div class="audit-error">⚠️ Could not apply corrections. Check your connection and try again.</div>';
+    }
 }
 
 // ── Region Completion Dispute Flow ────────────────────────────────────────────
@@ -1742,8 +1826,7 @@ async function clearRegionRecord(type, key, label) {
 }
 
 function closeAuditModal() {
-    const modal = document.getElementById('auditModal');
-    if (modal) modal.style.display = 'none';
+    document.getElementById('auditModal')?.classList.remove('open');
     pendingAuditResults = null;
 }
 
