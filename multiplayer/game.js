@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423r';
+const APP_VERSION = '20260423s';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -1099,6 +1099,16 @@ function updateScores() {
             <div class="score-meta">${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds</div>
             ${badgeRow}
         `;
+        // Direct listeners added fresh each render — most reliable on mobile
+        const _pk = player.playerKey;
+        let _tx = 0, _ty = 0, _tfire = 0;
+        scoreCard.addEventListener('touchstart', e => { _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; }, { passive: true });
+        scoreCard.addEventListener('touchend', e => {
+            const dx = Math.abs(e.changedTouches[0].clientX - _tx);
+            const dy = Math.abs(e.changedTouches[0].clientY - _ty);
+            if (dx < 12 && dy < 12) { _tfire = Date.now(); openPlayerDetail(_pk); }
+        }, { passive: true });
+        scoreCard.addEventListener('click', () => { if (Date.now() - _tfire > 350) openPlayerDetail(_pk); });
         scoresContainer.appendChild(scoreCard);
     });
 
