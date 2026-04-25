@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423v';
+const APP_VERSION = '20260423w';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -1086,7 +1086,7 @@ function updateScores() {
         const marker = isMe ? '🐺' : (player.connected ? '👤' : '💤');
         const badges = getPlayerBadges(player.playerKey);
         const badgeRow = badges.length
-            ? `<div class="badge-row">${badges.slice(0, 5).map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}${badges.length > 5 ? `<span class="badge-mini-more">+${badges.length - 5}</span>` : ''}</div>`
+            ? `<div class="badge-row">${badges.map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}</div>`
             : '';
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
