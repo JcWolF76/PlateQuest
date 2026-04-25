@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PlateQuest Admin</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0d1b2a; color: #e0e6f0; min-height: 100vh; padding: 20px; }
+
+/* ── Auth gate ── */
+#authGate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; }
+#authGate h1 { font-size: 22px; color: #7eb8f7; letter-spacing: 0.05em; }
+#authGate input { background: #1a2d42; border: 1px solid #2e4a68; border-radius: 10px; color: #e0e6f0; font-size: 16px; padding: 12px 16px; width: 280px; text-align: center; outline: none; }
+#authGate input:focus { border-color: #4a90d9; }
+#authGate button { background: #1a73e8; border: none; border-radius: 10px; color: #fff; cursor: pointer; font-size: 15px; font-weight: 700; padding: 12px 32px; width: 280px; }
+#authGate button:active { opacity: 0.85; }
+#authError { color: #e74c3c; font-size: 13px; display: none; }
+
+/* ── Admin panel ── */
+#adminPanel { display: none; max-width: 680px; margin: 0 auto; padding-bottom: 60px; }
+h2 { font-size: 20px; color: #7eb8f7; margin-bottom: 16px; }
+h3 { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+.card { background: #1a2d42; border: 1px solid #2e4a68; border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row input, .row select { flex: 1; min-width: 0; }
+
+input, select { background: #0d1b2a; border: 1px solid #2e4a68; border-radius: 8px; color: #e0e6f0; font-size: 14px; padding: 9px 12px; outline: none; width: 100%; }
+input:focus, select:focus { border-color: #4a90d9; }
+select option { background: #0d1b2a; }
+
+button { background: #1a73e8; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 14px; font-weight: 600; padding: 9px 18px; white-space: nowrap; }
+button:active { opacity: 0.82; }
+button.secondary { background: rgba(255,255,255,0.08); }
+button.danger { background: rgba(231,76,60,0.8); }
+button:disabled { opacity: 0.4; cursor: default; }
+
+.status { font-size: 13px; padding: 10px 14px; border-radius: 8px; margin-top: 10px; }
+.status.ok  { background: rgba(39,174,96,0.15); border: 1px solid rgba(39,174,96,0.4); color: #2ecc71; }
+.status.err { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.4); color: #e74c3c; }
+.status.info { background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.4); color: #7eb8f7; }
+
+/* ── Plate list ── */
+#plateList { display: flex; flex-direction: column; gap: 6px; }
+.plate-row { display: flex; align-items: center; gap: 10px; background: #0d1b2a; border: 1px solid #2e4a68; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: border-color 0.15s; }
+.plate-row:hover { border-color: #4a90d9; }
+.plate-row.selected { border-color: #1a73e8; background: rgba(26,115,232,0.1); }
+.plate-name { flex: 1; font-size: 14px; font-weight: 600; }
+.plate-ts { font-size: 12px; color: rgba(255,255,255,0.45); }
+.plate-first { font-size: 11px; color: #f1c40f; font-weight: 700; }
+
+/* ── Editor ── */
+#editor { display: none; }
+#editor .field-label { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
+#editor .edit-name { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+.datetime-row { display: flex; gap: 8px; align-items: center; }
+.datetime-row input { font-size: 15px; }
+
+.tag { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; }
+.tag-first { background: rgba(241,196,15,0.2); color: #f1c40f; border: 1px solid rgba(241,196,15,0.4); }
+.tag-later { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); }
+
+#sortBar { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+#sortBar button { font-size: 12px; padding: 5px 12px; }
+#filterInput { font-size: 13px; padding: 7px 10px; }
+</style>
+</head>
+<body>
+
+<!-- ── Auth Gate ── -->
+<div id="authGate">
+    <h1>🔐 PlateQuest Admin</h1>
+    <input type="password" id="passInput" placeholder="Password" autocomplete="off">
+    <div id="authError">Incorrect password</div>
+    <button onclick="checkAuth()">Enter</button>
+</div>
+
+<!-- ── Admin Panel ── -->
+<div id="adminPanel">
+    <h2 style="margin-bottom:20px">🛠️ Timestamp Editor</h2>
+
+    <!-- Game loader -->
+    <div class="card">
+        <h3>Load Game</h3>
+        <div class="row">
+            <input id="gameCodeInput" placeholder="Game code (e.g. WOLF)" maxlength="8" style="text-transform:uppercase;letter-spacing:0.1em;">
+            <button onclick="loadGame()">Load</button>
+        </div>
+        <div id="loadStatus"></div>
+    </div>
+
+    <!-- Player selector -->
+    <div class="card" id="playerCard" style="display:none">
+        <h3>Player</h3>
+        <select id="playerSelect" onchange="loadPlates()">
+            <option value="">— select player —</option>
+        </select>
+    </div>
+
+    <!-- Plate list + editor -->
+    <div class="card" id="platesCard" style="display:none">
+        <h3>Plates</h3>
+        <div id="sortBar">
+            <button class="secondary" onclick="sortPlates('alpha')">A–Z</button>
+            <button class="secondary" onclick="sortPlates('ts-asc')">Oldest first</button>
+            <button class="secondary" onclick="sortPlates('ts-desc')">Newest first</button>
+            <input id="filterInput" placeholder="Filter…" oninput="renderPlateList()">
+        </div>
+        <div id="plateList"></div>
+    </div>
+
+    <!-- Editor -->
+    <div class="card" id="editorCard" style="display:none">
+        <div id="editor">
+            <div class="edit-name" id="editPlateName"></div>
+            <div class="field-label">Found at</div>
+            <div class="datetime-row">
+                <input type="datetime-local" id="editDatetime" step="1">
+                <button onclick="saveTimestamp()">Save</button>
+                <button class="secondary" onclick="closeEditor()">Cancel</button>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="secondary" onclick="setToNow()">Set to now</button>
+                <button class="danger" style="margin-left:auto" onclick="deletePlate()">Remove plate</button>
+            </div>
+            <div id="editStatus"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const ADMIN_PASS_HASH = '8e9c1a2f3b4d5e6f7a8b9c0d1e2f3a4b'; // replaced at init
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
+    authDomain: "platequest-multiplayer.firebaseapp.com",
+    databaseURL: "https://platequest-multiplayer-default-rtdb.firebaseio.com/",
+    projectId: "platequest-multiplayer",
+    storageBucket: "platequest-multiplayer.firebasestorage.app",
+    messagingSenderId: "109596979102",
+    appId: "1:109596979102:web:586740c408daec71af708f"
+};
+
+// Simple hash — change this to your preferred password
+const CORRECT_PASSWORD = 'PQ_ADMIN_2026';
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
+
+function checkAuth() {
+    const val = document.getElementById('passInput').value;
+    if (val === CORRECT_PASSWORD) {
+        document.getElementById('authGate').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        initFirebase();
+    } else {
+        const err = document.getElementById('authError');
+        err.style.display = 'block';
+        document.getElementById('passInput').value = '';
+        setTimeout(() => { err.style.display = 'none'; }, 2000);
+    }
+}
+
+// ── Firebase ──────────────────────────────────────────────────────────────────
+let db = null;
+function initFirebase() {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let gameRef = null;
+let gameData = null;
+let selectedPlayerKey = null;
+let plates = [];        // { name, foundAt, isFirst }
+let sortMode = 'alpha';
+let selectedPlate = null;
+
+// ── Game loader ───────────────────────────────────────────────────────────────
+async function loadGame() {
+    const code = document.getElementById('gameCodeInput').value.trim().toUpperCase();
+    if (!code) return;
+    setStatus('loadStatus', 'Loading…', 'info');
+    try {
+        const snap = await db.ref(`games/${code}`).once('value');
+        gameData = snap.val();
+        if (!gameData) { setStatus('loadStatus', 'Game not found.', 'err'); return; }
+        gameRef = db.ref(`games/${code}`);
+        setStatus('loadStatus', `✅ Loaded "${gameData.name || code}" — ${Object.keys(gameData.players || {}).length} player(s)`, 'ok');
+
+        // Populate player selector
+        const sel = document.getElementById('playerSelect');
+        sel.innerHTML = '<option value="">— select player —</option>';
+        Object.entries(gameData.players || {}).forEach(([key, p]) => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = p.displayName || p.name || key;
+            sel.appendChild(opt);
+        });
+        document.getElementById('playerCard').style.display = '';
+        document.getElementById('platesCard').style.display = 'none';
+        document.getElementById('editorCard').style.display = 'none';
+        selectedPlayerKey = null;
+        plates = [];
+    } catch (err) {
+        setStatus('loadStatus', 'Error: ' + err.message, 'err');
+    }
+}
+
+// ── Plate list ────────────────────────────────────────────────────────────────
+function loadPlates() {
+    selectedPlayerKey = document.getElementById('playerSelect').value;
+    if (!selectedPlayerKey || !gameData) return;
+    const player = gameData.players[selectedPlayerKey];
+    const states = player?.states || {};
+    const claims = gameData.claimedStates || {};
+
+    plates = Object.entries(states).map(([name, data]) => ({
+        name,
+        foundAt: typeof data.foundAt === 'number' ? data.foundAt : 0,
+        isFirst: claims[name]?.playerKey === selectedPlayerKey,
+    }));
+
+    document.getElementById('platesCard').style.display = '';
+    document.getElementById('editorCard').style.display = 'none';
+    selectedPlate = null;
+    sortPlates(sortMode, false);
+    renderPlateList();
+}
+
+function sortPlates(mode, render = true) {
+    sortMode = mode;
+    if (mode === 'alpha') plates.sort((a, b) => a.name.localeCompare(b.name));
+    else if (mode === 'ts-asc') plates.sort((a, b) => a.foundAt - b.foundAt);
+    else if (mode === 'ts-desc') plates.sort((a, b) => b.foundAt - a.foundAt);
+    if (render) renderPlateList();
+}
+
+function renderPlateList() {
+    const filter = document.getElementById('filterInput').value.toLowerCase();
+    const container = document.getElementById('plateList');
+    const visible = filter ? plates.filter(p => p.name.toLowerCase().includes(filter)) : plates;
+
+    if (!visible.length) { container.innerHTML = '<div style="color:rgba(255,255,255,0.35);font-size:13px;padding:8px 0">No plates found.</div>'; return; }
+
+    container.innerHTML = '';
+    visible.forEach(plate => {
+        const row = document.createElement('div');
+        row.className = 'plate-row' + (selectedPlate === plate.name ? ' selected' : '');
+        const ts = plate.foundAt ? new Date(plate.foundAt).toLocaleString() : '—';
+        const firstTag = plate.isFirst ? '<span class="tag tag-first">1st</span>' : '<span class="tag tag-later">later</span>';
+        row.innerHTML = `<div class="plate-name">${plate.name}${firstTag}</div><div class="plate-ts">${ts}</div>`;
+        row.addEventListener('click', () => openEditor(plate.name, plate.foundAt));
+        container.appendChild(row);
+    });
+}
+
+// ── Editor ────────────────────────────────────────────────────────────────────
+function openEditor(name, foundAt) {
+    selectedPlate = name;
+    renderPlateList();
+    document.getElementById('editPlateName').textContent = name;
+    document.getElementById('editDatetime').value = foundAt ? toDatetimeLocal(foundAt) : '';
+    document.getElementById('editStatus').innerHTML = '';
+    document.getElementById('editorCard').style.display = '';
+    document.getElementById('editorCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeEditor() {
+    selectedPlate = null;
+    document.getElementById('editorCard').style.display = 'none';
+    renderPlateList();
+}
+
+function setToNow() {
+    document.getElementById('editDatetime').value = toDatetimeLocal(Date.now());
+}
+
+async function saveTimestamp() {
+    if (!selectedPlate || !selectedPlayerKey || !gameRef) return;
+    const dtVal = document.getElementById('editDatetime').value;
+    if (!dtVal) { setStatus('editStatus', 'Please enter a date and time.', 'err'); return; }
+    const newTs = new Date(dtVal).getTime();
+    if (isNaN(newTs)) { setStatus('editStatus', 'Invalid date/time.', 'err'); return; }
+
+    setStatus('editStatus', 'Saving…', 'info');
+    try {
+        // Update the foundAt in the player's state record
+        await gameRef.child(`players/${selectedPlayerKey}/states/${selectedPlate}/foundAt`).set(newTs);
+        setStatus('editStatus', `✅ Saved — ${new Date(newTs).toLocaleString()}`, 'ok');
+
+        // Update local cache
+        const plate = plates.find(p => p.name === selectedPlate);
+        if (plate) plate.foundAt = newTs;
+
+        // Refresh claimedStates first-finder for this state based on new timestamps
+        await recomputeFirstFinder(selectedPlate);
+        renderPlateList();
+    } catch (err) {
+        setStatus('editStatus', 'Error: ' + err.message, 'err');
+    }
+}
+
+async function deletePlate() {
+    if (!selectedPlate || !selectedPlayerKey || !gameRef) return;
+    if (!confirm(`Remove ${selectedPlate} from ${document.getElementById('playerSelect').selectedOptions[0]?.text}?\n\nThis cannot be undone from here.`)) return;
+    setStatus('editStatus', 'Removing…', 'info');
+    try {
+        await gameRef.child(`players/${selectedPlayerKey}/states/${selectedPlate}`).remove();
+        // Remove first-finder claim if this player held it
+        const snap = await gameRef.child(`claimedStates/${selectedPlate}`).once('value');
+        if (snap.val()?.playerKey === selectedPlayerKey) {
+            await gameRef.child(`claimedStates/${selectedPlate}`).remove();
+        }
+        setStatus('editStatus', `✅ ${selectedPlate} removed.`, 'ok');
+        plates = plates.filter(p => p.name !== selectedPlate);
+        closeEditor();
+    } catch (err) {
+        setStatus('editStatus', 'Error: ' + err.message, 'err');
+    }
+}
+
+// Recompute and update claimedStates first-finder for one state across all players
+async function recomputeFirstFinder(stateName) {
+    if (!gameRef || !gameData) return;
+    // Refresh full game snapshot to get latest timestamps
+    const snap = await gameRef.once('value');
+    const room = snap.val();
+    if (!room) return;
+    gameData = room;
+
+    let earliest = null;
+    Object.entries(room.players || {}).forEach(([pKey, pData]) => {
+        const sd = pData.states?.[stateName];
+        if (!sd) return;
+        const t = typeof sd.foundAt === 'number' ? sd.foundAt : 0;
+        if (!earliest || t < earliest.t) earliest = { t, playerKey: pKey, playerData: pData };
+    });
+
+    if (!earliest) {
+        await gameRef.child(`claimedStates/${stateName}`).remove();
+    } else {
+        const pd = earliest.playerData;
+        await gameRef.child(`claimedStates/${stateName}`).set({
+            state: stateName,
+            playerKey: earliest.playerKey,
+            name: pd.name, tag: pd.tag,
+            displayName: pd.displayName,
+            claimedAt: earliest.t,
+        });
+    }
+
+    // Refresh local plate isFirst flags
+    const claims = gameData.claimedStates || {};
+    plates.forEach(p => { p.isFirst = claims[p.name]?.playerKey === selectedPlayerKey; });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function toDatetimeLocal(ts) {
+    const d = new Date(ts);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function setStatus(id, msg, type) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div class="status ${type}">${msg}</div>`;
+}
+
+// Auto-uppercase game code input
+document.getElementById('gameCodeInput')?.addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+});
+document.getElementById('gameCodeInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') loadGame(); });
+</script>
+</body>
+</html>
