@@ -233,14 +233,16 @@
         .end-game-footer { padding:16px 20px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }
         .audit-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1200; padding:18px; }
         .audit-modal.open { display:flex; }
-        .audit-dialog { width:min(96vw,540px); max-height:85vh; background:linear-gradient(145deg,rgba(26,44,62,0.99),rgba(36,58,80,0.99)); border-radius:22px; border:2px solid rgba(41,128,185,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:24px; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
-        .audit-header { display:flex; justify-content:space-between; align-items:flex-start; }
+        .audit-dialog { width:min(96vw,540px); max-height:88vh; background:linear-gradient(145deg,rgba(26,44,62,0.99),rgba(36,58,80,0.99)); border-radius:22px; border:2px solid rgba(41,128,185,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:20px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .audit-header { display:flex; justify-content:space-between; align-items:flex-start; flex-shrink:0; }
         .audit-title { font-size:18px; font-weight:800; color:#fff; }
         .audit-subtitle { font-size:12px; color:rgba(255,255,255,0.55); margin-top:3px; }
-        .audit-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-        .audit-loading { text-align:center; padding:28px 0; color:rgba(255,255,255,0.6); font-size:15px; }
-        .audit-ok { background:rgba(39,174,96,0.15); border:1px solid rgba(39,174,96,0.4); border-radius:10px; padding:16px; color:#2ecc71; font-size:14px; text-align:center; }
-        .audit-error { background:rgba(231,76,60,0.15); border:1px solid rgba(231,76,60,0.4); border-radius:10px; padding:16px; color:#e74c3c; font-size:14px; text-align:center; }
+        .audit-body { /* result banner — no flex:1, height is content-driven */ }
+        .audit-divider { border:none; border-top:1px solid rgba(255,255,255,0.1); margin:0; flex-shrink:0; }
+        .audit-section-title { font-size:11px; font-weight:700; letter-spacing:0.08em; color:rgba(255,255,255,0.4); text-transform:uppercase; }
+        .audit-loading { text-align:center; padding:18px 0; color:rgba(255,255,255,0.6); font-size:15px; }
+        .audit-ok { background:rgba(39,174,96,0.15); border:1px solid rgba(39,174,96,0.4); border-radius:10px; padding:14px 16px; color:#2ecc71; font-size:14px; }
+        .audit-error { background:rgba(231,76,60,0.15); border:1px solid rgba(231,76,60,0.4); border-radius:10px; padding:14px 16px; color:#e74c3c; font-size:14px; text-align:center; }
         .audit-summary { font-size:15px; font-weight:700; color:#f39c12; margin-bottom:10px; }
         .audit-list { display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
         .audit-item { background:rgba(255,255,255,0.06); border-radius:8px; padding:9px 12px; font-size:13px; color:rgba(255,255,255,0.85); line-height:1.4; }
@@ -765,15 +767,20 @@
                 <div class="audit-header">
                     <div>
                         <div class="audit-title">🔍 Score Audit</div>
-                        <div class="audit-subtitle">Compares Firebase timestamps to correct first-finder records</div>
+                        <div class="audit-subtitle">Corrects first-finder records &amp; region completions by timestamp</div>
                     </div>
                     <button class="btn btn-secondary btn-small" id="cancelAuditBtn">✕</button>
                 </div>
                 <div class="audit-body" id="auditBody">
-                    <div class="audit-loading">🔍 Analyzing timestamps…</div>
+                    <div class="audit-loading">🔍 Analyzing…</div>
                 </div>
-                <div id="regionRecordsBody" style="display:none"></div>
-                <div class="audit-footer">
+                <div style="text-align:right;flex-shrink:0">
+                    <button class="btn btn-secondary btn-small" id="rerunAuditBtn">↻ Re-run Audit</button>
+                </div>
+                <hr class="audit-divider">
+                <div class="audit-section-title">Completion Records</div>
+                <div id="regionRecordsBody"></div>
+                <div style="flex-shrink:0">
                     <button class="btn btn-secondary" id="cancelAuditBtn2">Close</button>
                 </div>
             </div>
@@ -851,7 +858,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423w"></script>
+    <script src="game.js?v=20260423x"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

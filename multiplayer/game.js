@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423w';
+const APP_VERSION = '20260423x';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -823,6 +823,7 @@ function bindEventListeners() {
     document.getElementById('auditBtn')?.addEventListener('click', () => openAuditModal());
     document.getElementById('cancelAuditBtn')?.addEventListener('click', closeAuditModal);
     document.getElementById('cancelAuditBtn2')?.addEventListener('click', closeAuditModal);
+    document.getElementById('rerunAuditBtn')?.addEventListener('click', () => runAuditCorrections());
     const auditModal = document.getElementById('auditModal');
     if (auditModal) auditModal.addEventListener('click', e => { if (e.target === auditModal) closeAuditModal(); });
     document.getElementById('clearConfirmCancel')?.addEventListener('click', hideClearConfirmSheet);
@@ -1618,18 +1619,23 @@ let pendingAuditResults = null;
 
 async function openAuditModal() {
     const modal = document.getElementById('auditModal');
-    const body = document.getElementById('auditBody');
     if (!modal) return;
-    pendingAuditResults = null;
-    if (body) body.innerHTML = '<div class="audit-loading">🔍 Analyzing &amp; correcting…</div>';
     renderRegionRecords();
     modal.classList.add('open');
+    await runAuditCorrections();
+}
+
+async function runAuditCorrections() {
+    const body = document.getElementById('auditBody');
+    if (!body) return;
+    pendingAuditResults = null;
+    body.innerHTML = '<div class="audit-loading">🔍 Analyzing…</div>';
 
     const results = await computeAuditCorrections();
     pendingAuditResults = results;
 
     if (!results) {
-        if (body) body.innerHTML = '<div class="audit-error">⚠️ Could not read game data. Check your connection and try again.</div>';
+        body.innerHTML = '<div class="audit-error">⚠️ Could not read game data. Check your connection and try again.</div>';
         return;
     }
 
@@ -1637,11 +1643,11 @@ async function openAuditModal() {
     const totalFixes = corrections.length + regionCorrections.length;
 
     if (!totalFixes) {
-        if (body) body.innerHTML = '<div class="audit-ok">✅ All records are accurate — no changes needed.</div>';
+        body.innerHTML = '<div class="audit-ok">✅ All records are accurate — no changes needed.</div>';
         return;
     }
 
-    if (body) body.innerHTML = '<div class="audit-loading">⚙️ Applying corrections…</div>';
+    body.innerHTML = '<div class="audit-loading">⚙️ Applying corrections…</div>';
     try {
         const updates = {};
 
@@ -1681,12 +1687,13 @@ async function openAuditModal() {
         if (corrections.length) summary += `${corrections.length} plate first-finder record${corrections.length === 1 ? '' : 's'}`;
         if (regionCorrections.length) summary += (summary ? ' · ' : '') + `${regionCorrections.length} region completion record${regionCorrections.length === 1 ? '' : 's'}`;
 
-        if (body) body.innerHTML = `
+        body.innerHTML = `
             <div class="audit-ok">✅ Fixed ${summary} — scores &amp; badges updated for all players.</div>
             <div class="audit-list" style="margin-top:10px">${plateItems}${overflow}${regionItems}</div>`;
+        renderRegionRecords();
     } catch (err) {
         console.error('Audit auto-apply failed:', err);
-        if (body) body.innerHTML = '<div class="audit-error">⚠️ Could not apply corrections. Check your connection and try again.</div>';
+        body.innerHTML = '<div class="audit-error">⚠️ Could not apply corrections. Check your connection and try again.</div>';
     }
 }
 
@@ -1899,9 +1906,11 @@ function renderRegionRecords() {
         backupItems.push({ type: 'corridor', key: '', label: bk.corridor.label || 'Travel Corridor', winner: bk.corridor.displayName, daysLeft });
     }
 
-    if (!liveItems.length && !backupItems.length) { container.style.display = 'none'; return; }
+    if (!liveItems.length && !backupItems.length) {
+        container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:8px 0">No completion records yet.</div>';
+        return;
+    }
 
-    container.style.display = '';
     let html = '<div class="region-records-section">';
 
     if (liveItems.length) {
