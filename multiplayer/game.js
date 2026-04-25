@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423t';
+const APP_VERSION = '20260423u';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -2353,11 +2353,10 @@ function closeBadgeDetail() {
 // ── Player Detail Modal ───────────────────────────────────────────────────────
 
 function openPlayerDetail(playerKey) {
-    try {
     const player = playersData[playerKey];
-    if (!player) { showToast('Player data missing — try again', 'error'); return; }
+    if (!player) return;
     const modal = document.getElementById('playerDetailModal');
-    if (!modal) { showToast('Modal element missing', 'error'); return; }
+    if (!modal) return;
 
     const stats = computePlayerStats(playerKey) || { score: 0, foundCount: 0, firstCount: 0, foundSet: new Set(), completedSubs: [], corridorComplete: false };
     const badges = getPlayerBadges(playerKey);
@@ -2379,9 +2378,9 @@ function openPlayerDetail(playerKey) {
 
     // Score breakdown by rarity tier
     const detailCorridor = gameData?.settings?.playAreaStates || [];
+    const detailUseGps = gameData?.settings?.gpsRarity;
     const breakdownEl = document.getElementById('detailBreakdownGrid');
     if (breakdownEl) {
-        const detailUseGps = gameData?.settings?.gpsRarity;
         const byTier = {};
         stats.foundSet.forEach(name => {
             const sd = player.states?.[name];
@@ -2451,12 +2450,7 @@ function openPlayerDetail(playerKey) {
     }
 
     modal.classList.add('visible');
-    modal.style.removeProperty('display'); // clear any inline override
-    modal.style.display = 'flex';          // belt-and-suspenders
-    } catch(err) {
-        showToast('Player detail error: ' + err.message, 'error');
-        console.error('openPlayerDetail:', err);
-    }
+    modal.style.display = 'flex';
 }
 
 function closePlayerDetail() {
