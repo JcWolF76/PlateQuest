@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423y';
+const APP_VERSION = '20260423z';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -1398,10 +1398,45 @@ async function toggleState(stateName, currentlySelected) {
 
 async function resetMyProgress() {
     if (!currentGameRef || !currentPlayer) return;
-    if (!confirm('Reset all your spotted plates? This cannot be undone.')) return;
+    if (!confirm('Reset all your spotted plates? This cannot be undone.\n\nFirst-finder records you hold will be reassigned to the next-earliest player.')) return;
     try {
-        await currentGameRef.child(`players/${currentPlayer.playerKey}/states`).set({});
-        await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
+        const myKey = currentPlayer.playerKey;
+        const snap = await currentGameRef.once('value');
+        const room = snap.val();
+        if (!room) return;
+
+        const players = normalizePlayers(room.players || {});
+        const claims  = room.claimedStates || {};
+        const updates = {};
+
+        // Clear this player's plates
+        updates[`players/${myKey}/states`] = {};
+
+        // For every first-finder claim this player holds, remove or reassign
+        Object.entries(claims).forEach(([stateName, claim]) => {
+            if (claim.playerKey !== myKey) return;
+            // Find earliest holder among other players
+            let next = null;
+            Object.entries(players).forEach(([pKey, pData]) => {
+                if (pKey === myKey) return;
+                const sd = pData.states?.[stateName];
+                if (!sd) return;
+                const t = typeof sd.foundAt === 'number' ? sd.foundAt : 0;
+                if (!next || t < next.t) next = { t, playerKey: pKey, playerData: pData };
+            });
+            if (!next) {
+                updates[`claimedStates/${stateName}`] = null;
+            } else {
+                updates[`claimedStates/${stateName}`] = {
+                    state: stateName, playerKey: next.playerKey,
+                    name: next.playerData.name, tag: next.playerData.tag,
+                    displayName: next.playerData.displayName, claimedAt: next.t,
+                };
+            }
+        });
+
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
         lastSyncAt = Date.now();
         showToast('Your progress has been reset.', 'info');
         updateDiagnosticsPanel();
@@ -1975,6 +2010,7 @@ async function computeAuditCorrections() {
             const playerKey = claimData.playerKey;
             const playerData = players[playerKey];
             if (!playerData) return;
+            if (!playerData.states?.[stateName]) return; // player reset — don't seed from them
             const t = typeof claimData.claimedAt === 'number' ? claimData.claimedAt : 0;
             earliestByState[stateName] = { playerKey, playerData, foundAt: t };
         });
