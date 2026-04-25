@@ -91,6 +91,21 @@
         .play-area-chip:hover, .edit-play-area-chip:hover { transform: translateY(-1px); border-color: #3498db; }
         .play-area-chip.selected, .edit-play-area-chip.selected { background: linear-gradient(45deg, #3498db, #2980b9); border-color: #5dade2; color: white; box-shadow: 0 4px 14px rgba(52, 152, 219, 0.35); }
         .setup-hint { font-size: 12px; color: #95a5a6; margin-top: 8px; line-height: 1.4; }
+        .gps-toggle-row { display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px; font-weight:600; color:#ecf0f1; user-select:none; }
+        .gps-toggle-row input[type=checkbox] { width:18px; height:18px; accent-color:#3498db; cursor:pointer; flex-shrink:0; }
+        .badge-item-clickable { cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; }
+        .badge-item-clickable:active { transform:scale(0.95); }
+        .badge-detail-overlay { position:absolute; inset:0; background:linear-gradient(145deg,rgba(26,44,62,0.99),rgba(36,58,80,0.99)); border-radius:inherit; display:none; flex-direction:column; z-index:10; overflow:hidden; }
+        .badge-detail-header { display:flex; align-items:center; gap:12px; padding:16px 20px 12px; border-bottom:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
+        .badge-detail-title { font-size:16px; font-weight:800; color:#fff; line-height:1.3; }
+        .badge-detail-desc { font-size:12px; color:rgba(255,255,255,0.5); font-weight:400; }
+        .badge-detail-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 16px; display:flex; flex-direction:column; gap:6px; }
+        .badge-detail-item { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.06); border-radius:8px; padding:9px 12px; font-size:13px; }
+        .badge-detail-state { color:#ecf0f1; font-weight:600; }
+        .badge-detail-time { color:rgba(255,255,255,0.45); font-size:12px; }
+        .found-chip { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:7px 6px 5px; min-height:52px; }
+        .found-chip-abbr { font-size:13px; font-weight:800; letter-spacing:0.5px; line-height:1.2; }
+        .found-chip-time { font-size:8.5px; opacity:0.65; margin-top:3px; white-space:nowrap; }
         .creator-games-panel { background: rgba(255,255,255,0.06); border: 1px solid rgba(52, 152, 219, 0.25); border-radius: 14px; padding: 16px; margin-top: 16px; text-align: left; }
         .creator-games-list { display: grid; gap: 10px; }
         .creator-game-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(52, 152, 219, 0.18); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
@@ -155,8 +170,26 @@
         /* ── Audit button ── */
         .btn-audit { background: linear-gradient(135deg, #1a5276, #2980b9); color: #fff; font-weight: 800; border: none; }
         .btn-audit:hover { background: linear-gradient(135deg, #2980b9, #3498db); }
+        .btn-end-game { background: linear-gradient(135deg, #7d3c00, #c0392b); color: #fff; font-weight: 800; border: none; }
+        .btn-end-game:hover { background: linear-gradient(135deg, #c0392b, #e74c3c); }
 
-        /* ── Audit Modal ── */
+        /* ── End Game Modal ── */
+        .end-game-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.92); z-index:1400; padding:16px; overflow-y:auto; }
+        .end-game-dialog { width:min(98vw,560px); max-height:92vh; background:linear-gradient(145deg,rgba(10,20,35,0.99),rgba(20,35,55,0.99)); border-radius:24px; border:2px solid rgba(255,215,0,0.35); box-shadow:0 24px 80px rgba(0,0,0,0.7),0 0 60px rgba(255,215,0,0.06); display:flex; flex-direction:column; overflow:hidden; }
+        .end-game-header { text-align:center; padding:24px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.08); background:linear-gradient(180deg,rgba(255,215,0,0.06),transparent); }
+        .end-game-title { font-size:28px; font-weight:900; color:#fff; letter-spacing:0.5px; }
+        .end-game-subtitle { font-size:14px; color:rgba(255,255,255,0.5); margin-top:4px; }
+        .end-game-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px; display:flex; flex-direction:column; gap:12px; }
+        .end-player-card { border-radius:16px; padding:16px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); }
+        .end-player-card.rank-1 { border-color:rgba(255,215,0,0.5); background:rgba(255,215,0,0.06); box-shadow:0 0 20px rgba(255,215,0,0.08); }
+        .end-player-card.rank-2 { border-color:rgba(192,192,192,0.4); background:rgba(192,192,192,0.04); }
+        .end-player-card.rank-3 { border-color:rgba(205,127,50,0.4); background:rgba(205,127,50,0.04); }
+        .end-player-top { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+        .end-player-medal { font-size:28px; flex-shrink:0; }
+        .end-player-name { font-size:18px; font-weight:800; color:#fff; }
+        .end-player-score { font-size:13px; color:rgba(255,255,255,0.55); margin-top:2px; }
+        .end-player-summary { font-size:13px; color:rgba(255,255,255,0.82); line-height:1.6; font-style:italic; border-top:1px solid rgba(255,255,255,0.07); padding-top:10px; }
+        .end-game-footer { padding:16px 20px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }
         .audit-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1200; padding:18px; }
         .audit-dialog { width:min(96vw,540px); max-height:85vh; background:linear-gradient(145deg,rgba(26,44,62,0.99),rgba(36,58,80,0.99)); border-radius:22px; border:2px solid rgba(41,128,185,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:24px; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
         .audit-header { display:flex; justify-content:space-between; align-items:flex-start; }
@@ -173,6 +206,16 @@
         .audit-note { font-size:12px; color:rgba(255,255,255,0.4); line-height:1.5; padding-top:6px; border-top:1px solid rgba(255,255,255,0.08); }
         .audit-more { font-size:12px; color:rgba(255,255,255,0.4); padding:6px 0; text-align:center; }
         .audit-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:4px; }
+        .region-records-section { padding-top:14px; border-top:1px solid rgba(255,255,255,0.1); }
+        .region-records-title { font-size:12px; font-weight:700; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
+        .region-record-item { display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(255,255,255,0.06); border-radius:8px; padding:9px 12px; font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:5px; }
+        .region-record-winner { color:rgba(255,255,255,0.45); font-size:12px; }
+        .btn-clear-record { background:rgba(231,76,60,0.15); border:1px solid rgba(231,76,60,0.4); color:#e74c3c; border-radius:8px; padding:5px 11px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0; }
+        .btn-undo-record { background:rgba(52,152,219,0.15); border:1px solid rgba(52,152,219,0.4); color:#3498db; border-radius:8px; padding:5px 11px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0; }
+        .btn-dispute-region { background:rgba(231,76,60,0.12); border:1px solid rgba(231,76,60,0.35); color:#e74c3c; border-radius:7px; padding:3px 9px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0; touch-action:manipulation; }
+        .btn-dispute-region:disabled { opacity:0.5; cursor:default; }
+        .audit-btn-wrap { position:relative; display:inline-block; }
+        .audit-badge { position:absolute; top:-5px; right:-5px; width:12px; height:12px; background:#e74c3c; border-radius:50%; display:none; border:2px solid #1a2c3e; pointer-events:none; }
 
         /* ── Announce Modal ── */
         .announce-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.78); z-index:1200; padding:18px; }
@@ -275,7 +318,7 @@
         .breakdown-bonus-label { font-size:12px; font-weight:700; color:#27ae60; flex:1; }
         /* Found plates chips */
         .found-plates-grid { display:flex; flex-wrap:wrap; gap:6px; }
-        .found-chip { padding:4px 9px; border-radius:8px; font-size:12px; font-weight:800; letter-spacing:0.5px; cursor:default; }
+        .found-chip { border-radius:8px; cursor:default; }
         .rarity-chip-common       { background:rgba(127,140,141,0.25); border:1px solid #7f8c8d; color:#ecf0f1; }
         .rarity-chip-occasional   { background:rgba(39,174,96,0.25);   border:1px solid #27ae60; color:#ecf0f1; }
         .rarity-chip-scarce       { background:rgba(22,160,133,0.25);   border:1px solid #16a085; color:#ecf0f1; }
@@ -465,6 +508,11 @@
                             </select>
                             <div class="setup-hint">When enabled, Canadian provinces and territories appear below the U.S. states in a separate alphabetical section.</div>
                         </div>
+                        <div class="setup-inline-card">
+                            <label style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">📍 Rarity Mode</label>
+                            <label class="gps-toggle-row"><input type="checkbox" id="gpsRarityToggle"> <span>Use Live GPS for Rarity</span></label>
+                            <div class="setup-hint">When on, each player's real-time location at the moment of spotting determines rarity — plates far from where you are score higher. Defaults to the travel corridor.</div>
+                        </div>
                         <div class="play-area-panel">
                             <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
                                 <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">🗺️ Trip Play Area</label>
@@ -512,8 +560,12 @@
                 </div>
                 <div style="padding: 25px; border-top: 1px solid rgba(52, 152, 219, 0.2); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn btn-announce" id="announceBtn" style="display:none;">📣 Announce</button>
-                    <button class="btn btn-audit" id="auditBtn" style="display:none;">🔍 Audit Scores</button>
+                    <div class="audit-btn-wrap">
+                        <button class="btn btn-audit" id="auditBtn" style="display:none;">🔍 Audit Scores</button>
+                        <span class="audit-badge" id="auditBadge"></span>
+                    </div>
                     <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
+                    <button class="btn btn-end-game" id="endGameBtn" style="display:none;">🏁 End Game</button>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
                     <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
@@ -574,6 +626,11 @@
                     <div class="setup-hint">Turning Canada off is blocked if this pack already contains saved Canadian plate progress.</div>
                 </div>
                 <div class="edit-pack-section">
+                    <label style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">📍 Rarity Mode</label>
+                    <label class="gps-toggle-row"><input type="checkbox" id="editGpsRarityToggle"> <span>Use Live GPS for Rarity</span></label>
+                    <div class="setup-hint">When on, rarity is based on each player's real-time location when they spot a plate.</div>
+                </div>
+                <div class="edit-pack-section">
                     <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
                         <label style="margin:0; color:#3498db; font-weight:700; font-size:14px;">🗺️ Trip Play Area</label>
                         <span class="setup-hint">Update the U.S. travel corridor without erasing gameplay history.</span>
@@ -603,7 +660,7 @@
 
         <!-- Player Detail Modal -->
         <div id="playerDetailModal" class="player-detail-modal">
-            <div class="player-detail-dialog">
+            <div class="player-detail-dialog" style="position:relative">
                 <div class="detail-header">
                     <div>
                         <div class="detail-name" id="detailPlayerName">—</div>
@@ -637,6 +694,17 @@
                     <div class="detail-section-title">🗺️ Plates Found</div>
                     <div id="detailFoundGrid" class="found-plates-grid"></div>
                 </div>
+                <!-- Badge detail overlay — slides over modal content when a badge is tapped -->
+                <div id="badgeDetailOverlay" class="badge-detail-overlay">
+                    <div class="badge-detail-header">
+                        <button class="btn btn-secondary btn-small" id="closeBadgeDetailBtn">← Back</button>
+                        <div>
+                            <div class="badge-detail-title" id="badgeDetailTitle"></div>
+                            <div class="badge-detail-desc" id="badgeDetailDesc"></div>
+                        </div>
+                    </div>
+                    <div class="badge-detail-list" id="badgeDetailList"></div>
+                </div>
             </div>
         </div>
 
@@ -653,6 +721,7 @@
                 <div class="audit-body" id="auditBody">
                     <div class="audit-loading">🔍 Analyzing timestamps…</div>
                 </div>
+                <div id="regionRecordsBody" style="display:none"></div>
                 <div class="audit-footer">
                     <button class="btn btn-secondary" id="cancelAuditBtn2">Cancel</button>
                     <button class="btn btn-audit" id="auditApplyBtn" disabled>Apply Corrections</button>
@@ -691,11 +760,25 @@
             </div>
         </div>
 
+        <!-- End Game Modal -->
+        <div id="endGameModal" class="end-game-modal">
+            <div class="end-game-dialog">
+                <div class="end-game-header">
+                    <div class="end-game-title" id="endGameTitle">🏁 Game Over!</div>
+                    <div class="end-game-subtitle" id="endGameSubtitle">Final Results</div>
+                </div>
+                <div class="end-game-body" id="endGameBody"></div>
+                <div class="end-game-footer">
+                    <button class="btn btn-secondary" id="closeEndGameBtn">← Back to Pack</button>
+                </div>
+            </div>
+        </div>
+
         <div id="loadingOverlay" class="loading-overlay" style="display: none;"><div class="loading-spinner"></div><div class="loading-text">Connecting to the pack...</div></div>
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423i"></script>
+    <script src="game.js?v=20260423n"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
@@ -872,6 +955,8 @@
             document.getElementById('editPackNameInput').value = room.name || '';
             document.getElementById('editPrimaryRegionSelect').value = room.settings?.playRegion || '';
             document.getElementById('editPlateScopeSelect').value = room.settings?.plateScope || 'us_only';
+            const editGpsToggle = document.getElementById('editGpsRarityToggle');
+            if (editGpsToggle) editGpsToggle.checked = room.settings?.gpsRarity || false;
             editPlayAreaStates = new Set(room.settings?.playAreaStates || []);
             renderEditPlayAreaMap();
             document.getElementById('editPackModal').classList.add('visible');
@@ -926,13 +1011,14 @@
             const nextName = document.getElementById('editPackNameInput').value.trim();
             const nextRegion = document.getElementById('editPrimaryRegionSelect').value || '';
             const nextScope = document.getElementById('editPlateScopeSelect').value || 'us_only';
+            const nextGpsRarity = document.getElementById('editGpsRarityToggle')?.checked || false;
             const nextPlayAreaStates = Array.from(editPlayAreaStates).sort();
             if (!nextName) { if (typeof showToast === 'function') showToast('Please enter a pack name.', 'error'); return; }
             if (!nextRegion) { if (typeof showToast === 'function') showToast('Please choose a primary play region.', 'error'); return; }
             if (!nextPlayAreaStates.length) { if (typeof showToast === 'function') showToast('Select at least one trip-area state.', 'error'); return; }
             const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name)));
             if (nextScope === 'us_only' && hasCanadianProgress) { if (typeof showToast === 'function') showToast('Cannot turn Canada off — this pack already has Canadian plate progress.', 'error'); return; }
-            const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() };
+            const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates, gpsRarity: nextGpsRarity }, updatedAt: Date.now() };
             try {
                 await db.ref(`games/${code}`).update(payload);
                 try { await upsertCreatedGame({ code, name: nextName, playRegion: nextRegion, playAreaStates: nextPlayAreaStates }); } catch (e) {}

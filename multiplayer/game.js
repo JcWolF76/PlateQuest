@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423i';
+const APP_VERSION = '20260423n';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -26,8 +26,8 @@ const US_PLATES = [
     { name: "North Carolina", abbr: "NC", category: "us" }, { name: "North Dakota", abbr: "ND", category: "us" }, { name: "Ohio", abbr: "OH", category: "us" }, { name: "Oklahoma", abbr: "OK", category: "us" },
     { name: "Oregon", abbr: "OR", category: "us" }, { name: "Pennsylvania", abbr: "PA", category: "us" }, { name: "Rhode Island", abbr: "RI", category: "us" }, { name: "South Carolina", abbr: "SC", category: "us" },
     { name: "South Dakota", abbr: "SD", category: "us" }, { name: "Tennessee", abbr: "TN", category: "us" }, { name: "Texas", abbr: "TX", category: "us" }, { name: "Utah", abbr: "UT", category: "us" },
-    { name: "Vermont", abbr: "VT", category: "us" }, { name: "Virginia", abbr: "VA", category: "us" }, { name: "Washington", abbr: "WA", category: "us" }, { name: "West Virginia", abbr: "WV", category: "us" },
-    { name: "Wisconsin", abbr: "WI", category: "us" }, { name: "Wyoming", abbr: "WY", category: "us" }
+    { name: "Vermont", abbr: "VT", category: "us" }, { name: "Virginia", abbr: "VA", category: "us" }, { name: "Washington", abbr: "WA", category: "us" }, { name: "Washington D.C.", abbr: "DC", category: "us" },
+    { name: "West Virginia", abbr: "WV", category: "us" }, { name: "Wisconsin", abbr: "WI", category: "us" }, { name: "Wyoming", abbr: "WY", category: "us" }
 ];
 
 const TERRITORY_PLATES = [
@@ -156,8 +156,9 @@ const STATE_NEIGHBORS = {
     'California':     ['Arizona','Nevada','Oregon'],
     'Colorado':       ['Arizona','Kansas','Nebraska','New Mexico','Oklahoma','Utah','Wyoming'],
     'Connecticut':    ['Massachusetts','New York','Rhode Island'],
-    'Delaware':       ['Maryland','New Jersey','Pennsylvania'],
-    'Florida':        ['Alabama','Georgia'],
+    'Delaware':          ['Maryland','New Jersey','Pennsylvania'],
+    'Florida':           ['Alabama','Georgia'],
+    'Washington D.C.':   ['Maryland','Virginia'],
     'Georgia':        ['Alabama','Florida','North Carolina','South Carolina','Tennessee'],
     'Hawaii':         [],
     'Idaho':          ['British Columbia','Montana','Nevada','Oregon','Utah','Washington','Wyoming'],
@@ -168,7 +169,7 @@ const STATE_NEIGHBORS = {
     'Kentucky':       ['Illinois','Indiana','Missouri','Ohio','Tennessee','Virginia','West Virginia'],
     'Louisiana':      ['Arkansas','Mississippi','Texas'],
     'Maine':          ['New Brunswick','New Hampshire','Quebec'],
-    'Maryland':       ['Delaware','Pennsylvania','Virginia','West Virginia'],
+    'Maryland':       ['Delaware','Pennsylvania','Virginia','Washington D.C.','West Virginia'],
     'Massachusetts':  ['Connecticut','New Hampshire','New York','Rhode Island','Vermont'],
     'Michigan':       ['Indiana','Ohio','Ontario','Wisconsin'],
     'Minnesota':      ['Iowa','Manitoba','North Dakota','Ontario','South Dakota','Wisconsin'],
@@ -194,7 +195,7 @@ const STATE_NEIGHBORS = {
     'Texas':          ['Arkansas','Louisiana','New Mexico','Oklahoma'],
     'Utah':           ['Arizona','Colorado','Idaho','Nevada','New Mexico','Wyoming'],
     'Vermont':        ['Massachusetts','New Hampshire','New York','Quebec'],
-    'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','West Virginia'],
+    'Virginia':       ['Kentucky','Maryland','North Carolina','Tennessee','Washington D.C.','West Virginia'],
     'Washington':     ['British Columbia','Idaho','Oregon'],
     'West Virginia':  ['Kentucky','Maryland','Ohio','Pennsylvania','Virginia'],
     'Wisconsin':      ['Illinois','Iowa','Michigan','Minnesota'],
@@ -218,6 +219,60 @@ const STATE_NEIGHBORS = {
 const TERRITORY_NAMES    = new Set(['Puerto Rico','U.S. Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
 const CANADIAN_TERRITORIES = new Set(['Yukon','Northwest Territories','Nunavut']);
 const NON_CONTIGUOUS     = new Set(['Alaska','Hawaii']);
+
+// Approximate geographic centroids for GPS-based rarity (lat, lng).
+const STATE_CENTROIDS = {
+    'Alabama': [32.8, -86.8], 'Alaska': [64.2, -153.4], 'Arizona': [34.3, -111.1],
+    'Arkansas': [35.0, -92.4], 'California': [36.8, -119.4], 'Colorado': [39.1, -105.4],
+    'Connecticut': [41.6, -72.7], 'Delaware': [39.0, -75.5], 'Washington D.C.': [38.9, -77.0],
+    'Florida': [28.7, -82.5], 'Georgia': [32.7, -83.4], 'Hawaii': [20.7, -156.3],
+    'Idaho': [44.1, -114.5], 'Illinois': [40.1, -88.8], 'Indiana': [40.3, -86.1],
+    'Iowa': [42.0, -93.2], 'Kansas': [38.5, -96.7], 'Kentucky': [37.5, -85.3],
+    'Louisiana': [31.1, -91.9], 'Maine': [45.4, -69.0], 'Maryland': [39.1, -76.6],
+    'Massachusetts': [42.2, -71.5], 'Michigan': [44.4, -85.4], 'Minnesota': [46.4, -93.1],
+    'Mississippi': [32.7, -89.7], 'Missouri': [38.5, -92.5], 'Montana': [47.0, -110.0],
+    'Nebraska': [41.5, -99.9], 'Nevada': [39.9, -116.4], 'New Hampshire': [43.7, -71.6],
+    'New Jersey': [40.1, -74.4], 'New Mexico': [34.5, -106.0], 'New York': [42.9, -75.4],
+    'North Carolina': [35.6, -79.4], 'North Dakota': [47.5, -100.5], 'Ohio': [40.4, -82.7],
+    'Oklahoma': [35.6, -96.9], 'Oregon': [43.9, -120.6], 'Pennsylvania': [40.6, -77.2],
+    'Rhode Island': [41.7, -71.5], 'South Carolina': [33.9, -80.9], 'South Dakota': [44.4, -100.2],
+    'Tennessee': [35.8, -86.7], 'Texas': [31.5, -99.3], 'Utah': [39.4, -111.1],
+    'Vermont': [44.1, -72.7], 'Virginia': [37.8, -78.2], 'Washington': [47.4, -120.4],
+    'West Virginia': [38.6, -80.5], 'Wisconsin': [44.5, -90.0], 'Wyoming': [43.0, -107.6],
+};
+
+function getStateFromCoords(lat, lng) {
+    let nearest = null, minDist = Infinity;
+    for (const [name, [sLat, sLng]] of Object.entries(STATE_CENTROIDS)) {
+        const d = Math.hypot(lat - sLat, lng - sLng);
+        if (d < minDist) { minDist = d; nearest = name; }
+    }
+    return nearest;
+}
+
+async function getPlayerGpsState() {
+    return new Promise(resolve => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve(getStateFromCoords(pos.coords.latitude, pos.coords.longitude)),
+            () => resolve(null),
+            { timeout: 5000, maximumAge: 120000 }
+        );
+    });
+}
+
+function formatFoundAt(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const now = new Date();
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const day = d.getDate();
+    const h = d.getHours() % 12 || 12;
+    const mins = d.getMinutes().toString().padStart(2, '0');
+    const ampm = d.getHours() >= 12 ? 'p' : 'a';
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay ? `${h}:${mins}${ampm}` : `${month} ${day} ${h}:${mins}${ampm}`;
+}
 
 // Returns the rarity tier for a plate given the pack's travel corridor.
 // BFS hop-distance from the corridor determines tier for contiguous US and Canadian provinces.
@@ -356,7 +411,10 @@ let playersData = {};
 let prevPlayerStates = null;    // null = not yet initialized; reset on game exit
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
+let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let pendingClearState = null;   // stateName waiting for clear-confirm sheet
+let regionMigrationDone = false; // one-time migration guard per session
+let endGameScreenShown = false;  // shown at most once per game session
 let gameListenerAttached = false;
 let playerConfirmedInPack = false;
 let eventsBound = false;
@@ -715,6 +773,7 @@ function bindEventListeners() {
     });
     const closeDetailBtn = document.getElementById('closePlayerDetailBtn');
     if (closeDetailBtn) closeDetailBtn.addEventListener('click', closePlayerDetail);
+    document.getElementById('closeBadgeDetailBtn')?.addEventListener('click', closeBadgeDetail);
     const detailModal = document.getElementById('playerDetailModal');
     if (detailModal) detailModal.addEventListener('click', e => { if (e.target === detailModal) closePlayerDetail(); });
     document.getElementById('announceBtn')?.addEventListener('click', openAnnounceModal);
@@ -733,6 +792,8 @@ function bindEventListeners() {
     if (auditModal) auditModal.addEventListener('click', e => { if (e.target === auditModal) closeAuditModal(); });
     document.getElementById('clearConfirmCancel')?.addEventListener('click', hideClearConfirmSheet);
     document.getElementById('clearConfirmOk')?.addEventListener('click', submitClearRequest);
+    document.getElementById('endGameBtn')?.addEventListener('click', endGame);
+    document.getElementById('closeEndGameBtn')?.addEventListener('click', closeEndGameScreen);
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -771,6 +832,7 @@ async function createGame() {
     const gameName = document.getElementById('newGameInput').value.trim();
     const playRegion = document.getElementById('primaryRegionSelect')?.value || '';
     const plateScope = document.getElementById('plateScopeSelect')?.value || 'us_only';
+    const gpsRarity = document.getElementById('gpsRarityToggle')?.checked || false;
     const playAreaStates = getSelectedPlayAreaStates();
     if (!gameName) { showToast('Please enter a pack name! 🎮', 'error'); document.getElementById('newGameInput').focus(); return; }
     if (!playRegion) { showToast('Please choose a primary play region. 🧭', 'error'); document.getElementById('primaryRegionSelect')?.focus(); return; }
@@ -784,7 +846,7 @@ async function createGame() {
             name: gameName,
             code,
             status: 'active',
-            settings: { maxPlayers: MAX_PLAYERS, playRegion, plateScope, playAreaStates },
+            settings: { maxPlayers: MAX_PLAYERS, playRegion, plateScope, playAreaStates, gpsRarity },
             hostPlayerKey: currentPlayer.playerKey,
             createdAt: firebase.database.ServerValue.TIMESTAMP,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -917,11 +979,19 @@ function updateGameUI() {
     detectNewFinds();
     detectNewAnnouncements();
     detectClearRequests();
+    detectRegionClearRequests();
+    autoCleanRegionBackups();
+    updateAuditBadge();
+    maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
+    const isEnded = gameData?.status === 'ended';
     const announceBtn = document.getElementById('announceBtn');
     if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
     const auditBtn = document.getElementById('auditBtn');
     if (auditBtn) auditBtn.style.display = isHost ? '' : 'none';
+    const endGameBtn = document.getElementById('endGameBtn');
+    if (endGameBtn) endGameBtn.style.display = (isHost && !isEnded) ? '' : 'none';
+    if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     const signature = buildStateSignature();
     if (signature === lastRenderedStateSignature) { updateScores(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
@@ -1028,7 +1098,9 @@ function renderStates() {
         const flagImg = `../flags/${state.abbr.toLowerCase()}.png`;
         const plateTypeLabel = state.category === 'canada' ? 'PROVINCE PLATE' : state.category === 'territory' ? 'TERRITORY PLATE' : 'LICENSE PLATE';
         const corridor = gameData?.settings?.playAreaStates || [];
-        const rarityTier = computeRarityForState(state.name, corridor);
+        const myStateData = getMyStatesMap()[state.name];
+        const cardCorridor = (gameData?.settings?.gpsRarity && myStateData?.foundNearState) ? [myStateData.foundNearState] : corridor;
+        const rarityTier = computeRarityForState(state.name, cardCorridor);
         const rarityCfg = RARITY_CONFIG[rarityTier];
         const rarityBadge = `<div class="rarity-badge rarity-${rarityTier}" title="${rarityCfg.label} · ${rarityCfg.points} pts first find">${rarityCfg.points}pt</div>`;
         const firstFinderBadge = claim ? `<div class="ff-tag" title="First found by ${claim.displayName}">${claim.tag}</div>` : '';
@@ -1182,6 +1254,7 @@ async function denyClearRequest(stateName) {
 
 async function toggleState(stateName, currentlySelected) {
     if (!currentGameRef || !currentPlayer) return;
+    if (gameData?.status === 'ended') { showToast('The game has ended — no more spotting!', 'info'); return; }
     const playerStatesRef = currentGameRef.child(`players/${currentPlayer.playerKey}/states`);
     const stateClaimRef = currentGameRef.child(`claimedStates/${stateName}`);
     try {
@@ -1189,8 +1262,12 @@ async function toggleState(stateName, currentlySelected) {
             await playerStatesRef.child(stateName).remove();
         } else {
             await stateClaimRef.transaction((existingClaim) => existingClaim || ({ state: stateName, playerKey: currentPlayer.playerKey, name: currentPlayer.name, tag: currentPlayer.tag, displayName: currentPlayer.displayName, claimedAt: Date.now() }));
-            await playerStatesRef.child(stateName).set({ state: stateName, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey });
+            const foundNearState = gameData?.settings?.gpsRarity ? (await getPlayerGpsState()) : null;
+            const stateRecord = { state: stateName, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey };
+            if (foundNearState) stateRecord.foundNearState = foundNearState;
+            await playerStatesRef.child(stateName).set(stateRecord);
             showToast(`Found ${stateName}! 🎉`, 'success');
+            writeRegionCompletions();
         }
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
         lastSyncAt = Date.now();
@@ -1257,7 +1334,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; hideClearConfirmSheet();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; hideClearConfirmSheet(); closeEndGameScreen();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1424,9 +1501,220 @@ async function openAuditModal() {
     pendingAuditResults = null;
     if (body) body.innerHTML = '<div class="audit-loading">🔍 Analyzing timestamps…</div>';
     if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Apply Corrections'; }
+    renderRegionRecords();
     modal.style.display = 'flex';
     pendingAuditResults = await computeAuditCorrections();
     renderAuditBody(pendingAuditResults);
+}
+
+// ── Region Completion Dispute Flow ────────────────────────────────────────────
+
+async function requestRegionClear(type, key, label) {
+    if (!currentGameRef || !currentPlayer) return;
+    const reqPath = type === 'corridor' ? 'regionClearRequests/corridor' : `regionClearRequests/${type}/${key}`;
+    const existing = type === 'corridor'
+        ? gameData?.regionClearRequests?.corridor
+        : gameData?.regionClearRequests?.[type]?.[key];
+    if (existing) { showToast('Dispute already pending — waiting for host.', 'info'); return; }
+    if (!confirm(`Dispute "${label}" completion?\n\nThe host must approve. If approved, your bonus is removed — but they have 7 days to undo if it was a mistake.`)) return;
+    try {
+        await currentGameRef.child(reqPath).set({ playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, label, requestedAt: Date.now() });
+        showToast('Dispute sent to host.', 'info');
+    } catch (err) { showToast('Could not send dispute.', 'error'); }
+}
+
+function detectRegionClearRequests() {
+    const isHost = gameData?.hostPlayerKey === currentPlayer?.playerKey;
+    if (!isHost) return;
+    const reqs = gameData?.regionClearRequests || {};
+    const allFlat = {};
+    Object.entries(reqs.regions || {}).forEach(([k, r]) => { allFlat[`regions/${k}`] = r; });
+    Object.entries(reqs.subRegions || {}).forEach(([k, r]) => { allFlat[`subRegions/${k}`] = r; });
+    if (reqs.corridor && typeof reqs.corridor === 'object') allFlat['corridor'] = reqs.corridor;
+    const currentKeys = Object.keys(allFlat).sort().join(',');
+    if (prevRegionClearRequestKeys === null) { prevRegionClearRequestKeys = currentKeys; return; }
+    if (currentKeys === prevRegionClearRequestKeys) return;
+    const prevSet = new Set(prevRegionClearRequestKeys.split(',').filter(Boolean));
+    Object.keys(allFlat).filter(k => !prevSet.has(k)).forEach(flatKey => showRegionClearRequestToast(flatKey, allFlat[flatKey]));
+    prevRegionClearRequestKeys = currentKeys;
+}
+
+function showRegionClearRequestToast(flatKey, req) {
+    const container = document.querySelector('.toast-container');
+    if (!container) return;
+    const parts = flatKey.split('/');
+    const type = parts[0], key = parts[1] || '';
+    const toast = document.createElement('div');
+    toast.className = 'toast pack';
+    toast.innerHTML = `
+        <div style="font-weight:700;margin-bottom:4px;">Region Dispute</div>
+        <div style="font-size:13px;">${req.displayName} wants to clear <strong>${req.label}</strong>.<br><span style="opacity:0.75;">7-day undo window if approved.</span></div>
+        <div class="clear-toast-btns">
+            <button class="clear-toast-approve">✓ Approve</button>
+            <button class="clear-toast-deny">✕ Deny</button>
+        </div>`;
+    container.appendChild(toast);
+    toast.querySelector('.clear-toast-approve').addEventListener('click', () => { approveRegionClearRequest(type, key, req); toast.remove(); });
+    toast.querySelector('.clear-toast-deny').addEventListener('click', () => { denyRegionClearRequest(type, key); toast.remove(); });
+}
+
+async function _clearRegionRecordWithBackup(type, key, label) {
+    const livePath = type === 'corridor' ? 'completedCorridor'
+        : type === 'regions' ? `completedRegions/${key}` : `completedSubRegions/${key}`;
+    const backupPath = type === 'corridor' ? 'regionCompletionBackups/corridor'
+        : `regionCompletionBackups/${type}/${key}`;
+    const liveSnap = await currentGameRef.child(livePath).once('value');
+    const liveRecord = liveSnap.val();
+    const now = Date.now();
+    const updates = {};
+    if (liveRecord) updates[backupPath] = { ...liveRecord, label, clearedAt: now, expiresAt: now + 7 * 24 * 60 * 60 * 1000 };
+    updates[livePath] = null;
+    updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+    await currentGameRef.update(updates);
+}
+
+async function approveRegionClearRequest(type, key, req) {
+    if (!currentGameRef) return;
+    const reqPath = type === 'corridor' ? 'regionClearRequests/corridor' : `regionClearRequests/${type}/${key}`;
+    try {
+        await _clearRegionRecordWithBackup(type, key, req.label);
+        await currentGameRef.child(reqPath).set(null);
+        showToast(`${req.label} cleared. 7 days to undo.`, 'info');
+    } catch (err) { console.error('approveRegionClearRequest failed:', err); showToast('Failed to approve dispute.', 'error'); }
+}
+
+async function denyRegionClearRequest(type, key) {
+    if (!currentGameRef) return;
+    const reqPath = type === 'corridor' ? 'regionClearRequests/corridor' : `regionClearRequests/${type}/${key}`;
+    try { await currentGameRef.child(reqPath).set(null); }
+    catch (err) { showToast('Failed to deny request.', 'error'); }
+}
+
+async function undoRegionClear(type, key) {
+    if (!currentGameRef) return;
+    const backupPath = type === 'corridor' ? 'regionCompletionBackups/corridor' : `regionCompletionBackups/${type}/${key}`;
+    const livePath = type === 'corridor' ? 'completedCorridor'
+        : type === 'regions' ? `completedRegions/${key}` : `completedSubRegions/${key}`;
+    try {
+        const snap = await currentGameRef.child(backupPath).once('value');
+        const backup = snap.val();
+        if (!backup) { showToast('Backup not found.', 'error'); renderRegionRecords(); return; }
+        const updates = {};
+        updates[livePath] = { playerKey: backup.playerKey, displayName: backup.displayName, completedAt: backup.completedAt };
+        updates[backupPath] = null;
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+        showToast(`${backup.label || key} restored.`, 'success');
+    } catch (err) { console.error('undoRegionClear failed:', err); showToast('Failed to undo.', 'error'); }
+}
+
+async function purgeAllRegionBackups() {
+    if (!currentGameRef) return;
+    if (!confirm('Permanently delete all undo records? This cannot be reversed.')) return;
+    try {
+        await currentGameRef.child('regionCompletionBackups').set(null);
+        showToast('All undo records purged.', 'info');
+    } catch (err) { showToast('Failed to purge records.', 'error'); }
+}
+
+function autoCleanRegionBackups() {
+    if (!currentGameRef || !gameData?.regionCompletionBackups) return;
+    const now = Date.now();
+    const backups = gameData.regionCompletionBackups;
+    const updates = {};
+    ['regions', 'subRegions'].forEach(type => {
+        Object.entries(backups[type] || {}).forEach(([key, rec]) => {
+            if (rec?.expiresAt && now > rec.expiresAt) updates[`regionCompletionBackups/${type}/${key}`] = null;
+        });
+    });
+    if (backups.corridor?.expiresAt && now > backups.corridor.expiresAt) updates['regionCompletionBackups/corridor'] = null;
+    if (Object.keys(updates).length) currentGameRef.update(updates).catch(err => console.error('autoCleanRegionBackups failed:', err));
+}
+
+function updateAuditBadge() {
+    const badge = document.getElementById('auditBadge');
+    if (!badge) return;
+    const b = gameData?.regionCompletionBackups;
+    const hasBackups = b && (Object.keys(b.regions || {}).length || Object.keys(b.subRegions || {}).length || b.corridor);
+    badge.style.display = hasBackups ? 'block' : 'none';
+}
+
+function renderRegionRecords() {
+    const container = document.getElementById('regionRecordsBody');
+    if (!container) return;
+
+    const subRecs = gameData?.completedSubRegions || {};
+    const regRecs = gameData?.completedRegions || {};
+    const corRec  = gameData?.completedCorridor;
+    const bk      = gameData?.regionCompletionBackups || {};
+
+    const liveItems = [];
+    Object.entries(subRecs).forEach(([key, rec]) => {
+        liveItems.push({ type: 'subRegions', key, icon: '🗺️', label: SUB_REGIONS[key]?.label || key, winner: rec.displayName });
+    });
+    Object.entries(regRecs).forEach(([key, rec]) => {
+        liveItems.push({ type: 'regions', key, icon: '🏛️', label: PRIMARY_REGIONS[key]?.label || key, winner: rec.displayName });
+    });
+    if (corRec) liveItems.push({ type: 'corridor', key: '', icon: '🚗', label: 'Travel Corridor', winner: corRec.displayName });
+
+    const backupItems = [];
+    const now = Date.now();
+    ['regions', 'subRegions'].forEach(type => {
+        Object.entries(bk[type] || {}).forEach(([key, rec]) => {
+            if (!rec?.expiresAt || now <= rec.expiresAt) {
+                const daysLeft = rec?.expiresAt ? Math.max(1, Math.ceil((rec.expiresAt - now) / 86400000)) : '?';
+                backupItems.push({ type, key, label: rec.label || key, winner: rec.displayName, daysLeft });
+            }
+        });
+    });
+    if (bk.corridor && (!bk.corridor.expiresAt || now <= bk.corridor.expiresAt)) {
+        const daysLeft = bk.corridor.expiresAt ? Math.max(1, Math.ceil((bk.corridor.expiresAt - now) / 86400000)) : '?';
+        backupItems.push({ type: 'corridor', key: '', label: bk.corridor.label || 'Travel Corridor', winner: bk.corridor.displayName, daysLeft });
+    }
+
+    if (!liveItems.length && !backupItems.length) { container.style.display = 'none'; return; }
+
+    container.style.display = '';
+    let html = '<div class="region-records-section">';
+
+    if (liveItems.length) {
+        html += `<div class="region-records-title">Active Records</div>`;
+        html += liveItems.map(({ type, key, icon, label, winner }) =>
+            `<div class="region-record-item">
+                <span>${icon} ${label} <span class="region-record-winner">• ${winner}</span></span>
+                <button class="btn-clear-record" onclick="clearRegionRecord('${type}','${key}','${label.replace(/'/g, "\\'")}')">Clear</button>
+            </div>`
+        ).join('');
+    }
+
+    if (backupItems.length) {
+        html += `<div class="region-records-title" style="margin-top:12px">Pending Undos</div>`;
+        html += backupItems.map(({ type, key, label, winner, daysLeft }) =>
+            `<div class="region-record-item">
+                <span>↩️ ${label} <span class="region-record-winner">• ${winner} • ${daysLeft}d left</span></span>
+                <button class="btn-undo-record" onclick="undoRegionClear('${type}','${key}')">Undo</button>
+            </div>`
+        ).join('');
+        html += `<div style="margin-top:8px;text-align:right"><button class="btn-clear-record" onclick="purgeAllRegionBackups()">Purge All Undos</button></div>`;
+    }
+
+    html += `<div class="audit-note" style="margin-top:8px">Clearing creates a 7-day undo window. Players can dispute their own first-completer records from their score panel.</div>`;
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+async function clearRegionRecord(type, key, label) {
+    if (!currentGameRef) return;
+    if (!confirm(`Clear "${label}" record? A 7-day undo window will be saved in case this was a mistake.`)) return;
+    try {
+        await _clearRegionRecordWithBackup(type, key, label);
+        showToast(`${label} cleared. 7-day undo available in Score Audit.`, 'info');
+        renderRegionRecords();
+        updateAuditBadge();
+    } catch (err) {
+        console.error('clearRegionRecord failed:', err);
+        showToast('Failed to clear record.', 'error');
+    }
 }
 
 function closeAuditModal() {
@@ -1588,6 +1876,108 @@ async function applyAuditCorrections() {
     }
 }
 
+// ── Region Completion Records ─────────────────────────────────────────────────
+
+async function writeRegionCompletions() {
+    if (!currentGameRef || !currentPlayer) return;
+    // Use latest snapshot from playersData (may lag by one Firebase event, which is fine —
+    // the migration pass will catch anything missed on the first selection).
+    const player = playersData[currentPlayer.playerKey];
+    if (!player) return;
+    const foundSet = new Set(Object.keys(player.states || {}));
+    const now = Date.now();
+    const writes = [];
+
+    Object.entries(SUB_REGIONS).forEach(([key, region]) => {
+        if (!region.states.every(s => foundSet.has(s))) return;
+        writes.push(currentGameRef.child(`completedSubRegions/${key}`).transaction(existing => {
+            if (existing) return undefined;
+            return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
+        }));
+    });
+
+    Object.entries(REGION_STATES).forEach(([key, states]) => {
+        if (!states.every(s => foundSet.has(s))) return;
+        writes.push(currentGameRef.child(`completedRegions/${key}`).transaction(existing => {
+            if (existing) return undefined;
+            return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
+        }));
+    });
+
+    const corridorStates = gameData?.settings?.playAreaStates || [];
+    if (corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s))) {
+        writes.push(currentGameRef.child('completedCorridor').transaction(existing => {
+            if (existing) return undefined;
+            return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
+        }));
+    }
+
+    try { await Promise.all(writes); } catch (err) { console.error('writeRegionCompletions failed:', err); }
+}
+
+async function maybeRunRegionMigration() {
+    if (regionMigrationDone || !currentGameRef || !currentPlayer) return;
+    regionMigrationDone = true;
+    await migrateRegionCompletions();
+}
+
+async function migrateRegionCompletions() {
+    try {
+        const snapshot = await currentGameRef.once('value');
+        const room = snapshot.val();
+        if (!room) return;
+        const players = normalizePlayers(room.players || {});
+        const writes = [];
+
+        const findEarliest = (stateNames, existing) => {
+            if (existing) return null; // already recorded — skip
+            let best = null;
+            Object.entries(players).forEach(([playerKey, playerData]) => {
+                const pStates = playerData.states || {};
+                if (!stateNames.every(s => pStates[s])) return;
+                const t = getCompletionTime(pStates, stateNames);
+                if (t !== null && (best === null || t < best.t)) {
+                    best = { playerKey, displayName: playerData.displayName, t };
+                }
+            });
+            return best;
+        };
+
+        Object.entries(SUB_REGIONS).forEach(([key, region]) => {
+            const best = findEarliest(region.states, room.completedSubRegions?.[key]);
+            if (!best) return;
+            writes.push(currentGameRef.child(`completedSubRegions/${key}`).transaction(existing => {
+                if (existing) return undefined;
+                return { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t };
+            }));
+        });
+
+        Object.entries(REGION_STATES).forEach(([key, states]) => {
+            const best = findEarliest(states, room.completedRegions?.[key]);
+            if (!best) return;
+            writes.push(currentGameRef.child(`completedRegions/${key}`).transaction(existing => {
+                if (existing) return undefined;
+                return { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t };
+            }));
+        });
+
+        const corridorStates = room.settings?.playAreaStates || [];
+        if (corridorStates.length > 0) {
+            const best = findEarliest(corridorStates, room.completedCorridor);
+            if (best) {
+                writes.push(currentGameRef.child('completedCorridor').transaction(existing => {
+                    if (existing) return undefined;
+                    return { playerKey: best.playerKey, displayName: best.displayName, completedAt: best.t };
+                }));
+            }
+        }
+
+        await Promise.all(writes);
+    } catch (err) {
+        console.error('migrateRegionCompletions failed:', err);
+    }
+}
+
 // ── Scoring Engine ────────────────────────────────────────────────────────────
 
 function getCompletionTime(playerStates, stateNames) {
@@ -1614,11 +2004,14 @@ function computePlayerStats(playerKey) {
         name => gameData?.claimedStates?.[name]?.playerKey === playerKey
     ).length;
 
-    // Base plate score — rarity is route-aware (BFS from travel corridor)
+    // Base plate score — rarity is route-aware (BFS from corridor, or GPS-based per-plate)
     const corridor = gameData?.settings?.playAreaStates || [];
+    const useGps = gameData?.settings?.gpsRarity;
     let score = 0;
     foundSet.forEach(name => {
-        const tier = computeRarityForState(name, corridor);
+        const stateData = player.states?.[name];
+        const effectiveCorridor = (useGps && stateData?.foundNearState) ? [stateData.foundNearState] : corridor;
+        const tier = computeRarityForState(name, effectiveCorridor);
         const pts = RARITY_CONFIG[tier].points;
         const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
         score += isFirst ? pts : pts / 2;
@@ -1631,16 +2024,12 @@ function computePlayerStats(playerKey) {
 
     const completedSubBonuses = [];
     completedSubs.forEach(key => {
-        const myTime = getCompletionTime(player.states, SUB_REGIONS[key].states);
-        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
-            if (pKey === playerKey) return false;
-            const theirTime = getCompletionTime(pData?.states || {}, SUB_REGIONS[key].states);
-            return theirTime !== null && theirTime < myTime;
-        });
+        const record = gameData?.completedSubRegions?.[key];
+        const isFirst = record ? record.playerKey === playerKey : true;
         const firstBonus = computeRegionBonus(SUB_REGIONS[key].states, corridor, 1.5, 60);
-        const awarded = someoneFinishedEarlier ? Math.ceil(firstBonus / 2) : firstBonus;
+        const awarded = isFirst ? firstBonus : Math.ceil(firstBonus / 2);
         score += awarded;
-        completedSubBonuses.push({ key, label: SUB_REGIONS[key].label, bonus: awarded, isFirst: !someoneFinishedEarlier, firstBonus });
+        completedSubBonuses.push({ key, label: SUB_REGIONS[key].label, bonus: awarded, isFirst, firstBonus });
     });
 
     // Primary region completions — rarity-weighted: max(100, raritySum × 1.5), first/later split
@@ -1650,16 +2039,12 @@ function computePlayerStats(playerKey) {
 
     const completedRegionBonuses = [];
     completedRegions.forEach(key => {
-        const myTime = getCompletionTime(player.states, REGION_STATES[key]);
-        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
-            if (pKey === playerKey) return false;
-            const theirTime = getCompletionTime(pData?.states || {}, REGION_STATES[key]);
-            return theirTime !== null && theirTime < myTime;
-        });
+        const record = gameData?.completedRegions?.[key];
+        const isFirst = record ? record.playerKey === playerKey : true;
         const firstBonus = computeRegionBonus(REGION_STATES[key], corridor, 1.5, 100);
-        const awarded = someoneFinishedEarlier ? Math.ceil(firstBonus / 2) : firstBonus;
+        const awarded = isFirst ? firstBonus : Math.ceil(firstBonus / 2);
         score += awarded;
-        completedRegionBonuses.push({ key, label: PRIMARY_REGIONS[key]?.label || key, bonus: awarded, isFirst: !someoneFinishedEarlier, firstBonus });
+        completedRegionBonuses.push({ key, label: PRIMARY_REGIONS[key]?.label || key, bonus: awarded, isFirst, firstBonus });
     });
 
     // Travel corridor completion — flat 150/75 (corridor states are always Common by definition)
@@ -1667,13 +2052,9 @@ function computePlayerStats(playerKey) {
     const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
     let corridorBonus = 0;
     if (corridorComplete) {
-        const myTime = getCompletionTime(player.states, corridorStates);
-        const someoneFinishedEarlier = Object.entries(playersData).some(([pKey, pData]) => {
-            if (pKey === playerKey) return false;
-            const theirTime = getCompletionTime(pData?.states || {}, corridorStates);
-            return theirTime !== null && theirTime < myTime;
-        });
-        corridorBonus = someoneFinishedEarlier ? 75 : 150;
+        const record = gameData?.completedCorridor;
+        const isFirst = record ? record.playerKey === playerKey : true;
+        corridorBonus = isFirst ? 150 : 75;
         score += corridorBonus;
     }
 
@@ -1684,6 +2065,74 @@ function getPlayerBadges(playerKey) {
     const stats = computePlayerStats(playerKey);
     if (!stats) return [];
     return BADGE_DEFS.filter(b => b.test(stats));
+}
+
+const SUB_BADGE_TO_KEY = {
+    'sub_appalachia': 'appalachia', 'sub_chesapeake': 'chesapeake_bay', 'sub_carolinas': 'the_carolinas',
+    'sub_deep_south': 'deep_south', 'sub_gulf_coast': 'gulf_coast', 'sub_four_corners': 'four_corners',
+    'sub_rocky_mts': 'rocky_mountains', 'sub_pacific_nw': 'pacific_northwest', 'sub_sw_desert': 'southwest_desert',
+    'sub_corn_belt': 'corn_belt', 'sub_non_contiguous': 'non_contiguous', 'sub_seaboard': 'eastern_seaboard',
+    'sub_canada_east': 'canada_east', 'sub_canada_central': 'canada_central',
+    'sub_canada_west': 'canada_west', 'sub_canada_territories': 'canada_territories',
+};
+
+const ELITE_BADGE_STATES = {
+    'found_ak': ['Alaska'], 'found_hi': ['Hawaii'], 'found_ak_hi': ['Alaska', 'Hawaii'],
+    'found_pr': ['Puerto Rico'], 'found_usvi': ['U.S. Virgin Islands'],
+    'found_as': ['American Samoa'], 'found_guam': ['Guam'], 'found_cnmi': ['Northern Mariana Islands'],
+    'territory_hunter': ['Puerto Rico', 'U.S. Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'],
+};
+
+function getBadgeDetailItems(badgeId, playerStates, claimedStates, corridorStates, playerKey) {
+    const ps = playerStates || {};
+    const toItem = name => ps[name] ? { name, foundAt: ps[name].foundAt, isFirst: claimedStates?.[name]?.playerKey === playerKey } : null;
+    const sortByTime = items => [...items].sort((a, b) => (a.foundAt || 0) - (b.foundAt || 0));
+
+    if (badgeId.startsWith('region_')) {
+        const key = badgeId.replace('region_', '');
+        return sortByTime((REGION_STATES[key] || []).map(toItem).filter(Boolean));
+    }
+    if (SUB_BADGE_TO_KEY[badgeId]) {
+        return sortByTime((SUB_REGIONS[SUB_BADGE_TO_KEY[badgeId]]?.states || []).map(toItem).filter(Boolean));
+    }
+    if (badgeId === 'corridor_complete') {
+        return sortByTime(corridorStates.map(toItem).filter(Boolean));
+    }
+    if (ELITE_BADGE_STATES[badgeId]) {
+        return sortByTime(ELITE_BADGE_STATES[badgeId].map(toItem).filter(Boolean));
+    }
+    if (badgeId.startsWith('milestone_')) {
+        return sortByTime(Object.entries(ps).map(([name, d]) => ({ name, foundAt: d.foundAt, isFirst: claimedStates?.[name]?.playerKey === playerKey })));
+    }
+    if (badgeId.startsWith('ff_')) {
+        return sortByTime(Object.entries(ps)
+            .filter(([name]) => claimedStates?.[name]?.playerKey === playerKey)
+            .map(([name, d]) => ({ name, foundAt: d.foundAt, isFirst: true })));
+    }
+    return [];
+}
+
+function openBadgeDetail(badgeId, playerKey) {
+    const badge = BADGE_DEFS.find(b => b.id === badgeId);
+    const player = playersData[playerKey];
+    if (!badge || !player) return;
+    const overlay = document.getElementById('badgeDetailOverlay');
+    if (!overlay) return;
+    document.getElementById('badgeDetailTitle').textContent = `${badge.icon} ${badge.label}`;
+    document.getElementById('badgeDetailDesc').textContent = badge.desc;
+    const items = getBadgeDetailItems(badgeId, player.states, gameData?.claimedStates, gameData?.settings?.playAreaStates || [], playerKey);
+    const list = document.getElementById('badgeDetailList');
+    list.innerHTML = items.length
+        ? items.map(({ name, foundAt, isFirst }) =>
+            `<div class="badge-detail-item"><span class="badge-detail-state">${isFirst ? '⭐ ' : ''}${name}</span><span class="badge-detail-time">${formatFoundAt(foundAt)}</span></div>`
+          ).join('')
+        : '<div class="detail-empty">No detail available for this badge.</div>';
+    overlay.style.display = 'flex';
+}
+
+function closeBadgeDetail() {
+    const overlay = document.getElementById('badgeDetailOverlay');
+    if (overlay) overlay.style.display = 'none';
 }
 
 // ── Player Detail Modal ───────────────────────────────────────────────────────
@@ -1708,7 +2157,7 @@ function openPlayerDetail(playerKey) {
     const badgeGrid = document.getElementById('detailBadgeGrid');
     if (badgeGrid) {
         badgeGrid.innerHTML = badges.length
-            ? badges.map(b => `<div class="badge-item"><div class="badge-item-icon">${b.icon}</div><div class="badge-item-label">${b.label}</div><div class="badge-item-desc">${b.desc}</div></div>`).join('')
+            ? badges.map(b => `<div class="badge-item badge-item-clickable" onclick="openBadgeDetail('${b.id}','${playerKey}')"><div class="badge-item-icon">${b.icon}</div><div class="badge-item-label">${b.label}</div><div class="badge-item-desc">${b.desc}</div></div>`).join('')
             : '<div class="detail-empty">No badges yet — keep spotting!</div>';
     }
 
@@ -1716,9 +2165,12 @@ function openPlayerDetail(playerKey) {
     const detailCorridor = gameData?.settings?.playAreaStates || [];
     const breakdownEl = document.getElementById('detailBreakdownGrid');
     if (breakdownEl) {
+        const detailUseGps = gameData?.settings?.gpsRarity;
         const byTier = {};
         stats.foundSet.forEach(name => {
-            const tier = computeRarityForState(name, detailCorridor);
+            const sd = player.states?.[name];
+            const effectiveCorridor = (detailUseGps && sd?.foundNearState) ? [sd.foundNearState] : detailCorridor;
+            const tier = computeRarityForState(name, effectiveCorridor);
             if (!byTier[tier]) byTier[tier] = { count: 0, pts: 0 };
             const pts = RARITY_CONFIG[tier].points;
             const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
@@ -1731,13 +2183,30 @@ function openPlayerDetail(playerKey) {
             const d = byTier[t];
             return `<div class="breakdown-row"><span class="rarity-badge rarity-${t}">${cfg.label}</span><span class="breakdown-count">${d.count} plate${d.count !== 1 ? 's' : ''}</span><span class="breakdown-pts">${d.pts} pts</span></div>`;
         });
-        (stats.completedSubBonuses || []).forEach(({ label, bonus, isFirst }) => {
-            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🗺️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span></div>`);
+        (stats.completedSubBonuses || []).forEach(({ key, label, bonus, isFirst }) => {
+            const hasMyRecord = isMe && gameData?.completedSubRegions?.[key]?.playerKey === playerKey;
+            const pending = gameData?.regionClearRequests?.subRegions?.[key];
+            const disputeBtn = hasMyRecord
+                ? (pending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('subRegions','${key}','${label.replace(/'/g, "\\'")}')">Dispute</button>`)
+                : '';
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🗺️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span>${disputeBtn}</div>`);
         });
-        (stats.completedRegionBonuses || []).forEach(({ label, bonus, isFirst }) => {
-            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🏛️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span></div>`);
+        (stats.completedRegionBonuses || []).forEach(({ key, label, bonus, isFirst }) => {
+            const hasMyRecord = isMe && gameData?.completedRegions?.[key]?.playerKey === playerKey;
+            const pending = gameData?.regionClearRequests?.regions?.[key];
+            const disputeBtn = hasMyRecord
+                ? (pending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('regions','${key}','${label.replace(/'/g, "\\'")}')">Dispute</button>`)
+                : '';
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🏛️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span>${disputeBtn}</div>`);
         });
-        if (stats.corridorComplete) rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🛣️ Corridor Complete</span><span class="breakdown-count">${stats.corridorBonus === 150 ? '1st' : 'later'}</span><span class="breakdown-pts">+${stats.corridorBonus || 75} pts</span></div>`);
+        if (stats.corridorComplete) {
+            const hasCorridorRecord = isMe && gameData?.completedCorridor?.playerKey === playerKey;
+            const corridorPending = gameData?.regionClearRequests?.corridor;
+            const disputeBtn = hasCorridorRecord
+                ? (corridorPending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('corridor','','Corridor Complete')">Dispute</button>`)
+                : '';
+            rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🛣️ Corridor Complete</span><span class="breakdown-count">${stats.corridorBonus === 150 ? '1st' : 'later'}</span><span class="breakdown-pts">+${stats.corridorBonus || 75} pts</span>${disputeBtn}</div>`);
+        }
         breakdownEl.innerHTML = rows.join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
@@ -1747,15 +2216,21 @@ function openPlayerDetail(playerKey) {
         const tierRank = { ultra: 0, 'gold-elite': 1, 'silver-elite': 2, legendary: 3, epic: 4, 'mega-rare': 5, rare: 6, 'semi-rare': 7, scarce: 8, occasional: 9, common: 10 };
         const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES];
         const sorted = Array.from(stats.foundSet).sort((a, b) => {
-            const ta = tierRank[computeRarityForState(a, detailCorridor)] ?? 5;
-            const tb = tierRank[computeRarityForState(b, detailCorridor)] ?? 5;
+            const sdA = player.states?.[a]; const sdB = player.states?.[b];
+            const ca = (detailUseGps && sdA?.foundNearState) ? [sdA.foundNearState] : detailCorridor;
+            const cb = (detailUseGps && sdB?.foundNearState) ? [sdB.foundNearState] : detailCorridor;
+            const ta = tierRank[computeRarityForState(a, ca)] ?? 5;
+            const tb = tierRank[computeRarityForState(b, cb)] ?? 5;
             return ta !== tb ? ta - tb : a.localeCompare(b);
         });
         foundGrid.innerHTML = sorted.map(name => {
-            const tier = computeRarityForState(name, detailCorridor);
+            const sd = player.states?.[name];
+            const ec = (detailUseGps && sd?.foundNearState) ? [sd.foundNearState] : detailCorridor;
+            const tier = computeRarityForState(name, ec);
             const abbr = allPlates.find(p => p.name === name)?.abbr || name.slice(0, 2).toUpperCase();
             const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
-            return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}">${abbr}${isFirst ? '⭐' : ''}</div>`;
+            const ts = formatFoundAt(sd?.foundAt);
+            return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}"><div class="found-chip-abbr">${abbr}${isFirst ? '⭐' : ''}</div>${ts ? `<div class="found-chip-time">${ts}</div>` : ''}</div>`;
         }).join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
@@ -1763,5 +2238,166 @@ function openPlayerDetail(playerKey) {
 }
 
 function closePlayerDetail() {
+    closeBadgeDetail();
     document.getElementById('playerDetailModal')?.classList.remove('visible');
+}
+
+// ── End Game ──────────────────────────────────────────────────────────────────
+
+async function endGame() {
+    if (!currentGameRef || !currentPlayer) return;
+    if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
+    if (gameData?.status === 'ended') { showEndGameScreen(); return; }
+    if (!confirm('End the game for everyone? All players will see the final results.')) return;
+    try {
+        await currentGameRef.update({ status: 'ended', endedAt: firebase.database.ServerValue.TIMESTAMP, updatedAt: firebase.database.ServerValue.TIMESTAMP });
+    } catch (err) {
+        console.error('Error ending game:', err);
+        showToast('Failed to end game.', 'error');
+    }
+}
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function ordinalSuffix(n) {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function generatePlayerSummary(playerKey, rank, sortedKeys) {
+    const stats = computePlayerStats(playerKey);
+    if (!stats) return 'A true road warrior in their own right.';
+
+    const player = playersData[playerKey];
+    const firstName = (player?.name || player?.displayName || 'This player').split(' ')[0];
+    const total = sortedKeys.length;
+    const { score, foundCount: found, firstCount: firsts } = stats;
+    const firstRatio = found > 0 ? firsts / found : 0;
+    const isWinner = rank === 1;
+    const isLast = rank === total;
+
+    const foundAK = stats.foundSet.has('Alaska');
+    const foundHI = stats.foundSet.has('Hawaii');
+    const foundDC = stats.foundSet.has('Washington D.C.');
+    const TERRITORIES = ['Puerto Rico', 'U.S. Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'];
+    const territoryCount = TERRITORIES.filter(t => stats.foundSet.has(t)).length;
+    const completedCount = (stats.completedRegionBonuses?.length || 0) + (stats.completedSubBonuses?.length || 0);
+    const corridorDone = stats.corridorComplete;
+
+    let main;
+    if (found === 0) {
+        main = pick([
+            `${firstName} was deeply immersed in the journey — just not the plate-spotting part. Zero plates, but reportedly excellent company.`,
+            `Did ${firstName} see any plates? The data says no. But we choose to believe they were keeping watch for hazards. Important work.`,
+            `${firstName} finished with a spotless record — and by spotless we mean zero plates spotted. There's always next mile.`,
+        ]);
+    } else if (isWinner) {
+        main = pick([
+            `Absolute road royalty. ${score} points, ${found} plates, and the undeniable confidence of someone who's been doing this since birth. Nobody came close.`,
+            `The pack's MVP — ${found} plates and ${firsts} first-finds isn't just good, it's suspiciously good. We're not saying ${firstName} has a deal with the highway gods, but...`,
+            `Finished first with ${score} points and left the competition so far behind they needed binoculars just to see the scoreboard. Dominant. Decisive. Done.`,
+            `Champion of the road, ruler of the rearview, collector of ${found} plates. ${score} points. The crown fits perfectly.`,
+        ]);
+    } else if (isLast && total >= 3) {
+        main = pick([
+            `Dead last? Sure. But ${found} plates and ${score} points means ${firstName} was genuinely playing — just at a more relaxed pace. Very scenic.`,
+            `Last place in a field of ${total} is still top ${Math.round((rank / total) * 100)}%. That's how stats work sometimes. ${found} plates, ${score} points — no shame here.`,
+            `${firstName} brought up the rear with ${score} points, which honestly takes courage. The view from the back of the pack is great — less pressure, more snacks.`,
+            `The caboose of the pack, but cabooses are iconic. ${score} points, ${found} plates, and a spirit that carried everyone through. At least ${firstName} personally.`,
+        ]);
+    } else if (rank === 2) {
+        const winnerName = (playersData[sortedKeys[0]]?.name || 'first place').split(' ')[0];
+        main = pick([
+            `Silver. ${score} points, ${found} plates, and genuine dignity about it. Just a few unlucky seconds away from the top all game.`,
+            `Runner-up with ${score} points — behind ${winnerName} technically, but have you seen ${winnerName}'s stats? That's a monster. Second is perfectly respectable.`,
+            `So close to first it stings a little. ${score} points and ${found} plates says this was no accident — ${firstName} was absolutely here to compete.`,
+        ]);
+    } else if (rank === 3 && total >= 4) {
+        main = pick([
+            `Bronze is a medal. Bronze is ALWAYS a medal. ${score} points, ${found} plates, and the determination to keep spotting until the very end.`,
+            `Top three out of ${total} — ${firstName} beat ${total - 3} people. Let that sink in. ${score} points and ${found} plates. That's a podium finish.`,
+            `Third place! ${score} points and ${found} plates locked in the final medal position. Not bad for someone riding in a car.`,
+        ]);
+    } else {
+        main = pick([
+            `A solid ${ordinalSuffix(rank)}-place finish with ${score} points and ${found} plates found. Consistent, reliable, and genuinely fun to play with.`,
+            `${ordinalSuffix(rank)} out of ${total} with ${score} points. ${firstName} held their own — ${found} plates don't find themselves.`,
+            `Finished ${ordinalSuffix(rank)} with ${score} points and ${found} plates, proving you don't need first place to have an excellent adventure.`,
+        ]);
+    }
+
+    const bonuses = [];
+    if (corridorDone) bonuses.push(pick([
+        'Also completed the full travel corridor — an achievement that even cartographers would applaud.',
+        'Knocked out the entire corridor, which requires a level of plate-spotting intensity normally reserved for professionals.',
+    ]));
+    if (foundAK && foundHI) bonuses.push(pick([
+        'Snagged BOTH Alaska AND Hawaii — those don\'t just drive by. That\'s elite-tier spotting right there.',
+        'Alaska AND Hawaii on the same trip? The odds are staggering. The achievement is absolutely real.',
+    ]));
+    else if (foundAK) bonuses.push('Also somehow spotted Alaska, which is either incredibly lucky or incredibly focused.');
+    else if (foundHI) bonuses.push('Hawaii made an appearance too — statistically improbable and deeply satisfying.');
+    if (territoryCount >= 3) bonuses.push(pick([
+        `Racked up ${territoryCount} US territory plates — international explorer vibes on a domestic road trip.`,
+        `Found ${territoryCount} territories, which means those plates were ranging far and wide. Or ${firstName} has very sharp eyes.`,
+    ]));
+    if (completedCount >= 3) bonuses.push(pick([
+        `Completed ${completedCount} regional bonus goals — the kind of strategic play that changes scoreboards.`,
+        `${completedCount} region completions. That's not just spotting plates, that's executing a geographic masterplan.`,
+    ]));
+    if (firstRatio > 0.7 && firsts >= 5) bonuses.push(pick([
+        `With ${firsts} first-finds out of ${found} plates, ${firstName} was clearly on a mission to get there before everyone else.`,
+        `First-find ratio of ${Math.round(firstRatio * 100)}% — technically aggressive, officially impressive.`,
+    ]));
+    if (foundDC && !foundAK && !foundHI) bonuses.push('Even grabbed Washington D.C., which a surprising number of players just completely miss.');
+
+    return bonuses.length > 0 ? `${main} ${bonuses[0]}` : main;
+}
+
+function showEndGameScreen() {
+    const modal = document.getElementById('endGameModal');
+    if (!modal) return;
+
+    const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
+    const sorted = Object.values(playersData).map(p => {
+        const stats = computePlayerStats(p.playerKey) || { score: 0, foundCount: 0, firstCount: 0 };
+        return { ...p, ...stats, pct: totalPlates > 0 ? Math.round((stats.foundCount / totalPlates) * 100) : 0 };
+    }).sort((a, b) => b.score - a.score || b.foundCount - a.foundCount || (a.joinedAt || 0) - (b.joinedAt || 0));
+
+    const sortedKeys = sorted.map(p => p.playerKey);
+    const MEDALS = ['🥇', '🥈', '🥉'];
+
+    const titleEl = document.getElementById('endGameTitle');
+    if (titleEl) titleEl.textContent = '🏁 Game Over!';
+    const subtitleEl = document.getElementById('endGameSubtitle');
+    if (subtitleEl) subtitleEl.textContent = `${gameData?.name || 'PlateQuest'} Pack · Final Results`;
+
+    const body = document.getElementById('endGameBody');
+    if (body) {
+        body.innerHTML = sorted.map((player, i) => {
+            const rank = i + 1;
+            const medal = MEDALS[i] || `#${rank}`;
+            const rankCls = rank <= 3 ? `rank-${rank}` : '';
+            const isMe = player.playerKey === currentPlayer?.playerKey;
+            const summary = generatePlayerSummary(player.playerKey, rank, sortedKeys);
+            return `<div class="end-player-card ${rankCls}">
+                <div class="end-player-top">
+                    <div class="end-player-medal">${medal}</div>
+                    <div>
+                        <div class="end-player-name">${player.displayName || player.name || 'Player'}${isMe ? ' 🐺' : ''}</div>
+                        <div class="end-player-score">${player.score} pts · ${player.foundCount} plates · ${player.firstCount} first-finds</div>
+                    </div>
+                </div>
+                <div class="end-player-summary">${summary}</div>
+            </div>`;
+        }).join('');
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeEndGameScreen() {
+    const modal = document.getElementById('endGameModal');
+    if (modal) modal.style.display = 'none';
 }
