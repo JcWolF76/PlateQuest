@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424b';
+const APP_VERSION = '20260424c';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -426,6 +426,7 @@ let prevAnnouncementKeys = null; // null = not yet initialized; reset on game ex
 let prevTauntKeys = null;        // null = not yet initialized; reset on game exit
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
+let prevPlateDisputeKeys = null;         // same, for individual plate first-finder disputes
 let lastKnownRound = null;       // tracks round number to detect new-round resets
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
 let pendingDeselect = null;     // stateName waiting for direct-deselect confirm
@@ -1047,7 +1048,7 @@ function updateGameUI() {
     const currentRound = gameData.roundNumber || 1;
     if (lastKnownRound !== null && currentRound !== lastKnownRound) {
         prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
-        prevClearRequestKeys = null; prevRegionClearRequestKeys = null;
+        prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null;
         endGameScreenShown = false; lastRenderedStateSignature = '';
         closeEndGameScreen();
         showToast('New round started! 🏁 Plates cleared.', 'success');
@@ -1058,6 +1059,7 @@ function updateGameUI() {
     detectNewTaunts();
     detectClearRequests();
     detectRegionClearRequests();
+    detectPlateDisputeRequests();
     autoCleanRegionBackups();
     autoCleanPlateBackups();
     updateAuditBadge();
@@ -1530,7 +1532,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastKnownRound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -1926,9 +1928,13 @@ async function requestRegionClear(type, key, label) {
         ? gameData?.regionClearRequests?.corridor
         : gameData?.regionClearRequests?.[type]?.[key];
     if (existing) { showToast('Dispute already pending — waiting for host.', 'info'); return; }
-    if (!confirm(`Dispute "${label}" completion?\n\nThe host must approve. If approved, your bonus is removed — but they have 7 days to undo if it was a mistake.`)) return;
+    const firstRecord = type === 'corridor' ? gameData?.completedCorridor
+        : type === 'regions' ? gameData?.completedRegions?.[key]
+        : gameData?.completedSubRegions?.[key];
+    const currentFirstName = firstRecord?.displayName || firstRecord?.name || 'another player';
+    if (!confirm(`Dispute "${label}"?\n\nCurrently credited to ${currentFirstName}. If the host approves, the record is cleared and re-evaluated — they have 7 days to undo.`)) return;
     try {
-        await currentGameRef.child(reqPath).set({ playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, label, requestedAt: Date.now() });
+        await currentGameRef.child(reqPath).set({ playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, label, currentFirstName, requestedAt: Date.now() });
         showToast('Dispute sent to host.', 'info');
     } catch (err) { showToast('Could not send dispute.', 'error'); }
 }
@@ -1958,7 +1964,7 @@ function showRegionClearRequestToast(flatKey, req) {
     toast.className = 'toast pack';
     toast.innerHTML = `
         <div style="font-weight:700;margin-bottom:4px;">Region Dispute</div>
-        <div style="font-size:13px;">${req.displayName} wants to clear <strong>${req.label}</strong>.<br><span style="opacity:0.75;">7-day undo window if approved.</span></div>
+        <div style="font-size:13px;"><strong>${req.displayName}</strong> claims first-finder for <strong>${req.label}</strong>.<br>Currently credited to <strong>${req.currentFirstName || '?'}</strong>.<br><span style="opacity:0.75;">Approve to clear — 7-day undo.</span></div>
         <div class="clear-toast-btns">
             <button class="clear-toast-approve">✓ Approve</button>
             <button class="clear-toast-deny">✕ Deny</button>
@@ -1998,6 +2004,91 @@ async function denyRegionClearRequest(type, key) {
     const reqPath = type === 'corridor' ? 'regionClearRequests/corridor' : `regionClearRequests/${type}/${key}`;
     try { await currentGameRef.child(reqPath).set(null); }
     catch (err) { showToast('Failed to deny request.', 'error'); }
+}
+
+// ── Plate First-Finder Dispute Flow ──────────────────────────────────────────
+
+async function requestPlateDispute(stateName) {
+    if (!currentGameRef || !currentPlayer) return;
+    const existing = gameData?.plateDisputeRequests?.[stateName];
+    if (existing) { showToast('Dispute already pending — waiting for host.', 'info'); return; }
+    const currentFirst = gameData?.claimedStates?.[stateName];
+    if (!currentFirst) { showToast('No first-finder record for this plate.', 'info'); return; }
+    const myFoundAt = playersData[currentPlayer.playerKey]?.states?.[stateName]?.foundAt || 0;
+    const myTime = formatFoundAt(myFoundAt) || 'unknown';
+    const theirName = currentFirst.displayName || currentFirst.name || 'Unknown';
+    const theirTime = formatFoundAt(currentFirst.claimedAt) || 'unknown';
+    if (!confirm(`Dispute first-finder for ${stateName}?\n\nYour time: ${myTime}\nCurrently credited to: ${theirName} at ${theirTime}\n\nThe host will review and can reassign.`)) return;
+    try {
+        await currentGameRef.child(`plateDisputeRequests/${stateName}`).set({
+            stateName,
+            playerKey: currentPlayer.playerKey,
+            displayName: currentPlayer.displayName,
+            playerFoundAt: myFoundAt,
+            currentFirstKey: currentFirst.playerKey,
+            currentFirstName: theirName,
+            currentFirstTime: currentFirst.claimedAt || 0,
+            requestedAt: Date.now(),
+        });
+        showToast('Dispute sent to host.', 'info');
+    } catch (err) { showToast('Could not send dispute.', 'error'); }
+}
+
+function detectPlateDisputeRequests() {
+    const isHost = gameData?.hostPlayerKey === currentPlayer?.playerKey;
+    if (!isHost) return;
+    const reqs = gameData?.plateDisputeRequests || {};
+    const currentKeys = Object.keys(reqs).sort().join(',');
+    if (prevPlateDisputeKeys === null) { prevPlateDisputeKeys = currentKeys; return; }
+    if (currentKeys === prevPlateDisputeKeys) return;
+    const prevSet = new Set(prevPlateDisputeKeys.split(',').filter(Boolean));
+    Object.keys(reqs).filter(k => !prevSet.has(k)).forEach(stateName => showPlateDisputeToast(stateName, reqs[stateName]));
+    prevPlateDisputeKeys = currentKeys;
+}
+
+function showPlateDisputeToast(stateName, req) {
+    const container = document.querySelector('.toast-container');
+    if (!container) return;
+    const myTime = formatFoundAt(req.playerFoundAt) || '?';
+    const theirTime = formatFoundAt(req.currentFirstTime) || '?';
+    const toast = document.createElement('div');
+    toast.className = 'toast pack';
+    toast.innerHTML = `
+        <div style="font-weight:700;margin-bottom:4px;">Plate Dispute — ${stateName}</div>
+        <div style="font-size:13px;"><strong>${req.displayName}</strong>: ${myTime}<br>vs <strong>${req.currentFirstName}</strong>: ${theirTime}</div>
+        <div class="clear-toast-btns">
+            <button class="clear-toast-approve">✓ Reassign to ${req.displayName.split(' ')[0]}</button>
+            <button class="clear-toast-deny">✕ Deny</button>
+        </div>`;
+    container.appendChild(toast);
+    toast.querySelector('.clear-toast-approve').addEventListener('click', () => { approvePlateDispute(stateName, req); toast.remove(); });
+    toast.querySelector('.clear-toast-deny').addEventListener('click', () => { denyPlateDispute(stateName); toast.remove(); });
+}
+
+async function approvePlateDispute(stateName, req) {
+    if (!currentGameRef) return;
+    try {
+        const playerData = playersData[req.playerKey];
+        const updates = {};
+        updates[`claimedStates/${stateName}`] = {
+            state: stateName,
+            playerKey: req.playerKey,
+            name: playerData?.name || req.displayName,
+            tag: playerData?.tag || '',
+            displayName: req.displayName,
+            claimedAt: req.playerFoundAt || Date.now(),
+        };
+        updates[`plateDisputeRequests/${stateName}`] = null;
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+        showToast(`${stateName} first-finder reassigned to ${req.displayName}.`, 'success');
+    } catch (err) { console.error('approvePlateDispute failed:', err); showToast('Failed to approve dispute.', 'error'); }
+}
+
+async function denyPlateDispute(stateName) {
+    if (!currentGameRef) return;
+    try { await currentGameRef.child(`plateDisputeRequests/${stateName}`).set(null); }
+    catch (err) { showToast('Failed to deny dispute.', 'error'); }
 }
 
 async function undoRegionClear(type, key) {
@@ -2600,25 +2691,28 @@ function openPlayerDetail(playerKey) {
             return `<div class="breakdown-row"><span class="rarity-badge rarity-${t}">${cfg.label}</span><span class="breakdown-count">${d.count} plate${d.count !== 1 ? 's' : ''}</span><span class="breakdown-pts">${d.pts} pts</span></div>`;
         });
         (stats.completedSubBonuses || []).forEach(({ key, label, bonus, isFirst }) => {
-            const hasMyRecord = isMe && gameData?.completedSubRegions?.[key]?.playerKey === playerKey;
+            const firstHolder = gameData?.completedSubRegions?.[key];
+            const canDispute = isMe && !isFirst && firstHolder;
             const pending = gameData?.regionClearRequests?.subRegions?.[key];
-            const disputeBtn = hasMyRecord
+            const disputeBtn = canDispute
                 ? (pending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('subRegions','${key}','${label.replace(/'/g, "\\'")}')">Dispute</button>`)
                 : '';
             rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🗺️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span>${disputeBtn}</div>`);
         });
         (stats.completedRegionBonuses || []).forEach(({ key, label, bonus, isFirst }) => {
-            const hasMyRecord = isMe && gameData?.completedRegions?.[key]?.playerKey === playerKey;
+            const firstHolder = gameData?.completedRegions?.[key];
+            const canDispute = isMe && !isFirst && firstHolder;
             const pending = gameData?.regionClearRequests?.regions?.[key];
-            const disputeBtn = hasMyRecord
+            const disputeBtn = canDispute
                 ? (pending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('regions','${key}','${label.replace(/'/g, "\\'")}')">Dispute</button>`)
                 : '';
             rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🏛️ ${label}</span><span class="breakdown-count">${isFirst ? '1st' : 'later'}</span><span class="breakdown-pts">+${bonus} pts</span>${disputeBtn}</div>`);
         });
         if (stats.corridorComplete) {
-            const hasCorridorRecord = isMe && gameData?.completedCorridor?.playerKey === playerKey;
+            const corridorFirstHolder = gameData?.completedCorridor;
+            const canDisputeCorridor = isMe && stats.corridorBonus !== 150 && corridorFirstHolder;
             const corridorPending = gameData?.regionClearRequests?.corridor;
-            const disputeBtn = hasCorridorRecord
+            const disputeBtn = canDisputeCorridor
                 ? (corridorPending ? `<button class="btn-dispute-region" disabled>Pending…</button>` : `<button class="btn-dispute-region" onclick="requestRegionClear('corridor','','Corridor Complete')">Dispute</button>`)
                 : '';
             rows.push(`<div class="breakdown-row breakdown-bonus"><span class="breakdown-bonus-label">🛣️ Corridor Complete</span><span class="breakdown-count">${stats.corridorBonus === 150 ? '1st' : 'later'}</span><span class="breakdown-pts">+${stats.corridorBonus || 75} pts</span>${disputeBtn}</div>`);
@@ -2646,7 +2740,13 @@ function openPlayerDetail(playerKey) {
             const abbr = allPlates.find(p => p.name === name)?.abbr || name.slice(0, 2).toUpperCase();
             const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
             const ts = formatFoundAt(sd?.foundAt);
-            return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}"><div class="found-chip-abbr">${abbr}${isFirst ? '⭐' : ''}</div>${ts ? `<div class="found-chip-time">${ts}</div>` : ''}</div>`;
+            const canDispute = isMe && !isFirst && gameData?.claimedStates?.[name];
+            const pendingDispute = gameData?.plateDisputeRequests?.[name];
+            const safeState = name.replace(/'/g, "\\'");
+            const disputeEl = canDispute
+                ? `<div class="found-chip-dispute" onclick="event.stopPropagation();requestPlateDispute('${safeState}')">${pendingDispute ? '⏳' : '⚑'}</div>`
+                : '';
+            return `<div class="found-chip rarity-chip-${tier}" title="${name}${isFirst ? ' — First Find!' : ''}${canDispute ? ' — Tap ⚑ to dispute' : ''}"><div class="found-chip-abbr">${abbr}${isFirst ? '⭐' : ''}</div>${ts ? `<div class="found-chip-time">${ts}</div>` : ''}${disputeEl}</div>`;
         }).join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
