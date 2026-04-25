@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260423m';
+const APP_VERSION = '20260423n';
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -414,6 +414,7 @@ let prevClearRequestKeys = null; // null = not yet initialized; reset on game ex
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let pendingClearState = null;   // stateName waiting for clear-confirm sheet
 let regionMigrationDone = false; // one-time migration guard per session
+let endGameScreenShown = false;  // shown at most once per game session
 let gameListenerAttached = false;
 let playerConfirmedInPack = false;
 let eventsBound = false;
@@ -791,6 +792,8 @@ function bindEventListeners() {
     if (auditModal) auditModal.addEventListener('click', e => { if (e.target === auditModal) closeAuditModal(); });
     document.getElementById('clearConfirmCancel')?.addEventListener('click', hideClearConfirmSheet);
     document.getElementById('clearConfirmOk')?.addEventListener('click', submitClearRequest);
+    document.getElementById('endGameBtn')?.addEventListener('click', endGame);
+    document.getElementById('closeEndGameBtn')?.addEventListener('click', closeEndGameScreen);
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -981,10 +984,14 @@ function updateGameUI() {
     updateAuditBadge();
     maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
+    const isEnded = gameData?.status === 'ended';
     const announceBtn = document.getElementById('announceBtn');
     if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
     const auditBtn = document.getElementById('auditBtn');
     if (auditBtn) auditBtn.style.display = isHost ? '' : 'none';
+    const endGameBtn = document.getElementById('endGameBtn');
+    if (endGameBtn) endGameBtn.style.display = (isHost && !isEnded) ? '' : 'none';
+    if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     const signature = buildStateSignature();
     if (signature === lastRenderedStateSignature) { updateScores(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
@@ -1247,6 +1254,7 @@ async function denyClearRequest(stateName) {
 
 async function toggleState(stateName, currentlySelected) {
     if (!currentGameRef || !currentPlayer) return;
+    if (gameData?.status === 'ended') { showToast('The game has ended — no more spotting!', 'info'); return; }
     const playerStatesRef = currentGameRef.child(`players/${currentPlayer.playerKey}/states`);
     const stateClaimRef = currentGameRef.child(`claimedStates/${stateName}`);
     try {
@@ -1326,7 +1334,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; hideClearConfirmSheet();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; hideClearConfirmSheet(); closeEndGameScreen();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -2232,4 +2240,164 @@ function openPlayerDetail(playerKey) {
 function closePlayerDetail() {
     closeBadgeDetail();
     document.getElementById('playerDetailModal')?.classList.remove('visible');
+}
+
+// ── End Game ──────────────────────────────────────────────────────────────────
+
+async function endGame() {
+    if (!currentGameRef || !currentPlayer) return;
+    if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
+    if (gameData?.status === 'ended') { showEndGameScreen(); return; }
+    if (!confirm('End the game for everyone? All players will see the final results.')) return;
+    try {
+        await currentGameRef.update({ status: 'ended', endedAt: firebase.database.ServerValue.TIMESTAMP, updatedAt: firebase.database.ServerValue.TIMESTAMP });
+    } catch (err) {
+        console.error('Error ending game:', err);
+        showToast('Failed to end game.', 'error');
+    }
+}
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function ordinalSuffix(n) {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function generatePlayerSummary(playerKey, rank, sortedKeys) {
+    const stats = computePlayerStats(playerKey);
+    if (!stats) return 'A true road warrior in their own right.';
+
+    const player = playersData[playerKey];
+    const firstName = (player?.name || player?.displayName || 'This player').split(' ')[0];
+    const total = sortedKeys.length;
+    const { score, foundCount: found, firstCount: firsts } = stats;
+    const firstRatio = found > 0 ? firsts / found : 0;
+    const isWinner = rank === 1;
+    const isLast = rank === total;
+
+    const foundAK = stats.foundSet.has('Alaska');
+    const foundHI = stats.foundSet.has('Hawaii');
+    const foundDC = stats.foundSet.has('Washington D.C.');
+    const TERRITORIES = ['Puerto Rico', 'U.S. Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'];
+    const territoryCount = TERRITORIES.filter(t => stats.foundSet.has(t)).length;
+    const completedCount = (stats.completedRegionBonuses?.length || 0) + (stats.completedSubBonuses?.length || 0);
+    const corridorDone = stats.corridorComplete;
+
+    let main;
+    if (found === 0) {
+        main = pick([
+            `${firstName} was deeply immersed in the journey — just not the plate-spotting part. Zero plates, but reportedly excellent company.`,
+            `Did ${firstName} see any plates? The data says no. But we choose to believe they were keeping watch for hazards. Important work.`,
+            `${firstName} finished with a spotless record — and by spotless we mean zero plates spotted. There's always next mile.`,
+        ]);
+    } else if (isWinner) {
+        main = pick([
+            `Absolute road royalty. ${score} points, ${found} plates, and the undeniable confidence of someone who's been doing this since birth. Nobody came close.`,
+            `The pack's MVP — ${found} plates and ${firsts} first-finds isn't just good, it's suspiciously good. We're not saying ${firstName} has a deal with the highway gods, but...`,
+            `Finished first with ${score} points and left the competition so far behind they needed binoculars just to see the scoreboard. Dominant. Decisive. Done.`,
+            `Champion of the road, ruler of the rearview, collector of ${found} plates. ${score} points. The crown fits perfectly.`,
+        ]);
+    } else if (isLast && total >= 3) {
+        main = pick([
+            `Dead last? Sure. But ${found} plates and ${score} points means ${firstName} was genuinely playing — just at a more relaxed pace. Very scenic.`,
+            `Last place in a field of ${total} is still top ${Math.round((rank / total) * 100)}%. That's how stats work sometimes. ${found} plates, ${score} points — no shame here.`,
+            `${firstName} brought up the rear with ${score} points, which honestly takes courage. The view from the back of the pack is great — less pressure, more snacks.`,
+            `The caboose of the pack, but cabooses are iconic. ${score} points, ${found} plates, and a spirit that carried everyone through. At least ${firstName} personally.`,
+        ]);
+    } else if (rank === 2) {
+        const winnerName = (playersData[sortedKeys[0]]?.name || 'first place').split(' ')[0];
+        main = pick([
+            `Silver. ${score} points, ${found} plates, and genuine dignity about it. Just a few unlucky seconds away from the top all game.`,
+            `Runner-up with ${score} points — behind ${winnerName} technically, but have you seen ${winnerName}'s stats? That's a monster. Second is perfectly respectable.`,
+            `So close to first it stings a little. ${score} points and ${found} plates says this was no accident — ${firstName} was absolutely here to compete.`,
+        ]);
+    } else if (rank === 3 && total >= 4) {
+        main = pick([
+            `Bronze is a medal. Bronze is ALWAYS a medal. ${score} points, ${found} plates, and the determination to keep spotting until the very end.`,
+            `Top three out of ${total} — ${firstName} beat ${total - 3} people. Let that sink in. ${score} points and ${found} plates. That's a podium finish.`,
+            `Third place! ${score} points and ${found} plates locked in the final medal position. Not bad for someone riding in a car.`,
+        ]);
+    } else {
+        main = pick([
+            `A solid ${ordinalSuffix(rank)}-place finish with ${score} points and ${found} plates found. Consistent, reliable, and genuinely fun to play with.`,
+            `${ordinalSuffix(rank)} out of ${total} with ${score} points. ${firstName} held their own — ${found} plates don't find themselves.`,
+            `Finished ${ordinalSuffix(rank)} with ${score} points and ${found} plates, proving you don't need first place to have an excellent adventure.`,
+        ]);
+    }
+
+    const bonuses = [];
+    if (corridorDone) bonuses.push(pick([
+        'Also completed the full travel corridor — an achievement that even cartographers would applaud.',
+        'Knocked out the entire corridor, which requires a level of plate-spotting intensity normally reserved for professionals.',
+    ]));
+    if (foundAK && foundHI) bonuses.push(pick([
+        'Snagged BOTH Alaska AND Hawaii — those don\'t just drive by. That\'s elite-tier spotting right there.',
+        'Alaska AND Hawaii on the same trip? The odds are staggering. The achievement is absolutely real.',
+    ]));
+    else if (foundAK) bonuses.push('Also somehow spotted Alaska, which is either incredibly lucky or incredibly focused.');
+    else if (foundHI) bonuses.push('Hawaii made an appearance too — statistically improbable and deeply satisfying.');
+    if (territoryCount >= 3) bonuses.push(pick([
+        `Racked up ${territoryCount} US territory plates — international explorer vibes on a domestic road trip.`,
+        `Found ${territoryCount} territories, which means those plates were ranging far and wide. Or ${firstName} has very sharp eyes.`,
+    ]));
+    if (completedCount >= 3) bonuses.push(pick([
+        `Completed ${completedCount} regional bonus goals — the kind of strategic play that changes scoreboards.`,
+        `${completedCount} region completions. That's not just spotting plates, that's executing a geographic masterplan.`,
+    ]));
+    if (firstRatio > 0.7 && firsts >= 5) bonuses.push(pick([
+        `With ${firsts} first-finds out of ${found} plates, ${firstName} was clearly on a mission to get there before everyone else.`,
+        `First-find ratio of ${Math.round(firstRatio * 100)}% — technically aggressive, officially impressive.`,
+    ]));
+    if (foundDC && !foundAK && !foundHI) bonuses.push('Even grabbed Washington D.C., which a surprising number of players just completely miss.');
+
+    return bonuses.length > 0 ? `${main} ${bonuses[0]}` : main;
+}
+
+function showEndGameScreen() {
+    const modal = document.getElementById('endGameModal');
+    if (!modal) return;
+
+    const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
+    const sorted = Object.values(playersData).map(p => {
+        const stats = computePlayerStats(p.playerKey) || { score: 0, foundCount: 0, firstCount: 0 };
+        return { ...p, ...stats, pct: totalPlates > 0 ? Math.round((stats.foundCount / totalPlates) * 100) : 0 };
+    }).sort((a, b) => b.score - a.score || b.foundCount - a.foundCount || (a.joinedAt || 0) - (b.joinedAt || 0));
+
+    const sortedKeys = sorted.map(p => p.playerKey);
+    const MEDALS = ['🥇', '🥈', '🥉'];
+
+    const titleEl = document.getElementById('endGameTitle');
+    if (titleEl) titleEl.textContent = '🏁 Game Over!';
+    const subtitleEl = document.getElementById('endGameSubtitle');
+    if (subtitleEl) subtitleEl.textContent = `${gameData?.name || 'PlateQuest'} Pack · Final Results`;
+
+    const body = document.getElementById('endGameBody');
+    if (body) {
+        body.innerHTML = sorted.map((player, i) => {
+            const rank = i + 1;
+            const medal = MEDALS[i] || `#${rank}`;
+            const rankCls = rank <= 3 ? `rank-${rank}` : '';
+            const isMe = player.playerKey === currentPlayer?.playerKey;
+            const summary = generatePlayerSummary(player.playerKey, rank, sortedKeys);
+            return `<div class="end-player-card ${rankCls}">
+                <div class="end-player-top">
+                    <div class="end-player-medal">${medal}</div>
+                    <div>
+                        <div class="end-player-name">${player.displayName || player.name || 'Player'}${isMe ? ' 🐺' : ''}</div>
+                        <div class="end-player-score">${player.score} pts · ${player.foundCount} plates · ${player.firstCount} first-finds</div>
+                    </div>
+                </div>
+                <div class="end-player-summary">${summary}</div>
+            </div>`;
+        }).join('');
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeEndGameScreen() {
+    const modal = document.getElementById('endGameModal');
+    if (modal) modal.style.display = 'none';
 }

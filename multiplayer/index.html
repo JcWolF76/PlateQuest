@@ -170,8 +170,26 @@
         /* ── Audit button ── */
         .btn-audit { background: linear-gradient(135deg, #1a5276, #2980b9); color: #fff; font-weight: 800; border: none; }
         .btn-audit:hover { background: linear-gradient(135deg, #2980b9, #3498db); }
+        .btn-end-game { background: linear-gradient(135deg, #7d3c00, #c0392b); color: #fff; font-weight: 800; border: none; }
+        .btn-end-game:hover { background: linear-gradient(135deg, #c0392b, #e74c3c); }
 
-        /* ── Audit Modal ── */
+        /* ── End Game Modal ── */
+        .end-game-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.92); z-index:1400; padding:16px; overflow-y:auto; }
+        .end-game-dialog { width:min(98vw,560px); max-height:92vh; background:linear-gradient(145deg,rgba(10,20,35,0.99),rgba(20,35,55,0.99)); border-radius:24px; border:2px solid rgba(255,215,0,0.35); box-shadow:0 24px 80px rgba(0,0,0,0.7),0 0 60px rgba(255,215,0,0.06); display:flex; flex-direction:column; overflow:hidden; }
+        .end-game-header { text-align:center; padding:24px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.08); background:linear-gradient(180deg,rgba(255,215,0,0.06),transparent); }
+        .end-game-title { font-size:28px; font-weight:900; color:#fff; letter-spacing:0.5px; }
+        .end-game-subtitle { font-size:14px; color:rgba(255,255,255,0.5); margin-top:4px; }
+        .end-game-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px; display:flex; flex-direction:column; gap:12px; }
+        .end-player-card { border-radius:16px; padding:16px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); }
+        .end-player-card.rank-1 { border-color:rgba(255,215,0,0.5); background:rgba(255,215,0,0.06); box-shadow:0 0 20px rgba(255,215,0,0.08); }
+        .end-player-card.rank-2 { border-color:rgba(192,192,192,0.4); background:rgba(192,192,192,0.04); }
+        .end-player-card.rank-3 { border-color:rgba(205,127,50,0.4); background:rgba(205,127,50,0.04); }
+        .end-player-top { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+        .end-player-medal { font-size:28px; flex-shrink:0; }
+        .end-player-name { font-size:18px; font-weight:800; color:#fff; }
+        .end-player-score { font-size:13px; color:rgba(255,255,255,0.55); margin-top:2px; }
+        .end-player-summary { font-size:13px; color:rgba(255,255,255,0.82); line-height:1.6; font-style:italic; border-top:1px solid rgba(255,255,255,0.07); padding-top:10px; }
+        .end-game-footer { padding:16px 20px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }
         .audit-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.82); z-index:1200; padding:18px; }
         .audit-dialog { width:min(96vw,540px); max-height:85vh; background:linear-gradient(145deg,rgba(26,44,62,0.99),rgba(36,58,80,0.99)); border-radius:22px; border:2px solid rgba(41,128,185,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:24px; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
         .audit-header { display:flex; justify-content:space-between; align-items:flex-start; }
@@ -547,6 +565,7 @@
                         <span class="audit-badge" id="auditBadge"></span>
                     </div>
                     <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
+                    <button class="btn btn-end-game" id="endGameBtn" style="display:none;">🏁 End Game</button>
                     <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
                     <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
                     <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
@@ -741,11 +760,25 @@
             </div>
         </div>
 
+        <!-- End Game Modal -->
+        <div id="endGameModal" class="end-game-modal">
+            <div class="end-game-dialog">
+                <div class="end-game-header">
+                    <div class="end-game-title" id="endGameTitle">🏁 Game Over!</div>
+                    <div class="end-game-subtitle" id="endGameSubtitle">Final Results</div>
+                </div>
+                <div class="end-game-body" id="endGameBody"></div>
+                <div class="end-game-footer">
+                    <button class="btn btn-secondary" id="closeEndGameBtn">← Back to Pack</button>
+                </div>
+            </div>
+        </div>
+
         <div id="loadingOverlay" class="loading-overlay" style="display: none;"><div class="loading-spinner"></div><div class="loading-text">Connecting to the pack...</div></div>
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260423m"></script>
+    <script src="game.js?v=20260423n"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
