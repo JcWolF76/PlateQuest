@@ -154,6 +154,18 @@
         .wolf-pin-error { color: #e74c3c; font-size: 13px; font-weight: 600; min-height: 20px; margin-top: 6px; }
         /* Wolf admin button */
         .btn-wolf-admin { background: linear-gradient(135deg, #4a235a, #6c3483); color: #f1c40f; font-weight: 800; border: 2px solid rgba(241,196,15,0.4); }
+        /* Update / What's New modal */
+        .update-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 9998; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .update-modal-card { background: linear-gradient(160deg, #1e2a3a, #16202e); border: 1px solid rgba(52,152,219,0.4); border-radius: 20px; padding: 28px 22px 22px; width: min(380px, 96vw); box-shadow: 0 24px 64px rgba(0,0,0,0.55); text-align: center; }
+        .update-modal-icon { font-size: 44px; margin-bottom: 8px; }
+        .update-modal-title { font-size: 20px; font-weight: 800; color: #ecf0f1; margin-bottom: 4px; }
+        .update-modal-version { font-size: 11px; font-weight: 600; color: #3498db; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 18px; }
+        .update-modal-notes { list-style: none; padding: 0; margin: 0 0 16px; text-align: left; display: flex; flex-direction: column; gap: 9px; }
+        .update-modal-notes li { font-size: 14px; color: #bdc3c7; line-height: 1.4; padding-left: 4px; }
+        .update-modal-footer { font-size: 12px; color: #7f8c8d; font-style: italic; margin-bottom: 20px; border-top: 1px solid rgba(52,152,219,0.15); padding-top: 14px; }
+        .update-modal-actions { display: flex; gap: 10px; justify-content: center; }
+        .update-modal-later { font-size: 13px; padding: 10px 18px; }
+        .update-modal-now { font-size: 14px; padding: 10px 22px; font-weight: 700; }
         .states-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; margin-top: 20px; }
         .state-card { background: linear-gradient(145deg, rgba(52, 73, 94, 0.9), rgba(44, 62, 80, 0.9)); border: 3px solid rgba(52, 152, 219, 0.4); border-radius: 12px; padding: 0; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; box-shadow: 0 8px 25px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1); aspect-ratio: 2/1; min-height: 120px; touch-action: manipulation; }
         .state-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.05) 50%, transparent 51%), linear-gradient(-45deg, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%); background-size: 20px 20px; pointer-events: none; }
@@ -1056,7 +1068,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260424i"></script>
+    <script src="game.js?v=20260424j"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

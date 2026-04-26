@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424i';
+const APP_VERSION = '20260424j';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -19,6 +19,48 @@ const TAUNT_LIST = [
 
 // Available player icons — 🐺 is reserved for the developer (JcWolF tag)
 const PLAYER_ICONS = ['🦊','🐻','🐯','🦁','🦅','🐸','🦝','🦉','🦄','🐲','🦋','🚗'];
+
+// Release notes shown to players when an update is detected
+const CHANGELOG = {
+    '20260424a': [
+        '😈 Taunts — fire friendly trash talk at specific players or the whole pack',
+    ],
+    '20260424b': [
+        '🔁 New Round — host can wipe all plates and start fresh without breaking up the pack',
+        '🔄 Refresh button added to the header for web-app users (no browser bar = no problem)',
+        '📍 GPS permission now fires at game join for GPS-rarity games, not on first swipe',
+    ],
+    '20260424c': [
+        '⚑ Dispute a plate first-finder — tap the flag on any plate someone else claimed first',
+        '🔧 Fixed: region dispute button was showing on badges YOU already held (now shows on others)',
+    ],
+    '20260424d': [
+        '🔧 Fixed: player card icons were overlapping name text on the leaderboard',
+    ],
+    '20260424e': [
+        '💬 Pack Chat — open group messaging for the whole pack with a community use policy',
+        '🔴 Unread badge on the Chat button so you never miss a message',
+    ],
+    '20260424f': [
+        '📦 My Packs — setup screen now remembers up to 8 games you\'ve previously joined',
+        '▶️ Jump back into any remembered pack instantly without re-entering the code',
+    ],
+    '20260424g': [
+        '🔧 Fixed: decorative icons were floating over the Pack Leaderboard title',
+    ],
+    '20260424h': [
+        '🎨 Player icons — pick your emoji (fox, bear, tiger, owl, and more) shown large on your card',
+        '🏷️ Player tags now support mixed case — your tag displays exactly as you typed it',
+    ],
+    '20260424i': [
+        '🐺 Wolf icon is now developer-exclusive — only exact tag "JcWolF" (capital J, W, F) gets the wolf',
+        '🔐 JcWolF tag is PIN-protected (9-6-5-3 on a phone pad spells W-O-L-F)',
+        '🛠️ Admin panel shortcut button now appears in-game for the developer account',
+    ],
+    '20260424j': [
+        '📋 Update notes — you\'re reading one right now! New releases show a summary of what changed',
+    ],
+};
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -838,35 +880,54 @@ function checkAppVersion() {
             const res = await fetch(`version.json?_v=${Date.now()}`, { cache: 'no-store' });
             if (!res.ok) return;
             const { version: latest } = await res.json();
-            if (latest && latest !== APP_VERSION) handleVersionMismatch();
+            if (latest && latest !== APP_VERSION) handleVersionMismatch(latest);
         } catch (e) { /* network error, skip */ }
     };
     doCheck();
     if (!versionIntervalId) versionIntervalId = setInterval(doCheck, 60000);
 }
 
-function handleVersionMismatch() {
+function doAppReload() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('_v', Date.now());
+    url.searchParams.delete('joinrefresh');
+    window.location.replace(url.toString());
+}
+
+function handleVersionMismatch(latest) {
     if (document.getElementById('updateBanner')) return;
-    if (!currentGameCode) {
-        // Not in a game — auto-reload immediately
-        const url = new URL(window.location.href);
-        url.searchParams.set('_v', Date.now());
-        url.searchParams.delete('joinrefresh');
-        window.location.replace(url.toString());
-        return;
-    }
-    // In a game — show a tap-to-reload banner
+    if (!currentGameCode) { doAppReload(); return; }
     const banner = document.createElement('div');
     banner.id = 'updateBanner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a73e8;color:#fff;text-align:center;padding:14px 16px;font-size:15px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0.1);';
-    banner.textContent = '🔄 Update available — tap here to reload';
-    banner.addEventListener('click', () => {
-        const url = new URL(window.location.href);
-        url.searchParams.set('_v', Date.now());
-        url.searchParams.delete('joinrefresh');
-        window.location.replace(url.toString());
-    });
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#1a73e8,#0d47a1);color:#fff;text-align:center;padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.2px;-webkit-tap-highlight-color:rgba(0,0,0,0.1);box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+    banner.textContent = '🔄 Update available — see what\'s new!';
+    banner.addEventListener('click', () => showUpdateModal(latest));
     document.body.prepend(banner);
+}
+
+function showUpdateModal(version) {
+    if (document.getElementById('updateModal')) return;
+    const notes = CHANGELOG[version] || ['🚀 Performance improvements and bug fixes'];
+    const bullets = notes.map(n => `<li>${n}</li>`).join('');
+    const overlay = document.createElement('div');
+    overlay.id = 'updateModal';
+    overlay.className = 'update-modal-overlay';
+    overlay.innerHTML = `
+        <div class="update-modal-card">
+            <div class="update-modal-icon">🐺</div>
+            <div class="update-modal-title">What's New in PlateQuest</div>
+            <div class="update-modal-version">Version ${version}</div>
+            <ul class="update-modal-notes">${bullets}</ul>
+            <div class="update-modal-footer">Built with ❤️ by JcWolF — always hunting for improvements!</div>
+            <div class="update-modal-actions">
+                <button class="btn btn-secondary update-modal-later">Maybe Later</button>
+                <button class="btn btn-primary update-modal-now">🚀 Update Now</button>
+            </div>
+        </div>
+    `;
+    overlay.querySelector('.update-modal-now').addEventListener('click', doAppReload);
+    overlay.querySelector('.update-modal-later').addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
 }
 
 function bindEventListeners() {
