@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424l';
+const APP_VERSION = '20260424m';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -69,6 +69,10 @@ const CHANGELOG = {
         '🗂️ Action buttons reorganized into labeled sections: Host Controls, Social, Pack, My Game, and App',
         '🔲 All buttons now use a consistent 2-column grid — no more random sizes and orphaned buttons',
         '🚪 Leave Pack now has a distinct style so it\'s easy to spot but won\'t be tapped by accident',
+    ],
+    '20260424m': [
+        '🐺 Admin Panel button now visible regardless of how tag case was stored — no more missing button',
+        '🔧 Audit re-run now confirms with a toast so you know it actually ran',
     ],
 };
 
@@ -1400,7 +1404,7 @@ function updateGameUI() {
     if (viewResultsBtn) viewResultsBtn.style.display = isEnded ? '' : 'none';
     // Wolf admin button (JcWolF only)
     const wolfAdminBtn = document.getElementById('wolfAdminBtn');
-    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag === 'JcWolF' ? '' : 'none';
+    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag?.toLowerCase() === 'jcwolf' ? '' : 'none';
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
     const signature = buildStateSignature();
@@ -2307,6 +2311,7 @@ async function runAuditCorrections() {
 
     if (!totalFixes) {
         body.innerHTML = '<div class="audit-ok">✅ All records are accurate — no changes needed.</div>';
+        showToast('✅ Audit complete — all records accurate', 'success');
         return;
     }
 
@@ -2353,6 +2358,7 @@ async function runAuditCorrections() {
         body.innerHTML = `
             <div class="audit-ok">✅ Fixed ${summary} — scores &amp; badges updated for all players.</div>
             <div class="audit-list" style="margin-top:10px">${plateItems}${overflow}${regionItems}</div>`;
+        showToast(`✅ Audit fixed ${summary}`, 'success');
         renderRegionRecords();
     } catch (err) {
         console.error('Audit auto-apply failed:', err);
