@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424o';
+const APP_VERSION = '20260426a';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -19,6 +19,17 @@ const TAUNT_LIST = [
 
 // Available player icons — 🐺 is reserved for the developer (JcWolF tag)
 const PLAYER_ICONS = ['🦊','🐻','🐯','🦁','🦅','🐸','🦝','🦉','🦄','🐲','🦋','🚗','🦈','🐬','🦖','🦏','🦬','🐆','🦓','🐘','🦒','🦜','🐊','🦦'];
+
+const COIN_RATES = {
+    plateFind:          2,   // any plate spotted
+    plateFirst:         5,   // first finder bonus on top
+    subRegionFirst:    15,   // first to complete a sub-region
+    subRegionLater:     5,   // later completions
+    primaryRegionFirst:25,   // first to complete a primary region
+    primaryRegionLater:10,
+    corridorFirst:     50,   // first to complete the corridor
+    corridorLater:     20,
+};
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
@@ -79,6 +90,12 @@ const CHANGELOG = {
     ],
     '20260424o': [
         '🎨 Icon picker expanded to 24 options — shark, dolphin, dino, leopard, otter, and more',
+    ],
+    '20260426a': [
+        '🪙 Coin system — earn coins every time you spot a plate or complete a region',
+        '⭐ First finders earn bonus coins — 5🪙 for claiming a plate first, 2🪙 for any find',
+        '🗺️ Region bonuses — up to 50🪙 for completing the corridor first',
+        '👛 Your coin balance shows live in the header and on every player card',
     ],
 };
 
@@ -1525,6 +1542,7 @@ function updateScores() {
         const badgeRow = badges.length
             ? `<div class="badge-row">${badges.map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}</div>`
             : '';
+        const coins = player.coins || 0;
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
         scoreCard.dataset.playerkey = player.playerKey;
@@ -1537,6 +1555,7 @@ function updateScores() {
             </div>
             <div class="score-pts">${player.score}<span class="score-pts-label"> pts</span></div>
             <div class="score-meta">${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds</div>
+            <div class="score-coins">🪙 ${coins.toLocaleString()} coins</div>
             ${badgeRow}
         `;
         // Direct listeners added fresh each render — most reliable on mobile
@@ -1565,6 +1584,16 @@ function updateScores() {
         fill.style.width = `${pct}%`;
         wrap.style.display = packFound > 0 ? '' : 'none';
     }
+    updateCoinWallet();
+}
+
+function updateCoinWallet() {
+    const wallet = document.getElementById('coinWallet');
+    const balanceEl = document.getElementById('coinBalance');
+    if (!wallet || !balanceEl || !currentPlayer) return;
+    const coins = playersData[currentPlayer.playerKey]?.coins || 0;
+    balanceEl.textContent = coins.toLocaleString();
+    wallet.style.display = '';
 }
 
 function createSectionHeader(title) {
@@ -1816,12 +1845,15 @@ async function toggleState(stateName, currentlySelected) {
         if (currentlySelected) {
             await playerStatesRef.child(stateName).remove();
         } else {
-            await stateClaimRef.transaction((existingClaim) => existingClaim || ({ state: stateName, playerKey: currentPlayer.playerKey, name: currentPlayer.name, tag: currentPlayer.tag, displayName: currentPlayer.displayName, claimedAt: Date.now() }));
+            const txResult = await stateClaimRef.transaction((existingClaim) => existingClaim || ({ state: stateName, playerKey: currentPlayer.playerKey, name: currentPlayer.name, tag: currentPlayer.tag, displayName: currentPlayer.displayName, claimedAt: Date.now() }));
+            const isFirstFinder = txResult.snapshot.val()?.playerKey === currentPlayer.playerKey;
+            const coinsEarned = COIN_RATES.plateFind + (isFirstFinder ? COIN_RATES.plateFirst : 0);
             const foundNearState = gameData?.settings?.gpsRarity ? (await getPlayerGpsState()) : null;
             const stateRecord = { state: stateName, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey };
             if (foundNearState) stateRecord.foundNearState = foundNearState;
             await playerStatesRef.child(stateName).set(stateRecord);
-            showToast(`Found ${stateName}! 🎉`, 'success');
+            currentGameRef.child(`players/${currentPlayer.playerKey}`).update({ coins: firebase.database.ServerValue.increment(coinsEarned) }).catch(() => {});
+            showToast(`Found ${stateName}! +${coinsEarned}🪙${isFirstFinder ? ' First finder!' : ''}`, 'success');
             writeRegionCompletions();
         }
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
@@ -2901,39 +2933,53 @@ async function computeAuditCorrections() {
 
 async function writeRegionCompletions() {
     if (!currentGameRef || !currentPlayer) return;
-    // Use latest snapshot from playersData (may lag by one Firebase event, which is fine —
-    // the migration pass will catch anything missed on the first selection).
     const player = playersData[currentPlayer.playerKey];
     if (!player) return;
     const foundSet = new Set(Object.keys(player.states || {}));
     const now = Date.now();
-    const writes = [];
+    let coinsEarned = 0;
 
+    const subWrites = [];
     Object.entries(SUB_REGIONS).forEach(([key, region]) => {
         if (!region.states.every(s => foundSet.has(s))) return;
-        writes.push(currentGameRef.child(`completedSubRegions/${key}`).transaction(existing => {
+        subWrites.push(currentGameRef.child(`completedSubRegions/${key}`).transaction(existing => {
             if (existing) return undefined;
             return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
         }));
     });
 
+    const regWrites = [];
     Object.entries(REGION_STATES).forEach(([key, states]) => {
         if (!states.every(s => foundSet.has(s))) return;
-        writes.push(currentGameRef.child(`completedRegions/${key}`).transaction(existing => {
+        regWrites.push(currentGameRef.child(`completedRegions/${key}`).transaction(existing => {
             if (existing) return undefined;
             return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
         }));
     });
 
     const corridorStates = gameData?.settings?.playAreaStates || [];
+    let corridorWrite = null;
     if (corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s))) {
-        writes.push(currentGameRef.child('completedCorridor').transaction(existing => {
+        corridorWrite = currentGameRef.child('completedCorridor').transaction(existing => {
             if (existing) return undefined;
             return { playerKey: currentPlayer.playerKey, displayName: currentPlayer.displayName, completedAt: now };
-        }));
+        });
     }
 
-    try { await Promise.all(writes); } catch (err) { console.error('writeRegionCompletions failed:', err); }
+    try {
+        const [subResults, regResults, corridorResult] = await Promise.all([
+            Promise.all(subWrites),
+            Promise.all(regWrites),
+            corridorWrite || Promise.resolve(null),
+        ]);
+        subResults.forEach(r => { if (r?.committed) coinsEarned += COIN_RATES.subRegionFirst; });
+        regResults.forEach(r => { if (r?.committed) coinsEarned += COIN_RATES.primaryRegionFirst; });
+        if (corridorResult?.committed) coinsEarned += COIN_RATES.corridorFirst;
+        if (coinsEarned > 0) {
+            currentGameRef.child(`players/${currentPlayer.playerKey}`).update({ coins: firebase.database.ServerValue.increment(coinsEarned) }).catch(() => {});
+            showToast(`Region bonus! +${coinsEarned}🪙`, 'success');
+        }
+    } catch (err) { console.error('writeRegionCompletions failed:', err); }
 }
 
 async function maybeRunRegionMigration() {
