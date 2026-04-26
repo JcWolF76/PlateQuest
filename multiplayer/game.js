@@ -918,7 +918,7 @@ function showUpdateModal(version) {
             <div class="update-modal-title">What's New in PlateQuest</div>
             <div class="update-modal-version">Version ${version}</div>
             <ul class="update-modal-notes">${bullets}</ul>
-            <div class="update-modal-footer">Built with ❤️ by JcWolF — always hunting for improvements!</div>
+            <div class="update-modal-footer">— JcWolF, still patching, still hunting, never AFK. 🐺🎮</div>
             <div class="update-modal-actions">
                 <button class="btn btn-secondary update-modal-later">Maybe Later</button>
                 <button class="btn btn-primary update-modal-now">🚀 Update Now</button>
