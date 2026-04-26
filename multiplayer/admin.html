@@ -41,7 +41,27 @@ button:disabled { opacity: 0.4; cursor: default; }
 .status.err { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.4); color: #e74c3c; }
 .status.info { background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.4); color: #7eb8f7; }
 
-/* ── Plate list ── */
+/* ── Game browser ── */
+#gameBrowserCard { margin-bottom: 24px; }
+#gameBrowserCard h2 { margin-bottom: 12px; }
+.browser-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.browser-controls input { flex: 1; min-width: 140px; font-size: 13px; padding: 7px 10px; }
+.browser-controls button { font-size: 13px; padding: 7px 14px; }
+.browser-stats { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 10px; }
+#gameList { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+.game-row { display: flex; align-items: center; gap: 10px; background: #0d1b2a; border: 1px solid #2e4a68; border-radius: 8px; padding: 10px 14px; cursor: pointer; transition: border-color 0.15s; }
+.game-row:hover { border-color: #4a90d9; }
+.game-row.selected { border-color: #1a73e8; background: rgba(26,115,232,0.1); }
+.game-code { font-family: monospace; font-size: 16px; font-weight: 800; letter-spacing: 0.15em; color: #7eb8f7; min-width: 64px; }
+.game-info { flex: 1; min-width: 0; }
+.game-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game-meta { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+.game-status { font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 8px; white-space: nowrap; }
+.game-status.active { background: rgba(39,174,96,0.2); color: #2ecc71; border: 1px solid rgba(39,174,96,0.4); }
+.game-status.ended  { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+.browser-empty { color: rgba(255,255,255,0.3); font-size: 13px; padding: 16px 0; text-align: center; }
+
+
 #plateList { display: flex; flex-direction: column; gap: 6px; }
 .plate-row { display: flex; align-items: center; gap: 10px; background: #0d1b2a; border: 1px solid #2e4a68; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: border-color 0.15s; }
 .plate-row:hover { border-color: #4a90d9; }
@@ -77,6 +97,21 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 <!-- ── Admin Panel ── -->
 <div id="adminPanel">
+
+    <!-- Game browser -->
+    <div class="card" id="gameBrowserCard">
+        <h2>📋 All Games</h2>
+        <div class="browser-controls">
+            <input id="gameSearchInput" placeholder="Search code or name…" oninput="renderGameList()">
+            <button onclick="browseGames()">🔄 Refresh</button>
+            <button class="secondary" onclick="sortGames('updated')">Latest</button>
+            <button class="secondary" onclick="sortGames('code')">A–Z</button>
+            <button class="secondary" onclick="sortGames('players')">Players</button>
+        </div>
+        <div class="browser-stats" id="browserStats"></div>
+        <div id="gameList"><div class="browser-empty">Loading…</div></div>
+    </div>
+
     <h2 style="margin-bottom:20px">🛠️ Timestamp Editor</h2>
 
     <!-- Game loader -->
@@ -170,6 +205,84 @@ let db = null;
 function initFirebase() {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
+    browseGames();
+}
+
+// ── Game Browser ──────────────────────────────────────────────────────────────
+let allGames = [];
+let browserSortMode = 'updated';
+
+async function browseGames() {
+    const listEl = document.getElementById('gameList');
+    const statsEl = document.getElementById('browserStats');
+    listEl.innerHTML = '<div class="browser-empty">Loading all games…</div>';
+    statsEl.textContent = '';
+    try {
+        const snap = await db.ref('games').once('value');
+        const raw = snap.val() || {};
+        allGames = Object.entries(raw).map(([code, data]) => ({
+            code,
+            name: data.name || '(unnamed)',
+            status: data.status || 'active',
+            playerCount: Object.keys(data.players || {}).length,
+            updatedAt: data.updatedAt || data.createdAt || 0,
+            roundNumber: data.roundNumber || 1,
+            hostKey: data.hostPlayerKey || '',
+            players: data.players || {},
+        }));
+        sortGames(browserSortMode, false);
+        renderGameList();
+    } catch (err) {
+        listEl.innerHTML = `<div class="browser-empty" style="color:#e74c3c">Error: ${err.message}</div>`;
+    }
+}
+
+function sortGames(mode, render = true) {
+    browserSortMode = mode;
+    if (mode === 'updated') allGames.sort((a, b) => b.updatedAt - a.updatedAt);
+    else if (mode === 'code') allGames.sort((a, b) => a.code.localeCompare(b.code));
+    else if (mode === 'players') allGames.sort((a, b) => b.playerCount - a.playerCount);
+    if (render) renderGameList();
+}
+
+function renderGameList() {
+    const query = (document.getElementById('gameSearchInput')?.value || '').toLowerCase().trim();
+    const listEl = document.getElementById('gameList');
+    const statsEl = document.getElementById('browserStats');
+    const active = allGames.filter(g => g.status !== 'ended').length;
+    const ended = allGames.filter(g => g.status === 'ended').length;
+    statsEl.textContent = `${allGames.length} total — ${active} active, ${ended} ended`;
+    const visible = query
+        ? allGames.filter(g => g.code.toLowerCase().includes(query) || g.name.toLowerCase().includes(query))
+        : allGames;
+    if (!visible.length) {
+        listEl.innerHTML = '<div class="browser-empty">No games found.</div>';
+        return;
+    }
+    listEl.innerHTML = '';
+    visible.forEach(g => {
+        const row = document.createElement('div');
+        row.className = 'game-row';
+        const ts = g.updatedAt ? new Date(g.updatedAt).toLocaleString() : '—';
+        const roundLabel = g.roundNumber > 1 ? ` · Round ${g.roundNumber}` : '';
+        const playerNames = Object.values(g.players).map(p => p.displayName || p.name || '?').join(', ') || '—';
+        row.innerHTML = `
+            <div class="game-code">${g.code}</div>
+            <div class="game-info">
+                <div class="game-name">${g.name}</div>
+                <div class="game-meta">${g.playerCount} player${g.playerCount !== 1 ? 's' : ''}${roundLabel} · ${ts}</div>
+                <div class="game-meta" style="opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${playerNames}</div>
+            </div>
+            <div class="game-status ${g.status}">${g.status === 'ended' ? 'Ended' : 'Active'}</div>`;
+        row.addEventListener('click', () => {
+            document.querySelectorAll('.game-row').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
+            const codeInput = document.getElementById('gameCodeInput');
+            if (codeInput) { codeInput.value = g.code; loadGame(); }
+            document.getElementById('gameBrowserCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        listEl.appendChild(row);
+    });
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
