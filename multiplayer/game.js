@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260426a';
+const APP_VERSION = '20260426b';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -19,6 +19,17 @@ const TAUNT_LIST = [
 
 // Available player icons — 🐺 is reserved for the developer (JcWolF tag)
 const PLAYER_ICONS = ['🦊','🐻','🐯','🦁','🦅','🐸','🦝','🦉','🦄','🐲','🦋','🚗','🦈','🐬','🦖','🦏','🦬','🐆','🦓','🐘','🦒','🦜','🐊','🦦'];
+
+const SHOP_ITEMS = [
+    { id: 'blender',  name: 'Blender',      icon: '🌀', cost: 40, effectKey: 'blender', duration: 3*60*1000,
+      category: 'trick',   desc: 'Scrambles the plate order for all other players for 3 minutes.' },
+    { id: 'freeze',   name: 'Time Freeze',  icon: '⏸️', cost: 75, effectKey: 'freeze',  duration: 2*60*1000,
+      category: 'trick',   desc: 'Blocks other players from spotting new plates for 2 minutes.' },
+    { id: 'fog',      name: 'Fog of War',   icon: '🌫️', cost: 50, effectKey: 'fog',     duration: 5*60*1000,
+      category: 'trick',   desc: "Hides everyone else's scores and plate counts for 5 minutes." },
+    { id: 'shield',   name: 'Shield',       icon: '🛡️', cost: 35, effectKey: 'shield',  duration: null,
+      category: 'defense', desc: 'Blocks the next trick used against you. One use only.' },
+];
 
 const COIN_RATES = {
     plateFind:          2,   // any plate spotted
@@ -96,6 +107,13 @@ const CHANGELOG = {
         '⭐ First finders earn bonus coins — 5🪙 for claiming a plate first, 2🪙 for any find',
         '🗺️ Region bonuses — up to 50🪙 for completing the corridor first',
         '👛 Your coin balance shows live in the header and on every player card',
+    ],
+    '20260426b': [
+        '🏪 Pack Shop — spend your coins on tricks to mess with the competition',
+        '🌀 Blender (40🪙) — scrambles the plate order for everyone else for 3 minutes',
+        '⏸️ Time Freeze (75🪙) — blocks other players from spotting plates for 2 minutes',
+        '🌫️ Fog of War (50🪙) — hides all scores from other players for 5 minutes',
+        '🛡️ Shield (35🪙) — blocks the next trick used against you',
     ],
 };
 
@@ -664,6 +682,26 @@ function removeFromMyGames(code) {
 }
 function forgetGame(code) { removeFromMyGames(code); renderMyGames(); }
 
+function seededShuffle(arr, seed) {
+    const out = [...arr];
+    let s = Math.abs(seed % 2147483647) || 1;
+    for (let i = out.length - 1; i > 0; i--) {
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        const j = s % (i + 1);
+        [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+}
+
+function getMyEffects() { return playersData[currentPlayer?.playerKey]?.effects || {}; }
+
+function formatTimeLeft(expiry) {
+    const ms = expiry - Date.now();
+    if (ms <= 0) return '';
+    const s = Math.ceil(ms / 1000);
+    return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
 function formatRelativeTime(ts) {
     if (!ts) return '';
     const diff = Date.now() - ts;
@@ -981,6 +1019,122 @@ function showUpdateModal(version) {
 
 let feedbackType = 'bug'; // 'bug' or 'feature'
 
+// ── Pack Shop ─────────────────────────────────────────────────────────────────
+
+function openShopModal() {
+    const modal = document.getElementById('shopModal');
+    if (!modal) return;
+    renderShopModal();
+    modal.style.display = 'flex';
+}
+
+function closeShopModal() {
+    const modal = document.getElementById('shopModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderShopModal() {
+    const list = document.getElementById('shopItemsList');
+    const balEl = document.getElementById('shopCoinBalance');
+    if (!list) return;
+    const myCoins = playersData[currentPlayer?.playerKey]?.coins || 0;
+    if (balEl) balEl.textContent = myCoins.toLocaleString();
+    const myEffects = getMyEffects();
+    const now = Date.now();
+    list.innerHTML = '';
+
+    const renderGroup = (label, items) => {
+        const hdr = document.createElement('div');
+        hdr.className = 'shop-category-label';
+        hdr.textContent = label;
+        list.appendChild(hdr);
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            const canAfford = myCoins >= item.cost;
+            let statusHtml = '';
+            if (item.id === 'shield') {
+                if (myEffects.shield) statusHtml = '<span class="shop-status-pill">Active</span>';
+            } else {
+                const anyActive = Object.values(playersData).some(
+                    p => p.playerKey !== currentPlayer?.playerKey && (p.effects?.[item.effectKey] || 0) > now
+                );
+                if (anyActive) statusHtml = '<span class="shop-status-pill">Active on pack</span>';
+            }
+            div.innerHTML = `
+                <div class="shop-item-icon">${item.icon}</div>
+                <div class="shop-item-body">
+                    <div class="shop-item-name">${item.name} ${statusHtml}</div>
+                    <div class="shop-item-desc">${item.desc}</div>
+                </div>
+                <button class="btn-shop-buy${canAfford ? '' : ' btn-shop-buy--off'}" data-iid="${item.id}" ${canAfford ? '' : 'disabled'}>
+                    🪙${item.cost}
+                </button>`;
+            list.appendChild(div);
+        });
+    };
+
+    renderGroup('⚔️ Tricks — affects all other players', SHOP_ITEMS.filter(i => i.category === 'trick'));
+    renderGroup('🛡️ Defense — protects yourself', SHOP_ITEMS.filter(i => i.category === 'defense'));
+
+    list.querySelectorAll('.btn-shop-buy:not([disabled])').forEach(btn => {
+        btn.addEventListener('click', () => buyShopItem(btn.dataset.iid));
+    });
+}
+
+async function buyShopItem(itemId) {
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    if (!item || !currentGameRef || !currentPlayer) return;
+    const myCoins = playersData[currentPlayer.playerKey]?.coins || 0;
+    if (myCoins < item.cost) { showToast('Not enough coins! 🪙', 'error'); return; }
+
+    if (item.id === 'shield') {
+        await currentGameRef.update({
+            [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-item.cost),
+            [`players/${currentPlayer.playerKey}/effects/shield`]: true,
+        });
+        showToast('🛡️ Shield equipped! You\'re protected from the next trick.', 'success');
+        closeShopModal();
+        return;
+    }
+
+    const expiry = Date.now() + item.duration;
+    const others = Object.values(playersData).filter(p => p.playerKey !== currentPlayer.playerKey);
+    if (others.length === 0) { showToast('No other players in the pack!', 'info'); return; }
+
+    await currentGameRef.child(`players/${currentPlayer.playerKey}/coins`).set(
+        firebase.database.ServerValue.increment(-item.cost)
+    );
+
+    let blocked = 0;
+    await Promise.all(others.map(target =>
+        currentGameRef.child(`players/${target.playerKey}/effects`).transaction(existing => {
+            if (existing?.shield) { blocked++; return { ...existing, shield: null }; }
+            return { ...(existing || {}), [item.effectKey]: expiry };
+        })
+    ));
+
+    if (blocked > 0) showToast(`${item.icon} ${item.name} — ${blocked} player${blocked !== 1 ? 's' : ''} blocked it with a Shield!`, 'info');
+    else showToast(`${item.icon} ${item.name} activated on the pack!`, 'success');
+    closeShopModal();
+}
+
+function updateActiveEffectsBar() {
+    const bar = document.getElementById('activeEffectsBar');
+    if (!bar || !currentPlayer) return;
+    const fx = getMyEffects();
+    const now = Date.now();
+    const active = [];
+    if ((fx.blender || 0) > now) active.push({ icon: '🌀', label: 'Plates scrambled', expiry: fx.blender });
+    if ((fx.freeze  || 0) > now) active.push({ icon: '⏸️', label: 'You are frozen',   expiry: fx.freeze });
+    if ((fx.fog     || 0) > now) active.push({ icon: '🌫️', label: 'Scores hidden',    expiry: fx.fog });
+    if (fx.shield)               active.push({ icon: '🛡️', label: 'Shielded',          expiry: null });
+    bar.style.display = active.length ? 'flex' : 'none';
+    bar.innerHTML = active.map(e =>
+        `<div class="effect-pill">${e.icon} ${e.label}${e.expiry ? ` <span class="effect-time">${formatTimeLeft(e.expiry)}</span>` : ''}</div>`
+    ).join('');
+}
+
 function openFeedbackModal() {
     feedbackType = 'bug';
     document.getElementById('feedbackModal').style.display = 'flex';
@@ -1078,6 +1232,10 @@ function bindEventListeners() {
     const chatPolicyModal = document.getElementById('chatPolicyModal');
     if (chatPolicyModal) chatPolicyModal.addEventListener('click', e => { if (e.target === chatPolicyModal) chatPolicyModal.classList.remove('visible'); });
     document.getElementById('newRoundBtn')?.addEventListener('click', startNewRound);
+    document.getElementById('shopBtn')?.addEventListener('click', openShopModal);
+    document.getElementById('closeShopBtn')?.addEventListener('click', closeShopModal);
+    const shopModal = document.getElementById('shopModal');
+    if (shopModal) shopModal.addEventListener('click', e => { if (e.target === shopModal) closeShopModal(); });
     document.getElementById('tauntBtn')?.addEventListener('click', openTauntModal);
     document.getElementById('closeTauntBtn')?.addEventListener('click', closeTauntModal);
     document.getElementById('cancelTauntBtn')?.addEventListener('click', closeTauntModal);
@@ -1492,10 +1650,11 @@ function updateGameUI() {
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
     const signature = buildStateSignature();
-    if (signature === lastRenderedStateSignature) { updateScores(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
+    if (signature === lastRenderedStateSignature) { updateScores(); updateActiveEffectsBar(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
     updateScores();
     renderStates();
+    updateActiveEffectsBar();
     updateConnectionBadgeText();
     document.getElementById('gameTitle').textContent = `${gameData.name} Pack 🐺`;
     updateSetupSubtitle();
@@ -1543,6 +1702,7 @@ function updateScores() {
             ? `<div class="badge-row">${badges.map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}</div>`
             : '';
         const coins = player.coins || 0;
+        const fogged = !isMe && (getMyEffects().fog || 0) > Date.now();
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
         scoreCard.dataset.playerkey = player.playerKey;
@@ -1553,9 +1713,9 @@ function updateScores() {
                 <span class="score-player-icon">${playerIcon}</span>
                 <div class="score-player-name">${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}${offlineMark}</div>
             </div>
-            <div class="score-pts">${player.score}<span class="score-pts-label"> pts</span></div>
-            <div class="score-meta">${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds</div>
-            <div class="score-coins">🪙 ${coins.toLocaleString()} coins</div>
+            <div class="score-pts">${fogged ? '🌫️' : player.score}<span class="score-pts-label">${fogged ? '' : ' pts'}</span></div>
+            <div class="score-meta">${fogged ? '— hidden in fog —' : `${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds`}</div>
+            <div class="score-coins">${fogged ? '' : `🪙 ${coins.toLocaleString()} coins`}</div>
             ${badgeRow}
         `;
         // Direct listeners added fresh each render — most reliable on mobile
@@ -1613,7 +1773,9 @@ function renderStates() {
     if (!statesGrid || !currentPlayer) return;
     statesGrid.innerHTML = '';
     const myStates = getMyStatesMap();
-    const plateEntries = getActivePlateEntries(gameData?.settings?.plateScope);
+    const fx = getMyEffects();
+    let plateEntries = getActivePlateEntries(gameData?.settings?.plateScope);
+    if ((fx.blender || 0) > Date.now()) plateEntries = seededShuffle(plateEntries, fx.blender);
     let territoryHeaderAdded = false;
     let canadaHeaderAdded = false;
 
@@ -1839,6 +2001,7 @@ async function denyClearRequest(stateName) {
 async function toggleState(stateName, currentlySelected) {
     if (!currentGameRef || !currentPlayer) return;
     if (gameData?.status === 'ended') { showToast('The game has ended — no more spotting!', 'info'); return; }
+    if (!currentlySelected && (getMyEffects().freeze || 0) > Date.now()) { showToast('⏸️ You\'re frozen! Can\'t spot plates right now.', 'error'); return; }
     const playerStatesRef = currentGameRef.child(`players/${currentPlayer.playerKey}/states`);
     const stateClaimRef = currentGameRef.child(`claimedStates/${stateName}`);
     try {

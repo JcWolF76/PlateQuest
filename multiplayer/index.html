@@ -175,6 +175,27 @@
         .edit-identity-field input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #ecf0f1; font-size: 15px; padding: 11px 12px; box-sizing: border-box; font-family: inherit; }
         .edit-identity-field input:focus { outline: none; border-color: #3498db; }
         .edit-identity-actions { display: flex; gap: 10px; margin-top: 20px; }
+        /* Pack Shop */
+        .btn-shop { background: linear-gradient(135deg, #7d5a00, #b8860b); color: #ffe066; font-weight: 800; border: 1px solid rgba(255,224,102,0.35); }
+        .shop-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 1420; display: flex; align-items: flex-end; justify-content: center; padding: 0; }
+        .shop-sheet { background: linear-gradient(180deg, #1a2332, #131c27); border: 1px solid rgba(52,152,219,0.25); border-radius: 20px 20px 0 0; padding: 20px 16px 36px; width: 100%; max-width: 500px; max-height: 88vh; overflow-y: auto; }
+        .shop-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+        .shop-title { font-size: 20px; font-weight: 800; color: #ecf0f1; }
+        .shop-bal { font-size: 13px; color: #f1c40f; font-weight: 700; margin-top: 2px; }
+        .shop-category-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin: 16px 0 8px; display: flex; align-items: center; gap: 8px; }
+        .shop-category-label::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+        .shop-item { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+        .shop-item-icon { font-size: 28px; flex-shrink: 0; width: 38px; text-align: center; }
+        .shop-item-body { flex: 1; min-width: 0; }
+        .shop-item-name { font-size: 14px; font-weight: 700; color: #ecf0f1; margin-bottom: 3px; }
+        .shop-item-desc { font-size: 12px; color: #7f8c8d; line-height: 1.4; }
+        .shop-status-pill { display: inline-block; font-size: 10px; font-weight: 700; background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.35); border-radius: 8px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
+        .btn-shop-buy { flex-shrink: 0; background: linear-gradient(135deg, #7d5a00, #b8860b); color: #ffe066; font-weight: 800; border: 1px solid rgba(255,224,102,0.3); border-radius: 10px; padding: 8px 12px; font-size: 13px; cursor: pointer; touch-action: manipulation; white-space: nowrap; }
+        .btn-shop-buy--off { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.25); border-color: transparent; cursor: not-allowed; }
+        /* Active effects bar */
+        .active-effects-bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 4px; }
+        .effect-pill { display: flex; align-items: center; gap: 5px; background: rgba(231,76,60,0.18); border: 1px solid rgba(231,76,60,0.4); border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 700; color: #e74c3c; }
+        .effect-time { font-size: 11px; opacity: 0.8; font-weight: 600; }
         /* Feedback modal */
         .feedback-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1350; display: flex; align-items: center; justify-content: center; padding: 16px; }
         .feedback-card { background: linear-gradient(160deg, #1e2a3a, #16202e); border: 1px solid rgba(52,152,219,0.35); border-radius: 20px; padding: 26px 20px 20px; width: min(400px, 96vw); box-shadow: 0 24px 64px rgba(0,0,0,0.55); }
@@ -780,6 +801,7 @@
                 <div style="padding: 25px;">
                     <h3 style="color: #3498db; margin-bottom: 15px; font-size: 24px;">🗺️ License Plates</h3>
                     <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">Tap any state or province when you spot the plate. <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span></p>
+                    <div class="active-effects-bar" id="activeEffectsBar" style="display:none;"></div>
                     <div class="states-grid" id="statesGrid"></div>
                 </div>
                 <div class="action-bar">
@@ -809,6 +831,14 @@
                             <button class="btn btn-secondary" id="activityBtn">📋 Activity</button>
                             <button class="btn btn-taunt" id="tauntBtn">😈 Taunt</button>
                             <button class="btn btn-feedback open-feedback-btn">🎟️ Feedback</button>
+                        </div>
+                    </div>
+
+                    <!-- Store -->
+                    <div class="action-section">
+                        <div class="action-section-label">Store</div>
+                        <div class="action-grid">
+                            <button class="btn btn-shop action-span" id="shopBtn">🏪 Pack Shop — spend coins on tricks</button>
                         </div>
                     </div>
 
@@ -1057,6 +1087,20 @@
                     <button class="btn btn-secondary" style="flex:1;" id="cancelEditIdentityBtn">Cancel</button>
                     <button class="btn btn-primary" style="flex:1;" id="saveEditIdentityBtn">Save</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Pack Shop Modal -->
+        <div id="shopModal" class="shop-modal" style="display:none;">
+            <div class="shop-sheet">
+                <div class="shop-header">
+                    <div>
+                        <div class="shop-title">🏪 Pack Shop</div>
+                        <div class="shop-bal">🪙 <span id="shopCoinBalance">0</span> coins available</div>
+                    </div>
+                    <button class="btn btn-secondary btn-small" id="closeShopBtn">✕</button>
+                </div>
+                <div class="shop-items" id="shopItemsList"></div>
             </div>
         </div>
 
