@@ -117,7 +117,6 @@
         .creator-game-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .creator-empty { font-size: 13px; color: #95a5a6; }
         .live-scores { background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; padding: 25px; margin: 20px 0; border-radius: 15px; position: relative; }
-        .live-scores::before { content: '🏆 🐺'; position: absolute; top: 15px; right: 20px; font-size: 20px; opacity: 0.7; }
         .live-scores h3 { text-align: center; margin-bottom: 20px; font-size: 24px; }
         .scores-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
         .score-card { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 20px; text-align: center; backdrop-filter: blur(10px); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.3); position: relative; touch-action: manipulation; cursor: pointer; user-select: none; -webkit-user-select: none; }
@@ -1000,7 +999,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260424f"></script>
+    <script src="game.js?v=20260424g"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
