@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PlateQuest</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<style>
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#fff; color:#000; }
+    body.dark { background:#121212; color:#eee; }
+    .center { text-align:center; }
+    #game { display:none; padding:20px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap:10px; max-width:600px; margin:20px auto; }
+    .state { padding:10px; background:#2196F3; color:#fff; border:2px solid #0D47A1; border-radius:4px; cursor:pointer; text-align:center; }
+    .state.selected { background:#4CAF50; border-color:#2E7D32; }
+    button { margin:4px; padding:8px 12px; }
+    textarea { width:90%; max-width:500px; height:100px; margin-top:10px; }
+    #scoreSummary { text-align:center; font-size:18px; margin:15px 0; }
+  
+.state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #2196f3;
+  color: white;
+  border: 2px solid #0d47a1;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 14px;
+}
+.state.selected {
+  background-color: #4caf50;
+  border-color: #2e7d32;
+}
+.state img {
+  height: 20px;
+  width: auto;
+  margin-left: 10px;
+  border-radius: 2px;
+  box-shadow: 0 0 3px rgba(0,0,0,0.2);
+}
+</style>
+</head>
+<body>
+<div class="center" id="splash">
+<img alt="PlateQuest Logo" src="platequest-final-logo.jpeg" style="max-width:90%; height:auto;"/>
+<p style="max-width:600px; margin:20px auto; font-size:18px;">
+      Welcome to <strong>PlateQuest</strong> — the ultimate license plate spotting game for road trips! Spot all 50 U.S. state plates, play solo or against friends, and turn every journey into an adventure.
+    </p>
+<button id="startBtn" style="padding:15px 30px; font-size:18px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer;">
+      Start Your Quest!
+    </button>
+<p><em>Created by JcWoLF76</em></p>
+</div>
+<div id="game">
+<div class="center"><p style="text-align:center;"><a download="True" href="README.txt" target="_blank">How to Play (README)</a></p><button id="shareGameBtn">Share This Game</button></div>
+<div class="center">
+<label><strong>Profile:</strong></label>
+<select id="profileSelect"></select>
+<input id="newProfileInput" placeholder="New profile"/>
+<button id="createProfileBtn">Create</button>
+<button id="deleteProfileBtn">Delete</button>
+</div>
+<div class="center" style="margin-top:10px;">
+<label><strong>Trip:</strong></label>
+<select id="tripSelect"></select>
+<input id="newTripInput" placeholder="New trip"/>
+<button id="createTripBtn">Create</button>
+</div>
+<div class="center" style="margin-top:10px;">
+<label><strong>Mode:</strong></label>
+<label><input checked="" name="mode" type="radio" value="solo"/> Solo</label>
+<label><input name="mode" type="radio" value="collab"/> Collaborative</label>
+<label><input name="mode" type="radio" value="versus"/> Versus</label>
+</div>
+<div id="scoreSummary">Found 0 of 50 plates (0%)</div>
+<div class="grid" id="stateGrid"></div>
+<div class="center">
+<button id="resetBtn">Reset</button>
+<button id="exportBtn">Export</button>
+<button id="shareTripBtn">Share Trip</button>
+<button id="importTripBtn">Open Trip</button>
+<button id="darkModeBtn">Toggle Dark Mode</button>
+<textarea id="exportBox" placeholder="Trip code / Export output..."></textarea>
+</div>
+<div class="center" style="margin-top:20px;">
+<button id="viewLeaderboardBtn">View Leaderboard</button>
+<button id="copyLeaderboardBtn">Share My Leaderboard</button>
+<button id="genLeaderboardQRBtn">Generate Leaderboard QR</button>
+<button id="showMergedLeaderboardBtn">View Merged Leaderboard</button>
+<canvas id="leaderboardQR" style="margin-top:10px;"></canvas>
+</div>
+<p class="center" style="margin-top:20px;"><a download="" href="README.txt" target="_blank">How to Play (README)</a></p>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // State list
+      const states = "Alabama,Alaska,Arizona,Arkansas,California,Colorado,Connecticut,Delaware,Florida,Georgia,Hawaii,Idaho,Illinois,Indiana,Iowa,Kansas,Kentucky,Louisiana,Maine,Maryland,Massachusetts,Michigan,Minnesota,Mississippi,Missouri,Montana,Nebraska,Nevada,New Hampshire,New Jersey,New Mexico,New York,North Carolina,North Dakota,Ohio,Oklahoma,Oregon,Pennsylvania,Rhode Island,South Carolina,South Dakota,Tennessee,Texas,Utah,Vermont,Virginia,Washington,West Virginia,Wisconsin,Wyoming".split(",");
+
+      let currentProfile = null;
+      let currentTrip = null;
+
+      // Helper
+      const profileKey = (p, t) => `profile_${p}_trip_${t}`;
+      const saveLeaderboardLink = link => {
+        let list = JSON.parse(localStorage.getItem("platequest_leaderboards")||"[]");
+        if (!list.includes(link)) { list.push(link); localStorage.setItem("platequest_leaderboards", JSON.stringify(list)); }
+      };
+
+      // Elements
+      const splash = document.getElementById("splash");
+      const game = document.getElementById("game");
+      const profileSelect = document.getElementById("profileSelect");
+      const tripSelect = document.getElementById("tripSelect");
+      const exportBox = document.getElementById("exportBox");
+      const stateGrid = document.getElementById("stateGrid");
+      const scoreSummary = document.getElementById("scoreSummary");
+
+      // Initialize
+      document.getElementById("startBtn").addEventListener("click", () => {
+        splash.style.display = "none";
+        game.style.display = "block";
+        loadProfiles();
+      });
+
+      // Profile/trip
+      document.getElementById("createProfileBtn").addEventListener("click", () => {
+        const name = document.getElementById("newProfileInput").value.trim();
+        if (!name) return;
+        profileSelect.add(new Option(name, name));
+        document.getElementById("newProfileInput").value="";
+        currentProfile = name;
+        loadTrips();
+      });
+      document.getElementById("deleteProfileBtn").addEventListener("click", () => {
+        if (!currentProfile || !confirm(`Delete profile "${currentProfile}"?`)) return;
+        Object.keys(localStorage).forEach(k=>{ if(k.startsWith(`profile_${currentProfile}_`)) localStorage.removeItem(k); });
+        loadProfiles(); stateGrid.innerHTML="";
+      });
+      document.getElementById("createTripBtn").addEventListener("click", () => {
+        const name = document.getElementById("newTripInput").value.trim();
+        if (!name) return;
+        const d = new Date(); const suffix=`_${d.getMonth()+1}-${d.getDate()}-${String(d.getFullYear()).slice(-2)}`;
+        const full = name+suffix;
+        tripSelect.add(new Option(full, full));
+        document.getElementById("newTripInput").value="";
+        currentTrip = full; saveStates([]); renderStates([]);
+      });
+
+      profileSelect.addEventListener("change", ()=>{
+        currentProfile=profileSelect.value; loadTrips();
+      });
+      tripSelect.addEventListener("change", ()=>{
+        currentTrip=tripSelect.value; loadStates();
+      });
+
+      document.getElementById("darkModeBtn").addEventListener("click", ()=>document.body.classList.toggle("dark"));
+
+      // Data functions
+      function loadProfiles(){
+        const s=new Set();
+        Object.keys(localStorage).forEach(k=>{ const m=k.match(/^profile_(.*?)_trip_/); if(m) s.add(m[1]);});
+        profileSelect.innerHTML=""; s.forEach(p=>profileSelect.add(new Option(p,p)));
+        if(s.size){ currentProfile=profileSelect.value; loadTrips(); }
+      }
+      function loadTrips(){
+        const s=new Set();
+        Object.keys(localStorage).forEach(k=>{ const m=k.match(new RegExp(`^profile_${currentProfile}_trip_(.*?)$`)); if(m) s.add(m[1]);});
+        tripSelect.innerHTML=""; s.forEach(t=>tripSelect.add(new Option(t,t)));
+        if(s.size){ currentTrip=tripSelect.value; loadStates(); }
+      }
+      function saveStates(list){ localStorage.setItem(profileKey(currentProfile,currentTrip),JSON.stringify(list)); }
+      function getSelected(){ return Array.from(document.querySelectorAll(".state.selected")).map(el=>el.textContent); }
+
+      // State grid
+      function renderStates(sel){
+        stateGrid.innerHTML="";
+        states.forEach(s=>{
+          const d=document.createElement("div");
+          d.className="state"; d.textContent=s;
+          if(sel.includes(s)) d.classList.add("selected");
+          d.onclick=()=>{
+            d.classList.toggle("selected"); saveStates(getSelected()); updateScore();
+          };
+          stateGrid.appendChild(d);
+        });
+        updateScore();
+      }
+      function loadStates(){
+        const arr=JSON.parse(localStorage.getItem(profileKey(currentProfile,currentTrip)))||[];
+        renderStates(arr);
+      }
+      document.getElementById("resetBtn").addEventListener("click", ()=>{ document.querySelectorAll(".state.selected").forEach(e=>e.classList.remove("selected")); saveStates([]); exportBox.value=""; updateScore(); });
+      document.getElementById("exportBtn").addEventListener("click", ()=>{
+        exportBox.value=JSON.stringify({profile:currentProfile,trip:currentTrip,states:getSelected()},null,2);
+      });
+      document.getElementById("shareTripBtn").addEventListener("click", ()=>{
+        document.getElementById("exportBtn").click();
+        const t=exportBox.value;
+        navigator.share?navigator.share({title:"My PlateQuest Trip",text:t}):navigator.clipboard.writeText(t).then(()=>alert("Trip copied!"));
+      });
+      document.getElementById("importTripBtn").addEventListener("click", ()=>{
+        try{ const d=JSON.parse(exportBox.value);
+          currentProfile=d.profile; currentTrip=d.trip;
+          profileSelect.add(new Option(d.profile,d.profile));
+          tripSelect.add(new Option(d.trip,d.trip));
+          profileSelect.value=d.profile; tripSelect.value=d.trip;
+          saveStates(d.states); renderStates(d.states);
+        }catch{alert("Invalid trip code.");}
+      });
+
+      // Score
+      function updateScore(){
+        const f=getSelected().length, p=Math.round((f/50)*100);
+        scoreSummary.textContent=`Found ${f} of 50 plates (${p}%)`;
+      }
+
+      // Leaderboard functions
+      document.getElementById("viewLeaderboardBtn").addEventListener("click", ()=>{
+        const me=currentProfile||"Anonymous", arr=getSelected();
+        const ps=encodeURIComponent(`${me}:${arr.join(",")}`);
+        const t=encodeURIComponent(currentTrip||"MyTrip");
+        window.open(`leaderboard.html?trip=${t}&players=${ps}`,"_blank");
+      });
+      document.getElementById("copyLeaderboardBtn").addEventListener("click", ()=>{
+        const me=currentProfile||"Anonymous", arr=getSelected();
+        const ps=encodeURIComponent(`${me}:${arr.join(",")}`);
+        const t=encodeURIComponent(currentTrip||"MyTrip");
+        const url=`${location.origin}/PlateQuest/leaderboard.html?trip=${t}&players=${ps}`;
+        navigator.clipboard.writeText(url).then(()=>{
+          alert("Leaderboard link copied!");
+          saveLeaderboardLink(url);
+        });
+      });
+      document.getElementById("genLeaderboardQRBtn").addEventListener("click", ()=>{
+        const me=currentProfile||"Anonymous", arr=getSelected();
+        const ps=encodeURIComponent(`${me}:${arr.join(",")}`);
+        const t=encodeURIComponent(currentTrip||"MyTrip");
+        const url=`${location.origin}/PlateQuest/leaderboard.html?trip=${t}&players=${ps}`;
+        QRCode.toCanvas(document.getElementById("leaderboardQR"), url, {width:200}, err=>{if(err)console.error(err)});
+        saveLeaderboardLink(url);
+      });
+      document.getElementById("showMergedLeaderboardBtn").addEventListener("click", ()=>{
+        const list=JSON.parse(localStorage.getItem("platequest_leaderboards")||"[]");
+        if(!list.length) return alert("No saved leaderboard links.");
+        const lines=list.join("\n");
+        window.open(`leaderboard.html#merge
+${lines}`,"_blank");
+      });
+
+    }); // DOMContentLoaded
+  </script>
+</body>
+</html>

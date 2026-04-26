@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Test</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #2c3e50; color: white; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #27ae60; }
+        .error { background: #e74c3c; }
+        .info { background: #3498db; }
+        button { padding: 10px 20px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #log { background: #34495e; padding: 15px; border-radius: 5px; height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Firebase Connection Test</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="runTests()">🧪 Run All Tests</button>
+    <button onclick="testWrite()">✍️ Test Write</button>
+    <button onclick="testRead()">📖 Test Read</button>
+    <button onclick="clearLog()">🧹 Clear Log</button>
+    
+    <h3>📋 Log Output:</h3>
+    <div id="log"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
+            authDomain: "platequest-multiplayer.firebaseapp.com",
+            databaseURL: "https://platequest-multiplayer-default-rtdb.firebaseio.com/",
+            projectId: "platequest-multiplayer",
+            storageBucket: "platequest-multiplayer.firebasestorage.app",
+            messagingSenderId: "109596979102",
+            appId: "1:109596979102:web:586740c408daec71af708f"
+        };
+
+        let database = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('log');
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function runTests() {
+            clearLog();
+            log('🚀 Starting Firebase tests...', 'info');
+
+            // Test 1: Firebase SDK
+            if (typeof firebase === 'undefined') {
+                log('❌ Firebase SDK not loaded', 'error');
+                return;
+            }
+            log('✅ Firebase SDK loaded', 'success');
+
+            // Test 2: Initialize Firebase
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                log('✅ Firebase app initialized', 'success');
+            } catch (error) {
+                log(`❌ Firebase init failed: ${error.message}`, 'error');
+                return;
+            }
+
+            // Test 3: Get database reference
+            try {
+                database = firebase.database();
+                log('✅ Database reference created', 'success');
+            } catch (error) {
+                log(`❌ Database reference failed: ${error.message}`, 'error');
+                return;
+            }
+
+            // Test 4: Test connection
+            try {
+                const snapshot = await database.ref('.info/connected').once('value');
+                if (snapshot.val()) {
+                    log('✅ Database connection active', 'success');
+                } else {
+                    log('❌ Database connection inactive', 'error');
+                }
+            } catch (error) {
+                log(`❌ Connection test failed: ${error.message}`, 'error');
+            }
+
+            // Test 5: Test permissions
+            try {
+                await testWrite();
+                await testRead();
+            } catch (error) {
+                log(`❌ Permission test failed: ${error.message}`, 'error');
+            }
+
+            log('🏁 Tests completed!', 'info');
+        }
+
+        async function testWrite() {
+            if (!database) {
+                log('❌ Database not initialized', 'error');
+                return;
+            }
+
+            try {
+                const testData = {
+                    timestamp: Date.now(),
+                    test: 'PlateQuest connection test',
+                    success: true
+                };
+                
+                await database.ref('connectionTest').set(testData);
+                log('✅ Write test successful', 'success');
+            } catch (error) {
+                log(`❌ Write test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRead() {
+            if (!database) {
+                log('❌ Database not initialized', 'error');
+                return;
+            }
+
+            try {
+                const snapshot = await database.ref('connectionTest').once('value');
+                const data = snapshot.val();
+                
+                if (data) {
+                    log(`✅ Read test successful: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    log('❌ Read test failed: No data found', 'error');
+                }
+            } catch (error) {
+                log(`❌ Read test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Run tests automatically on page load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 1000);
+        });
+    </script>
+</body>
+</html>
