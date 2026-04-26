@@ -61,6 +61,24 @@ button:disabled { opacity: 0.4; cursor: default; }
 .game-status.ended  { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
 .browser-empty { color: rgba(255,255,255,0.3); font-size: 13px; padding: 16px 0; text-align: center; }
 
+/* ── Feedback / Tickets ── */
+#feedbackCard { margin-bottom: 24px; }
+#feedbackList { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
+.ticket-row { background: #0d1b2a; border: 1px solid #2e4a68; border-radius: 8px; padding: 12px 14px; }
+.ticket-row.bug { border-left: 3px solid #e74c3c; }
+.ticket-row.feature { border-left: 3px solid #2ecc71; }
+.ticket-row.resolved { opacity: 0.5; }
+.ticket-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.ticket-type { font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 8px; }
+.ticket-type.bug { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.4); }
+.ticket-type.feature { background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.35); }
+.ticket-player { font-size: 11px; color: #7eb8f7; font-weight: 600; }
+.ticket-game { font-size: 11px; color: rgba(255,255,255,0.35); font-family: monospace; }
+.ticket-time { font-size: 11px; color: rgba(255,255,255,0.3); margin-left: auto; }
+.ticket-desc { font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.5; margin-bottom: 8px; }
+.ticket-actions { display: flex; gap: 6px; }
+.ticket-actions button { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.7); }
+.ticket-actions button:hover { background: rgba(255,255,255,0.14); }
 
 #plateList { display: flex; flex-direction: column; gap: 6px; }
 .plate-row { display: flex; align-items: center; gap: 10px; background: #0d1b2a; border: 1px solid #2e4a68; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: border-color 0.15s; }
@@ -97,6 +115,23 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 <!-- ── Admin Panel ── -->
 <div id="adminPanel">
+
+    <!-- Feedback / Tickets -->
+    <div class="card" id="feedbackCard">
+        <h2>🎟️ Player Feedback</h2>
+        <div class="browser-controls">
+            <select id="feedbackFilter" onchange="renderFeedbackList()">
+                <option value="all">All</option>
+                <option value="bug">🐛 Bugs</option>
+                <option value="feature">💡 Features</option>
+                <option value="open">Open</option>
+                <option value="resolved">Resolved</option>
+            </select>
+            <button onclick="loadFeedback()">🔄 Refresh</button>
+        </div>
+        <div id="feedbackStats" style="font-size:13px;color:#7f8c8d;margin-bottom:12px;"></div>
+        <div id="feedbackList"><div class="browser-empty">Loading…</div></div>
+    </div>
 
     <!-- Game browser -->
     <div class="card" id="gameBrowserCard">
@@ -205,7 +240,76 @@ let db = null;
 function initFirebase() {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
+    loadFeedback();
     browseGames();
+}
+
+// ── Feedback / Tickets ────────────────────────────────────────────────────────
+let allTickets = [];
+
+async function loadFeedback() {
+    document.getElementById('feedbackList').innerHTML = '<div class="browser-empty">Loading…</div>';
+    try {
+        const snap = await db.ref('feedback').orderByChild('submittedAt').once('value');
+        allTickets = [];
+        snap.forEach(child => { allTickets.unshift({ id: child.key, ...child.val() }); });
+        renderFeedbackList();
+    } catch (e) {
+        document.getElementById('feedbackList').innerHTML = '<div class="browser-empty">Failed to load feedback.</div>';
+    }
+}
+
+function renderFeedbackList() {
+    const filter = document.getElementById('feedbackFilter')?.value || 'all';
+    let list = allTickets.filter(t => {
+        if (filter === 'bug') return t.type === 'bug';
+        if (filter === 'feature') return t.type === 'feature';
+        if (filter === 'open') return t.status !== 'resolved';
+        if (filter === 'resolved') return t.status === 'resolved';
+        return true;
+    });
+    const bugs = allTickets.filter(t => t.type === 'bug' && t.status !== 'resolved').length;
+    const features = allTickets.filter(t => t.type === 'feature' && t.status !== 'resolved').length;
+    document.getElementById('feedbackStats').textContent = `${allTickets.length} total · ${bugs} open bugs · ${features} open feature requests`;
+    if (!list.length) { document.getElementById('feedbackList').innerHTML = '<div class="browser-empty">No tickets match this filter.</div>'; return; }
+    document.getElementById('feedbackList').innerHTML = list.map(t => {
+        const date = t.submittedAt ? new Date(t.submittedAt).toLocaleString() : '—';
+        const isResolved = t.status === 'resolved';
+        const typeLabel = t.type === 'bug' ? '🐛 Bug' : '💡 Feature';
+        return `<div class="ticket-row ${t.type}${isResolved ? ' resolved' : ''}">
+            <div class="ticket-header">
+                <span class="ticket-type ${t.type}">${typeLabel}</span>
+                <span class="ticket-player">${t.playerName || 'Anonymous'}${t.playerTag ? ` (${t.playerTag})` : ''}</span>
+                ${t.gameCode ? `<span class="ticket-game">[${t.gameCode}]</span>` : ''}
+                <span class="ticket-time">${date}</span>
+            </div>
+            <div class="ticket-desc">${escapeHtmlAdmin(t.description || '')}</div>
+            <div class="ticket-actions">
+                ${isResolved
+                    ? `<button onclick="setTicketStatus('${t.id}','open')">↩ Reopen</button>`
+                    : `<button onclick="setTicketStatus('${t.id}','resolved')">✓ Resolve</button>`}
+                <button onclick="deleteTicket('${t.id}')">🗑 Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function setTicketStatus(id, status) {
+    await db.ref(`feedback/${id}/status`).set(status);
+    const t = allTickets.find(t => t.id === id);
+    if (t) t.status = status;
+    renderFeedbackList();
+}
+
+async function deleteTicket(id) {
+    if (!confirm('Delete this ticket permanently?')) return;
+    await db.ref(`feedback/${id}`).remove();
+    allTickets = allTickets.filter(t => t.id !== id);
+    renderFeedbackList();
+}
+
+function escapeHtmlAdmin(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── Game Browser ──────────────────────────────────────────────────────────────

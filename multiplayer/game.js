@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424j';
+const APP_VERSION = '20260424k';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -59,6 +59,11 @@ const CHANGELOG = {
     ],
     '20260424j': [
         '📋 Update notes — you\'re reading one right now! New releases show a summary of what changed',
+    ],
+    '20260424k': [
+        '🐛 Report a Bug — tap Feedback to tell JcWolF exactly what went wrong',
+        '💡 Request a Feature — got an idea? Submit it and it goes straight to the dev queue',
+        '🎟️ Feedback button lives in the game action bar and on the setup screen — always one tap away',
     ],
 };
 
@@ -918,7 +923,7 @@ function showUpdateModal(version) {
             <div class="update-modal-title">What's New in PlateQuest</div>
             <div class="update-modal-version">Version ${version}</div>
             <ul class="update-modal-notes">${bullets}</ul>
-            <div class="update-modal-footer">— JcWolF, still patching, still hunting, never AFK. 🐺🎮</div>
+            <div class="update-modal-footer">— Dev log: JcWolF is always on duty. Bugs squashed. Features incoming. 🐺🎮</div>
             <div class="update-modal-actions">
                 <button class="btn btn-secondary update-modal-later">Maybe Later</button>
                 <button class="btn btn-primary update-modal-now">🚀 Update Now</button>
@@ -928,6 +933,60 @@ function showUpdateModal(version) {
     overlay.querySelector('.update-modal-now').addEventListener('click', doAppReload);
     overlay.querySelector('.update-modal-later').addEventListener('click', () => overlay.remove());
     document.body.appendChild(overlay);
+}
+
+let feedbackType = 'bug'; // 'bug' or 'feature'
+
+function openFeedbackModal() {
+    feedbackType = 'bug';
+    document.getElementById('feedbackModal').style.display = 'flex';
+    document.getElementById('feedbackText').value = '';
+    document.getElementById('feedbackError').textContent = '';
+    document.getElementById('feedbackCharCount').textContent = '0 / 500';
+    updateFeedbackTypeUI();
+    setTimeout(() => document.getElementById('feedbackText').focus(), 100);
+}
+
+function closeFeedbackModal() {
+    document.getElementById('feedbackModal').style.display = 'none';
+}
+
+function updateFeedbackTypeUI() {
+    document.getElementById('feedbackTypeBug').classList.toggle('selected', feedbackType === 'bug');
+    document.getElementById('feedbackTypeFeature').classList.toggle('selected', feedbackType === 'feature');
+    const ta = document.getElementById('feedbackText');
+    if (ta) ta.placeholder = feedbackType === 'bug'
+        ? 'Describe what happened and what you expected to happen...'
+        : 'Describe your idea or the gameplay improvement you\'d like to see...';
+}
+
+async function submitFeedback() {
+    const text = document.getElementById('feedbackText').value.trim();
+    if (!text) { document.getElementById('feedbackError').textContent = 'Please describe your feedback before submitting.'; return; }
+    if (text.length > 500) { document.getElementById('feedbackError').textContent = 'Please keep it under 500 characters.'; return; }
+    if (!database) { document.getElementById('feedbackError').textContent = 'Not connected. Please try again.'; return; }
+    const btn = document.getElementById('feedbackSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    try {
+        await database.ref('feedback').push({
+            type: feedbackType,
+            description: text,
+            playerName: currentPlayer?.name || 'Anonymous',
+            playerTag: currentPlayer?.tag || '',
+            playerKey: currentPlayer?.playerKey || '',
+            gameCode: currentGameCode || null,
+            status: 'open',
+            submittedAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        closeFeedbackModal();
+        showToast(feedbackType === 'bug' ? 'Bug reported! JcWolF is on the case. 🐛' : 'Feature request sent! Love the idea. 💡', 'success');
+    } catch (err) {
+        document.getElementById('feedbackError').textContent = 'Failed to submit. Please try again.';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📨 Submit';
+    }
 }
 
 function bindEventListeners() {
@@ -1056,6 +1115,18 @@ function bindEventListeners() {
     document.querySelectorAll('.wolf-pin-key[data-digit]').forEach(key => {
         key.addEventListener('click', () => wolfPinDigit(key.dataset.digit));
     });
+    // Feedback modal
+    document.querySelectorAll('.open-feedback-btn').forEach(btn => btn.addEventListener('click', openFeedbackModal));
+    document.getElementById('feedbackCancelBtn')?.addEventListener('click', closeFeedbackModal);
+    document.getElementById('feedbackSubmitBtn')?.addEventListener('click', submitFeedback);
+    document.getElementById('feedbackTypeBug')?.addEventListener('click', () => { feedbackType = 'bug'; updateFeedbackTypeUI(); });
+    document.getElementById('feedbackTypeFeature')?.addEventListener('click', () => { feedbackType = 'feature'; updateFeedbackTypeUI(); });
+    document.getElementById('feedbackText')?.addEventListener('input', () => {
+        const len = document.getElementById('feedbackText').value.length;
+        document.getElementById('feedbackCharCount').textContent = `${len} / 500`;
+        document.getElementById('feedbackError').textContent = '';
+    });
+    document.getElementById('feedbackModal')?.addEventListener('click', e => { if (e.target === document.getElementById('feedbackModal')) closeFeedbackModal(); });
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
