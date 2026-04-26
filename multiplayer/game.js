@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424k';
+const APP_VERSION = '20260424l';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -64,6 +64,11 @@ const CHANGELOG = {
         '🐛 Report a Bug — tap Feedback to tell JcWolF exactly what went wrong',
         '💡 Request a Feature — got an idea? Submit it and it goes straight to the dev queue',
         '🎟️ Feedback button lives in the game action bar and on the setup screen — always one tap away',
+    ],
+    '20260424l': [
+        '🗂️ Action buttons reorganized into labeled sections: Host Controls, Social, Pack, My Game, and App',
+        '🔲 All buttons now use a consistent 2-column grid — no more random sizes and orphaned buttons',
+        '🚪 Leave Pack now has a distinct style so it\'s easy to spot but won\'t be tapped by accident',
     ],
 };
 
@@ -1385,18 +1390,17 @@ function updateGameUI() {
     maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
     const isEnded = gameData?.status === 'ended';
-    const wolfAdminBtn = document.getElementById('wolfAdminBtn');
-    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag === 'JcWolF' ? '' : 'none';
-    const announceBtn = document.getElementById('announceBtn');
-    if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
-    const auditBtn = document.getElementById('auditBtn');
-    if (auditBtn) auditBtn.style.display = isHost ? '' : 'none';
+    // Host section — show/hide entire block; End Game hidden when game already ended
+    const hostSection = document.getElementById('hostSection');
+    if (hostSection) hostSection.style.display = isHost ? '' : 'none';
     const endGameBtn = document.getElementById('endGameBtn');
-    if (endGameBtn) endGameBtn.style.display = (isHost && !isEnded) ? '' : 'none';
-    const newRoundBtn = document.getElementById('newRoundBtn');
-    if (newRoundBtn) newRoundBtn.style.display = isHost ? '' : 'none';
+    if (endGameBtn) endGameBtn.style.display = isEnded ? 'none' : '';
+    // View Results shown when game ended (spans full width in Pack section)
     const viewResultsBtn = document.getElementById('viewResultsBtn');
     if (viewResultsBtn) viewResultsBtn.style.display = isEnded ? '' : 'none';
+    // Wolf admin button (JcWolF only)
+    const wolfAdminBtn = document.getElementById('wolfAdminBtn');
+    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag === 'JcWolF' ? '' : 'none';
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
     const signature = buildStateSignature();

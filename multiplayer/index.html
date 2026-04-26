@@ -293,7 +293,8 @@
         /* ── Chat ── */
         .btn-chat { background: linear-gradient(135deg, #0e6655, #1abc9c); color: #fff; font-weight: 800; border: none; position: relative; }
         .btn-chat:hover { background: linear-gradient(135deg, #1abc9c, #48c9b0); }
-        .chat-btn-wrap { position: relative; display: inline-block; }
+        .chat-btn-wrap { position: relative; display: block; }
+        .chat-btn-wrap .btn { width: 100%; }
         .chat-unread-badge { position:absolute; top:-6px; right:-6px; background:#e74c3c; color:#fff; font-size:10px; font-weight:900; border-radius:50%; width:18px; height:18px; display:none; align-items:center; justify-content:center; border:2px solid rgba(0,0,0,0.2); pointer-events:none; z-index:1; }
 
         .chat-policy-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.85); z-index:1500; padding:18px; }
@@ -393,8 +394,19 @@
         .btn-undo-record { background:rgba(52,152,219,0.15); border:1px solid rgba(52,152,219,0.4); color:#3498db; border-radius:8px; padding:5px 11px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0; }
         .btn-dispute-region { background:rgba(231,76,60,0.12); border:1px solid rgba(231,76,60,0.35); color:#e74c3c; border-radius:7px; padding:3px 9px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0; touch-action:manipulation; }
         .btn-dispute-region:disabled { opacity:0.5; cursor:default; }
-        .audit-btn-wrap { position:relative; display:inline-block; }
+        .audit-btn-wrap { position:relative; display:block; }
+        .audit-btn-wrap .btn { width:100%; }
         .audit-badge { position:absolute; top:-5px; right:-5px; width:12px; height:12px; background:#e74c3c; border-radius:50%; display:none; border:2px solid #1a2c3e; pointer-events:none; }
+        /* Action bar layout */
+        .action-bar { padding: 20px 16px 32px; border-top: 1px solid rgba(52,152,219,0.2); }
+        .action-section { margin-bottom: 20px; }
+        .action-section:last-child { margin-bottom: 0; }
+        .action-section-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.28); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .action-section-label::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .action-span { grid-column: 1 / -1; }
+        .btn-leave { background: linear-gradient(135deg, #3d0f0f, #6b1a1a); color: #e8a8a8; font-weight: 700; border: 1px solid rgba(192,57,43,0.35); }
+        .btn-leave:hover { background: linear-gradient(135deg, #6b1a1a, #c0392b); color: #fff; }
 
         /* ── Announce Modal ── */
         .announce-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.78); z-index:1200; padding:18px; }
@@ -755,25 +767,64 @@
                     <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">Tap any state or province when you spot the plate. <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span></p>
                     <div class="states-grid" id="statesGrid"></div>
                 </div>
-                <div style="padding: 25px; border-top: 1px solid rgba(52, 152, 219, 0.2); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-                    <button class="btn btn-announce" id="announceBtn" style="display:none;">📣 Announce</button>
-                    <div class="audit-btn-wrap">
-                        <button class="btn btn-audit" id="auditBtn" style="display:none;">🔍 Audit Scores</button>
-                        <span class="audit-badge" id="auditBadge"></span>
+                <div class="action-bar">
+
+                    <!-- Host Controls (shown only when player is host) -->
+                    <div class="action-section" id="hostSection" style="display:none;">
+                        <div class="action-section-label">Host Controls</div>
+                        <div class="action-grid">
+                            <button class="btn btn-announce" id="announceBtn">📣 Announce</button>
+                            <div class="audit-btn-wrap">
+                                <button class="btn btn-audit" id="auditBtn">🔍 Audit Scores</button>
+                                <span class="audit-badge" id="auditBadge"></span>
+                            </div>
+                            <button class="btn btn-new-round" id="newRoundBtn">🔁 New Round</button>
+                            <button class="btn btn-end-game" id="endGameBtn">🏁 End Game</button>
+                        </div>
                     </div>
-                    <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
-                    <button class="btn btn-end-game" id="endGameBtn" style="display:none;">🏁 End Game</button>
-                    <button class="btn btn-new-round" id="newRoundBtn" style="display:none;">🔁 New Round</button>
-                    <button class="btn btn-secondary" id="viewResultsBtn" style="display:none;">📊 View Results</button>
-                    <button class="btn btn-secondary" id="activityBtn">📋 Activity</button>
-                    <div class="chat-btn-wrap"><button class="btn btn-chat" id="chatBtn">💬 Chat</button><span class="chat-unread-badge" id="chatUnreadBadge"></span></div>
-                    <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
-                    <button class="btn btn-taunt" id="tauntBtn">😈 Taunt</button>
-                    <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset My Progress</button>
-                    <button class="btn btn-secondary" id="leaveGameBtn">🚪 Leave Pack</button>
-                    <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
-                    <button class="btn btn-wolf-admin" id="wolfAdminBtn" style="display:none;">🐺 Admin</button>
-                    <button class="btn btn-feedback open-feedback-btn">🎟️ Feedback</button>
+
+                    <!-- Social -->
+                    <div class="action-section">
+                        <div class="action-section-label">Social</div>
+                        <div class="action-grid">
+                            <div class="chat-btn-wrap">
+                                <button class="btn btn-chat" id="chatBtn">💬 Chat</button>
+                                <span class="chat-unread-badge" id="chatUnreadBadge"></span>
+                            </div>
+                            <button class="btn btn-secondary" id="activityBtn">📋 Activity</button>
+                            <button class="btn btn-taunt" id="tauntBtn">😈 Taunt</button>
+                            <button class="btn btn-feedback open-feedback-btn">🎟️ Feedback</button>
+                        </div>
+                    </div>
+
+                    <!-- Pack -->
+                    <div class="action-section">
+                        <div class="action-section-label">Pack</div>
+                        <div class="action-grid">
+                            <button class="btn btn-secondary" id="editPackBtn">⚙️ Edit Pack</button>
+                            <button class="btn btn-secondary" id="backToSetupBtn">🧭 Back to Setup</button>
+                            <button class="btn btn-secondary action-span" id="viewResultsBtn" style="display:none;">📊 View Results</button>
+                        </div>
+                    </div>
+
+                    <!-- My Game -->
+                    <div class="action-section">
+                        <div class="action-section-label">My Game</div>
+                        <div class="action-grid">
+                            <button class="btn btn-secondary" id="resetMyProgressBtn">🔄 Reset Progress</button>
+                            <button class="btn btn-leave" id="leaveGameBtn">🚪 Leave Pack</button>
+                        </div>
+                    </div>
+
+                    <!-- App -->
+                    <div class="action-section">
+                        <div class="action-section-label">App</div>
+                        <div class="action-grid">
+                            <button class="btn btn-secondary action-span" id="darkModeBtn">🌙 Dark Mode</button>
+                            <button class="btn btn-wolf-admin action-span" id="wolfAdminBtn" style="display:none;">🐺 Admin Panel</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -1112,7 +1163,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260424k"></script>
+    <script src="game.js?v=20260424l"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
