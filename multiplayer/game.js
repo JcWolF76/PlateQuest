@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424e';
+const APP_VERSION = '20260424f';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -405,6 +405,7 @@ const STORAGE_KEYS = {
     tag: 'platequest_player_tag',
     player: 'platequest_player_identity_v2',
     session: 'platequest_active_session_v2',
+    myGames: 'platequest_my_games',
     darkMode: 'platequest_dark_mode',
     diagnostics: 'platequest_diagnostics_visible'
 };
@@ -559,6 +560,73 @@ function restoreIdentity() {
 function saveGameSession() { if (!currentPlayer || !currentGameCode) return; localStorage.setItem(STORAGE_KEYS.session, JSON.stringify({ gameCode: currentGameCode, playerKey: currentPlayer.playerKey, savedAt: Date.now() })); updateDiagnosticsPanel(); }
 function clearGameSession() { localStorage.removeItem(STORAGE_KEYS.session); updateDiagnosticsPanel(); }
 function getSavedSession() { return safeParseStorage(STORAGE_KEYS.session); }
+
+function getMyGames() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.myGames) || '[]'); } catch (e) { return []; }
+}
+function addToMyGames(code, name) {
+    if (!code) return;
+    const games = getMyGames().filter(g => g.code !== code);
+    games.unshift({ code, name: name || code, joinedAt: Date.now() });
+    if (games.length > 8) games.length = 8;
+    try { localStorage.setItem(STORAGE_KEYS.myGames, JSON.stringify(games)); } catch (e) {}
+}
+function removeFromMyGames(code) {
+    if (!code) return;
+    const games = getMyGames().filter(g => g.code !== code);
+    try { localStorage.setItem(STORAGE_KEYS.myGames, JSON.stringify(games)); } catch (e) {}
+}
+function forgetGame(code) { removeFromMyGames(code); renderMyGames(); }
+
+function formatRelativeTime(ts) {
+    if (!ts) return '';
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function renderMyGames() {
+    const section = document.getElementById('myGamesSection');
+    if (!section) return;
+    const games = getMyGames();
+    const pausedCode = window.pausedPack?.code;
+    const activeCode = currentGameCode;
+    const filtered = games.filter(g => g.code !== pausedCode && g.code !== activeCode);
+    if (filtered.length === 0) { section.style.display = 'none'; section.innerHTML = ''; return; }
+    section.style.display = 'block';
+    section.innerHTML = `
+        <div class="my-games-label">🎮 My Packs</div>
+        ${filtered.map(g => `
+            <div class="my-game-row">
+                <div class="my-game-info">
+                    <div class="my-game-name">${escapeHtml(g.name)}</div>
+                    <div class="my-game-meta"><span class="my-game-code">${escapeHtml(g.code)}</span><span class="my-game-time">${formatRelativeTime(g.joinedAt)}</span></div>
+                </div>
+                <div class="my-game-actions">
+                    <button class="btn btn-primary my-game-rejoin" onclick="rejoinGame('${escapeHtml(g.code)}')">▶️ Return</button>
+                    <button class="btn btn-secondary my-game-forget" onclick="forgetGame('${escapeHtml(g.code)}')">✕</button>
+                </div>
+            </div>
+        `).join('')}
+    `;
+}
+
+async function rejoinGame(code) {
+    if (!currentPlayer) { showToast('Set your player name first.', 'error'); return; }
+    if (!(await ensureDatabaseReady('rejoin a pack'))) return;
+    showLoading('Rejoining pack…');
+    try {
+        await connectToGame(code, { showJoinedToast: true });
+        clearPendingJoinReload();
+    } catch (error) {
+        console.error('Error rejoining game:', error);
+        showToast(error.message || 'Could not rejoin pack.', 'error');
+    } finally { hideLoading(); }
+}
 
 function setSetupControlsDisabled(disabled) {
     [
@@ -986,6 +1054,7 @@ async function connectToGame(code, options = {}) {
     currentGameRef = roomRef;
     window.pausedPack = null; // clear any paused state on successful connect
     saveGameSession();
+    addToMyGames(code, room.name);
     writeGameCodeToUrl(code);
     lastSyncAt = Date.now();
     setupGameListeners();
@@ -1522,6 +1591,7 @@ async function leaveGame() {
             await currentGameRef.child(`players/${nextHostKey}/role`).set('host');
         }
         showToast('Left the pack.', 'info');
+        removeFromMyGames(currentGameCode);
         returnToSetup(true);
     } catch (error) {
         console.error('Error leaving game:', error);
@@ -1557,6 +1627,7 @@ function returnToSetup(clearSessionToo = false) {
     document.getElementById('gameSubtitle').textContent = 'Live adventure with your pack!';
     if (currentPlayer) enableGameCards(); else disableGameCards();
     updateConnectionBadgeText(); updateDiagnosticsPanel();
+    renderMyGames();
 }
 
 function copyGameCode() { if (currentGameCode) copyToClipboard(currentGameCode, 'Pack code copied! 📋'); }

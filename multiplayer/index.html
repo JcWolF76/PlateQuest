@@ -158,6 +158,18 @@
         .edit-pack-header { display: flex; justify-content: space-between; gap: 14px; align-items: center; margin-bottom: 14px; }
         .edit-pack-title { font-size: 24px; font-weight: 800; color: #ecf0f1; }
         .edit-pack-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 18px; }
+        .my-games-section { margin-bottom: 18px; }
+        .my-games-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #3498db; font-weight: 700; margin-bottom: 10px; }
+        .my-game-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(52, 152, 219, 0.07); border: 1px solid rgba(52, 152, 219, 0.25); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+        .my-game-info { min-width: 0; flex: 1; }
+        .my-game-name { font-size: 15px; font-weight: 700; color: #ecf0f1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .my-game-meta { display: flex; gap: 10px; align-items: center; margin-top: 3px; }
+        .my-game-code { font-size: 12px; color: #3498db; font-weight: 700; letter-spacing: 1px; font-family: monospace; }
+        .my-game-time { font-size: 11px; color: #7f8c8d; }
+        .my-game-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .my-game-rejoin { font-size: 13px; padding: 6px 12px; }
+        .my-game-forget { font-size: 13px; padding: 6px 10px; }
+        body.dark .my-game-row { background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2); }
         .paused-pack-section { background: rgba(39, 174, 96, 0.07); border: 1px solid rgba(39, 174, 96, 0.35); border-radius: 14px; padding: 18px; margin-bottom: 22px; }
         .paused-pack-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
         .paused-pack-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #2ecc71; font-weight: 700; margin-bottom: 5px; }
@@ -504,6 +516,9 @@
                     </div>
                     <p style="font-size: 14px; color: #bdc3c7; margin-top: 8px;"><strong>Examples:</strong> "Sarah + Mom", "Mike + Dad", "Alex + Jr" (Tag: letters/numbers only)</p>
                 </div>
+
+                <!-- Previously joined packs stored in localStorage -->
+                <div id="myGamesSection" class="my-games-section" style="display:none;"></div>
 
                 <!-- Shown after Back to Setup when a pack is still active in the session -->
                 <div id="pausedPackSection" class="paused-pack-section" style="display:none;">
@@ -985,7 +1000,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260424e"></script>
+    <script src="game.js?v=20260424f"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
