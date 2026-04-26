@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424h';
+const APP_VERSION = '20260424i';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -445,6 +445,8 @@ let eventsBound = false;
 let attemptedAutoResume = false;
 let currentConnectionState = 'connecting';
 let presenceCleanup = null;
+let pendingJcWolFPlayer = null;  // player object held while PIN modal is open
+let wolfPinEntry = '';           // digits typed so far in the PIN modal
 let heartbeatInterval = null;
 let pendingGameCodeFromUrl = null;
 let lastRenderedStateSignature = '';
@@ -634,7 +636,7 @@ async function rejoinGame(code) {
 }
 
 function resolvePlayerIcon(player) {
-    if ((player?.tag || '').toLowerCase() === 'jcwolf') return '🐺';
+    if (player?.tag === 'JcWolF') return '🐺';
     return player?.icon || '🐾';
 }
 
@@ -986,6 +988,13 @@ function bindEventListeners() {
     document.getElementById('qrModal')?.addEventListener('click', e => { if (e.target === document.getElementById('qrModal')) closeQRModal(); });
     document.getElementById('activityBtn')?.addEventListener('click', toggleActivityFeed);
     document.getElementById('closeActivityBtn')?.addEventListener('click', closeActivityFeed);
+    document.getElementById('wolfAdminBtn')?.addEventListener('click', () => window.open('admin.html', '_blank'));
+    // Wolf PIN modal
+    document.getElementById('wolfPinCancelBtn')?.addEventListener('click', closeWolfPinModal);
+    document.getElementById('wolfPinBackBtn')?.addEventListener('click', wolfPinBackspace);
+    document.querySelectorAll('.wolf-pin-key[data-digit]').forEach(key => {
+        key.addEventListener('click', () => wolfPinDigit(key.dataset.digit));
+    });
     window.addEventListener('beforeunload', () => saveGameSession());
 }
 
@@ -999,12 +1008,62 @@ function startGame() { splash.style.display = 'none'; game.style.display = 'bloc
 function setPlayerName() {
     const player = buildPlayerFromInputs();
     if (!player) return;
+    if (player.tag === 'JcWolF') {
+        pendingJcWolFPlayer = player;
+        wolfPinEntry = '';
+        updateWolfPinDots();
+        document.getElementById('wolfPinError').textContent = '';
+        document.getElementById('wolfPinModal').style.display = 'flex';
+        return;
+    }
+    completeSetPlayerName(player);
+}
+
+function completeSetPlayerName(player) {
     currentPlayer = player;
     persistIdentity(player);
     enableGameCards();
     showToast(`Welcome to the pack, ${player.displayName}! 🐺`, 'success');
     if (pendingGameCodeFromUrl && game.style.display === 'block') document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl;
     updateDiagnosticsPanel();
+}
+
+function closeWolfPinModal() {
+    document.getElementById('wolfPinModal').style.display = 'none';
+    wolfPinEntry = '';
+    pendingJcWolFPlayer = null;
+}
+
+function updateWolfPinDots() {
+    for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`wolfPinD${i}`);
+        if (dot) dot.classList.toggle('filled', i <= wolfPinEntry.length);
+    }
+}
+
+function wolfPinDigit(d) {
+    if (wolfPinEntry.length >= 4) return;
+    wolfPinEntry += d;
+    updateWolfPinDots();
+    document.getElementById('wolfPinError').textContent = '';
+    if (wolfPinEntry.length === 4) wolfPinConfirm();
+}
+
+function wolfPinBackspace() {
+    wolfPinEntry = wolfPinEntry.slice(0, -1);
+    updateWolfPinDots();
+    document.getElementById('wolfPinError').textContent = '';
+}
+
+function wolfPinConfirm() {
+    if (wolfPinEntry !== '9653') {
+        document.getElementById('wolfPinError').textContent = 'Incorrect PIN. Try again.';
+        wolfPinEntry = '';
+        updateWolfPinDots();
+        return;
+    }
+    closeWolfPinModal();
+    if (pendingJcWolFPlayer) { completeSetPlayerName(pendingJcWolFPlayer); pendingJcWolFPlayer = null; }
 }
 
 async function generateUniqueGameCode() {
@@ -1194,6 +1253,8 @@ function updateGameUI() {
     maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
     const isEnded = gameData?.status === 'ended';
+    const wolfAdminBtn = document.getElementById('wolfAdminBtn');
+    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag === 'JcWolF' ? '' : 'none';
     const announceBtn = document.getElementById('announceBtn');
     if (announceBtn) announceBtn.style.display = isHost ? '' : 'none';
     const auditBtn = document.getElementById('auditBtn');
