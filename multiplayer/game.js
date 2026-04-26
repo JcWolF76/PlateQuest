@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424g';
+const APP_VERSION = '20260424h';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -16,6 +16,9 @@ const TAUNT_LIST = [
     "Keep refreshing — the view from second place isn't getting better, [name]. 😂",
     "What's that sound? Oh, just me finding plates while you're napping, [name]! 🎉",
 ];
+
+// Available player icons — 🐺 is reserved for the developer (JcWolF tag)
+const PLAYER_ICONS = ['🦊','🐻','🐯','🦁','🦅','🐸','🦝','🦉','🦄','🐲','🦋','🚗'];
 
 const firebaseConfig = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
@@ -403,6 +406,7 @@ const BADGE_DEFS = [
 const STORAGE_KEYS = {
     name: 'platequest_player_name',
     tag: 'platequest_player_tag',
+    icon: 'platequest_player_icon',
     player: 'platequest_player_identity_v2',
     session: 'platequest_active_session_v2',
     myGames: 'platequest_my_games',
@@ -459,7 +463,7 @@ const diagnosticsPanel = document.getElementById('diagnosticsPanel');
 
 function slugify(value) { return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40); }
 function safeParseStorage(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }
-function normalizeTagInput(value) { return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8); }
+function normalizeTagInput(value) { return String(value || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8); }
 function normalizeCodeInput(value) { return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6); }
 function setPendingJoinReload(code) { try { sessionStorage.setItem(SESSION_KEYS.joinReloadCode, code); } catch {} }
 function getPendingJoinReload() { try { return normalizeCodeInput(sessionStorage.getItem(SESSION_KEYS.joinReloadCode) || ''); } catch { return ''; } }
@@ -509,23 +513,24 @@ function getOrCreateDeviceId() {
 function buildPlayerFromInputs() {
     const name = document.getElementById('playerNameInput').value.trim();
     const tag = normalizeTagInput(document.getElementById('playerTagInput').value);
-    document.getElementById('playerTagInput').value = tag;
     if (!name) { showToast('Please enter your name! 👤', 'error'); document.getElementById('playerNameInput').focus(); return null; }
     if (!tag) { showToast('Please enter a player tag! 🏷️', 'error'); document.getElementById('playerTagInput').focus(); return null; }
     if (name.length > 20) { showToast('Name must be 20 characters or less.', 'error'); return null; }
-    if (!/^[A-Z0-9]+$/.test(tag)) { showToast('Tag can only contain letters and numbers.', 'error'); return null; }
+    if (!/^[a-zA-Z0-9]+$/.test(tag)) { showToast('Tag can only contain letters and numbers.', 'error'); return null; }
+    const icon = getSelectedPlayerIcon();
     const playerKey = `${slugify(name)}__${slugify(tag)}`;
-    return { playerKey, deviceId: getOrCreateDeviceId(), name, tag, displayName: `${name} (${tag})`, colorSeed: slugify(`${name}_${tag}`), updatedAtLocal: Date.now() };
+    return { playerKey, deviceId: getOrCreateDeviceId(), name, tag, icon, displayName: `${name} (${tag})`, colorSeed: slugify(`${name}_${tag}`), updatedAtLocal: Date.now() };
 }
 
 function buildPlayerIdentity(name, tag, extras = {}) {
     const normalizedTag = normalizeTagInput(tag);
-    return { playerKey: `${slugify(name)}__${slugify(normalizedTag)}`, deviceId: extras.deviceId || getOrCreateDeviceId(), name, tag: normalizedTag, displayName: `${name} (${normalizedTag})`, colorSeed: slugify(`${name}_${normalizedTag}`), updatedAtLocal: Date.now(), legacyPlayerId: extras.legacyPlayerId || null };
+    return { playerKey: `${slugify(name)}__${slugify(normalizedTag)}`, deviceId: extras.deviceId || getOrCreateDeviceId(), name, tag: normalizedTag, icon: extras.icon || null, displayName: `${name} (${normalizedTag})`, colorSeed: slugify(`${name}_${normalizedTag}`), updatedAtLocal: Date.now(), legacyPlayerId: extras.legacyPlayerId || null };
 }
 
 function persistIdentity(player) {
     localStorage.setItem(STORAGE_KEYS.name, player.name);
     localStorage.setItem(STORAGE_KEYS.tag, player.tag);
+    if (player.icon) localStorage.setItem(STORAGE_KEYS.icon, player.icon);
     localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(player));
     updateDiagnosticsPanel();
 }
@@ -628,6 +633,40 @@ async function rejoinGame(code) {
     } finally { hideLoading(); }
 }
 
+function resolvePlayerIcon(player) {
+    if ((player?.tag || '').toLowerCase() === 'jcwolf') return '🐺';
+    return player?.icon || '🐾';
+}
+
+function getSelectedPlayerIcon() {
+    const btn = document.querySelector('.icon-pick-btn.selected');
+    return btn ? btn.textContent : PLAYER_ICONS[0];
+}
+
+function initIconPicker() {
+    const row = document.getElementById('iconPickerRow');
+    if (!row) return;
+    PLAYER_ICONS.forEach(icon => {
+        const btn = document.createElement('button');
+        btn.className = 'icon-pick-btn';
+        btn.textContent = icon;
+        btn.type = 'button';
+        btn.setAttribute('aria-label', icon);
+        btn.addEventListener('click', () => {
+            row.querySelectorAll('.icon-pick-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            try { localStorage.setItem(STORAGE_KEYS.icon, icon); } catch (e) {}
+        });
+        row.appendChild(btn);
+    });
+    const savedIcon = localStorage.getItem(STORAGE_KEYS.icon);
+    let matched = false;
+    row.querySelectorAll('.icon-pick-btn').forEach(b => {
+        if (b.textContent === savedIcon) { b.classList.add('selected'); matched = true; }
+    });
+    if (!matched) row.querySelector('.icon-pick-btn')?.classList.add('selected');
+}
+
 function setSetupControlsDisabled(disabled) {
     [
         'newGameInput','joinCodeInput','createGameBtn','joinGameBtn',
@@ -700,7 +739,7 @@ function updatePlayAreaSummary() {
 
 function buildPlayerRoomRecord(player, options = {}) {
     const now = firebase.database.ServerValue.TIMESTAMP;
-    return { playerKey: player.playerKey, deviceId: player.deviceId, name: player.name, tag: player.tag, displayName: player.displayName, isHost: Boolean(options.isHost), connected: true, joinedAt: options.joinedAt || now, lastSeen: now, states: options.states || {}, role: options.isHost ? 'host' : 'player' };
+    return { playerKey: player.playerKey, deviceId: player.deviceId, name: player.name, tag: player.tag, icon: player.icon || null, displayName: player.displayName, isHost: Boolean(options.isHost), connected: true, joinedAt: options.joinedAt || now, lastSeen: now, states: options.states || {}, role: options.isHost ? 'host' : 'player' };
 }
 
 function normalizePlayers(rawPlayers = {}) {
@@ -750,6 +789,7 @@ function initializeApp() {
         database = firebase.database();
         firebaseReady = true;
         bindEventListeners();
+        initIconPicker();
         renderPlayAreaSelector();
         restoreIdentity();
         initializeDarkMode();
@@ -772,6 +812,7 @@ function initializeApp() {
         firebaseReady = false;
         updateConnectionStatus('offline');
         bindEventListeners();
+        initIconPicker();
         renderPlayAreaSelector();
         restoreIdentity();
         initializeDarkMode();
@@ -1100,7 +1141,7 @@ function setupPresence() {
         if (snapshot.val() !== true) return;
         playerRef.child('connected').onDisconnect().set(false);
         playerRef.child('lastSeen').onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
-        playerRef.update({ connected: true, lastSeen: firebase.database.ServerValue.TIMESTAMP, deviceId: currentPlayer.deviceId, name: currentPlayer.name, tag: currentPlayer.tag, displayName: currentPlayer.displayName }).then(() => { lastSyncAt = Date.now(); updateDiagnosticsPanel(); }).catch((error) => console.warn('Presence update failed:', error));
+        playerRef.update({ connected: true, lastSeen: firebase.database.ServerValue.TIMESTAMP, deviceId: currentPlayer.deviceId, name: currentPlayer.name, tag: currentPlayer.tag, icon: currentPlayer.icon || null, displayName: currentPlayer.displayName }).then(() => { lastSyncAt = Date.now(); updateDiagnosticsPanel(); }).catch((error) => console.warn('Presence update failed:', error));
     });
     heartbeatInterval = setInterval(() => { playerRef.update({ connected: true, lastSeen: firebase.database.ServerValue.TIMESTAMP }).then(() => { lastSyncAt = Date.now(); updateDiagnosticsPanel(); }).catch(() => {}); }, HEARTBEAT_MS);
     presenceCleanup = () => { connectedRef.off('value', connectedListener); playerRef.update({ connected: false, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(() => {}); };
@@ -1210,7 +1251,8 @@ function updateScores() {
     rows.forEach((player, index) => {
         const isLeader = index === 0 && player.score > 0;
         const isMe = player.playerKey === currentPlayer.playerKey;
-        const marker = isMe ? '🐺' : (player.connected ? '👤' : '💤');
+        const playerIcon = resolvePlayerIcon(player);
+        const offlineMark = !player.connected ? ' 💤' : '';
         const badges = getPlayerBadges(player.playerKey);
         const badgeRow = badges.length
             ? `<div class="badge-row">${badges.map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}</div>`
@@ -1221,7 +1263,10 @@ function updateScores() {
         scoreCard.setAttribute('role', 'button');
         scoreCard.setAttribute('tabindex', '0');
         scoreCard.innerHTML = `
-            <div class="score-player-name">${marker} ${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}</div>
+            <div class="score-card-header">
+                <span class="score-player-icon">${playerIcon}</span>
+                <div class="score-player-name">${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}${offlineMark}</div>
+            </div>
             <div class="score-pts">${player.score}<span class="score-pts-label"> pts</span></div>
             <div class="score-meta">${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds</div>
             ${badgeRow}
