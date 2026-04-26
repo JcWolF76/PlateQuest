@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424m';
+const APP_VERSION = '20260424n';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -73,6 +73,10 @@ const CHANGELOG = {
     '20260424m': [
         '🐺 Admin Panel button now visible regardless of how tag case was stored — no more missing button',
         '🔧 Audit re-run now confirms with a toast so you know it actually ran',
+    ],
+    '20260424n': [
+        '✏️ Edit Identity — change your name, tag, or icon anytime from the My Game section',
+        '🔄 Identity updates sync live to the pack — no need to leave and rejoin',
     ],
 };
 
@@ -697,13 +701,19 @@ function resolvePlayerIcon(player) {
 }
 
 function getSelectedPlayerIcon() {
-    const btn = document.querySelector('.icon-pick-btn.selected');
+    const btn = document.querySelector('#iconPickerRow .icon-pick-btn.selected');
     return btn ? btn.textContent : PLAYER_ICONS[0];
 }
 
-function initIconPicker() {
-    const row = document.getElementById('iconPickerRow');
+function getIconFromRow(rowId) {
+    const btn = document.querySelector(`#${rowId} .icon-pick-btn.selected`);
+    return btn ? btn.textContent : PLAYER_ICONS[0];
+}
+
+function populateIconPickerRow(rowId, currentIcon, onPick) {
+    const row = document.getElementById(rowId);
     if (!row) return;
+    row.innerHTML = '';
     PLAYER_ICONS.forEach(icon => {
         const btn = document.createElement('button');
         btn.className = 'icon-pick-btn';
@@ -713,16 +723,22 @@ function initIconPicker() {
         btn.addEventListener('click', () => {
             row.querySelectorAll('.icon-pick-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
-            try { localStorage.setItem(STORAGE_KEYS.icon, icon); } catch (e) {}
+            if (onPick) onPick(icon);
         });
         row.appendChild(btn);
     });
-    const savedIcon = localStorage.getItem(STORAGE_KEYS.icon);
     let matched = false;
     row.querySelectorAll('.icon-pick-btn').forEach(b => {
-        if (b.textContent === savedIcon) { b.classList.add('selected'); matched = true; }
+        if (b.textContent === currentIcon) { b.classList.add('selected'); matched = true; }
     });
     if (!matched) row.querySelector('.icon-pick-btn')?.classList.add('selected');
+}
+
+function initIconPicker() {
+    const savedIcon = localStorage.getItem(STORAGE_KEYS.icon);
+    populateIconPickerRow('iconPickerRow', savedIcon, (icon) => {
+        try { localStorage.setItem(STORAGE_KEYS.icon, icon); } catch (e) {}
+    });
 }
 
 function setSetupControlsDisabled(disabled) {
@@ -1049,6 +1065,12 @@ function bindEventListeners() {
     document.getElementById('sendTauntBtn')?.addEventListener('click', sendTaunt);
     const tauntModal = document.getElementById('tauntModal');
     if (tauntModal) tauntModal.addEventListener('click', e => { if (e.target === tauntModal) closeTauntModal(); });
+    document.getElementById('editIdentityBtn').addEventListener('click', openEditIdentityModal);
+    document.getElementById('cancelEditIdentityBtn').addEventListener('click', closeEditIdentityModal);
+    document.getElementById('saveEditIdentityBtn').addEventListener('click', saveEditIdentity);
+    document.getElementById('editTagInput')?.addEventListener('input', e => { e.target.value = normalizeTagInput(e.target.value); });
+    const editIdentityModal = document.getElementById('editIdentityModal');
+    if (editIdentityModal) editIdentityModal.addEventListener('click', e => { if (e.target === editIdentityModal) closeEditIdentityModal(); });
     document.getElementById('resetMyProgressBtn').addEventListener('click', resetMyProgress);
     document.getElementById('leaveGameBtn').addEventListener('click', leaveGame);
     document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
@@ -1164,9 +1186,15 @@ function completeSetPlayerName(player) {
     currentPlayer = player;
     persistIdentity(player);
     enableGameCards();
-    showToast(`Welcome to the pack, ${player.displayName}! 🐺`, 'success');
+    showToast(`Identity saved: ${player.displayName} ${resolvePlayerIcon(player)}`, 'success');
     if (pendingGameCodeFromUrl && game.style.display === 'block') document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl;
     updateDiagnosticsPanel();
+    if (currentGameCode && currentGameRef) {
+        currentGameRef.child(`players/${player.playerKey}`).update({
+            name: player.name, tag: player.tag, icon: player.icon || null, displayName: player.displayName
+        }).catch(() => {});
+        setupPresence();
+    }
 }
 
 function closeWolfPinModal() {
@@ -1205,6 +1233,43 @@ function wolfPinConfirm() {
     }
     closeWolfPinModal();
     if (pendingJcWolFPlayer) { completeSetPlayerName(pendingJcWolFPlayer); pendingJcWolFPlayer = null; }
+}
+
+function openEditIdentityModal() {
+    const modal = document.getElementById('editIdentityModal');
+    if (!modal) return;
+    document.getElementById('editNameInput').value = currentPlayer?.name || '';
+    document.getElementById('editTagInput').value = currentPlayer?.tag || '';
+    populateIconPickerRow('editIconPickerRow', currentPlayer?.icon || null);
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('editNameInput').focus(), 120);
+}
+
+function closeEditIdentityModal() {
+    const modal = document.getElementById('editIdentityModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function saveEditIdentity() {
+    const name = document.getElementById('editNameInput').value.trim();
+    const tag = normalizeTagInput(document.getElementById('editTagInput').value);
+    const icon = getIconFromRow('editIconPickerRow');
+    if (!name) { showToast('Please enter your name! 👤', 'error'); document.getElementById('editNameInput').focus(); return; }
+    if (!tag) { showToast('Please enter a player tag! 🏷️', 'error'); document.getElementById('editTagInput').focus(); return; }
+    if (name.length > 20) { showToast('Name must be 20 characters or less.', 'error'); return; }
+    if (!/^[a-zA-Z0-9]+$/.test(tag)) { showToast('Tag can only contain letters and numbers.', 'error'); return; }
+    const playerKey = `${slugify(name)}__${slugify(tag)}`;
+    const player = { playerKey, deviceId: getOrCreateDeviceId(), name, tag, icon, displayName: `${name} (${tag})`, colorSeed: slugify(`${name}_${tag}`), updatedAtLocal: Date.now() };
+    closeEditIdentityModal();
+    if (tag === 'JcWolF') {
+        pendingJcWolFPlayer = player;
+        wolfPinEntry = '';
+        updateWolfPinDots();
+        document.getElementById('wolfPinError').textContent = '';
+        document.getElementById('wolfPinModal').style.display = 'flex';
+        return;
+    }
+    completeSetPlayerName(player);
 }
 
 async function generateUniqueGameCode() {
