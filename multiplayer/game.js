@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260424n';
+const APP_VERSION = '20260424o';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -18,7 +18,7 @@ const TAUNT_LIST = [
 ];
 
 // Available player icons — 🐺 is reserved for the developer (JcWolF tag)
-const PLAYER_ICONS = ['🦊','🐻','🐯','🦁','🦅','🐸','🦝','🦉','🦄','🐲','🦋','🚗'];
+const PLAYER_ICONS = ['🦊','🐻','🐯','🦁','🦅','🐸','🦝','🦉','🦄','🐲','🦋','🚗','🦈','🐬','🦖','🦏','🦬','🐆','🦓','🐘','🦒','🦜','🐊','🦦'];
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
@@ -53,8 +53,7 @@ const CHANGELOG = {
         '🏷️ Player tags now support mixed case — your tag displays exactly as you typed it',
     ],
     '20260424i': [
-        '🐺 Wolf icon is now developer-exclusive — only exact tag "JcWolF" (capital J, W, F) gets the wolf',
-        '🔐 JcWolF tag is PIN-protected (9-6-5-3 on a phone pad spells W-O-L-F)',
+        '🐺 Wolf icon is now developer-exclusive — reserved for the dev account only',
         '🛠️ Admin panel shortcut button now appears in-game for the developer account',
     ],
     '20260424j': [
@@ -77,6 +76,9 @@ const CHANGELOG = {
     '20260424n': [
         '✏️ Edit Identity — change your name, tag, or icon anytime from the My Game section',
         '🔄 Identity updates sync live to the pack — no need to leave and rejoin',
+    ],
+    '20260424o': [
+        '🎨 Icon picker expanded to 24 options — shark, dolphin, dino, leopard, otter, and more',
     ],
 };
 
