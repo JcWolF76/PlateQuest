@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260426c';
+const APP_VERSION = '20260427a';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -29,6 +29,14 @@ const SHOP_ITEMS = [
       category: 'trick',   desc: "Hides everyone else's scores and plate counts for 5 minutes." },
     { id: 'shield',   name: 'Shield',       icon: '🛡️', cost: 35, effectKey: 'shield',  duration: null,
       category: 'defense', desc: 'Blocks the next trick used against you. One use only.' },
+];
+
+const STREAK_WINDOW_MS = 10 * 60 * 1000; // plates found within this window count toward the streak
+
+const STREAK_BONUSES = [
+    { count: 3,  coins: 10 },
+    { count: 5,  coins: 25 },
+    { count: 10, coins: 50 },
 ];
 
 const COIN_RATES = {
@@ -120,6 +128,13 @@ const CHANGELOG = {
         '🎁 Hidden Chests — scattered across plates, each holds coins, a trick, or a shield',
         'Chests appear as 🎁 on unclaimed plates — claim the plate to open the chest',
         'Host can re-roll prizes anytime with the new 🎲 Re-roll button in Host Controls',
+    ],
+    '20260427a': [
+        '🔥 Quick Reactions — tap 🔥 😮 👏 💀 on anyone\'s score card to react in real time',
+        'Reactions float up on the target\'s card so everyone sees the moment',
+        '🔥 Streaks — spot plates in a row within 10 minutes to earn bonus coins',
+        '3 plates: +10🪙 · 5 plates: +25🪙 · 10 plates: +50🪙',
+        'Streak count shows on your score card when you\'re on a hot run',
     ],
 };
 
@@ -536,6 +551,7 @@ let prevClearRequestKeys = null; // null = not yet initialized; reset on game ex
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let prevPlateDisputeKeys = null;         // same, for individual plate first-finder disputes
 let prevChatKeys = null;                  // null = not yet initialized; reset on game exit
+let prevReactionKeys = null;             // null = not yet initialized; reset on game exit
 let chatUnreadCount = 0;
 let lastKnownRound = null;       // tracks round number to detect new-round resets
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
@@ -1625,7 +1641,7 @@ function updateGameUI() {
     if (lastKnownRound !== null && currentRound !== lastKnownRound) {
         prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
         prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null;
-        prevChatKeys = null; chatUnreadCount = 0;
+        prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0;
         endGameScreenShown = false; lastRenderedStateSignature = '';
         closeEndGameScreen();
         showToast('New round started! 🏁 Plates cleared.', 'success');
@@ -1638,6 +1654,7 @@ function updateGameUI() {
     detectRegionClearRequests();
     detectPlateDisputeRequests();
     detectNewChatMessages();
+    detectNewReactions();
     autoCleanRegionBackups();
     autoCleanPlateBackups();
     updateAuditBadge();
@@ -1712,6 +1729,10 @@ function updateScores() {
             : '';
         const coins = player.coins || 0;
         const fogged = !isMe && (getMyEffects().fog || 0) > Date.now();
+        const streak = player.streak || { count: 0, lastFoundAt: 0 };
+        const streakActive = streak.count >= 3 && (Date.now() - (streak.lastFoundAt || 0)) <= STREAK_WINDOW_MS;
+        const streakBadge = streakActive ? `<div class="streak-badge">🔥×${streak.count}</div>` : '';
+        const reactionRow = !isMe ? `<div class="reaction-row">${REACTION_EMOJIS.map(e => `<button class="reaction-btn" data-emoji="${e}" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">${e}</button>`).join('')}</div>` : '';
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
         scoreCard.dataset.playerkey = player.playerKey;
@@ -1721,11 +1742,13 @@ function updateScores() {
             <div class="score-card-header">
                 <span class="score-player-icon">${playerIcon}</span>
                 <div class="score-player-name">${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}${offlineMark}</div>
+                ${streakBadge}
             </div>
             <div class="score-pts">${fogged ? '🌫️' : player.score}<span class="score-pts-label">${fogged ? '' : ' pts'}</span></div>
             <div class="score-meta">${fogged ? '— hidden in fog —' : `${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds`}</div>
             <div class="score-coins">${fogged ? '' : `🪙 ${coins.toLocaleString()} coins`}</div>
             ${badgeRow}
+            ${reactionRow}
         `;
         // Direct listeners added fresh each render — most reliable on mobile
         const _pk = player.playerKey;
@@ -1736,7 +1759,17 @@ function updateScores() {
             const dy = Math.abs(e.changedTouches[0].clientY - _ty);
             if (dx < 12 && dy < 12) { _tfire = Date.now(); openPlayerDetail(_pk); }
         }, { passive: true });
-        scoreCard.addEventListener('click', () => { if (Date.now() - _tfire > 350) openPlayerDetail(_pk); });
+        scoreCard.addEventListener('click', e => {
+            if (e.target.closest('.reaction-btn')) return;
+            if (Date.now() - _tfire > 350) openPlayerDetail(_pk);
+        });
+        scoreCard.querySelectorAll('.reaction-btn').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                sendReaction(btn.dataset.tokey, btn.dataset.toname, btn.dataset.emoji);
+                showReactionPop(btn.dataset.tokey, btn.dataset.emoji, null);
+            });
+        });
         scoresContainer.appendChild(scoreCard);
     });
 
@@ -2031,6 +2064,7 @@ async function toggleState(stateName, currentlySelected) {
             if (foundNearState) stateRecord.foundNearState = foundNearState;
             await playerStatesRef.child(stateName).set(stateRecord);
             currentGameRef.child(`players/${currentPlayer.playerKey}`).update({ coins: firebase.database.ServerValue.increment(coinsEarned) }).catch(() => {});
+            updateStreak(currentPlayer.playerKey).catch(() => {});
             showToast(`Found ${stateName}! +${coinsEarned}🪙${isFirstFinder ? ' First finder!' : ''}`, 'success');
             writeRegionCompletions();
             if (gameData?.chests?.[stateName]) claimChest(stateName);
@@ -2145,7 +2179,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -3553,6 +3587,78 @@ function detectLuckyPlateReveal() {
     showToast(`🍀 ${found.foundBy} found the Lucky Plate — ${found.stateName}! Triple points!`, 'success');
 }
 
+// ── Streaks ───────────────────────────────────────────────────────────────────
+
+async function updateStreak(playerKey) {
+    if (!currentGameRef) return;
+    const streakRef = currentGameRef.child(`players/${playerKey}/streak`);
+    let bonusCoins = 0;
+    let newCount = 0;
+
+    await streakRef.transaction(current => {
+        const now = Date.now();
+        const prev = current || { count: 0, lastFoundAt: 0 };
+        const withinWindow = now - prev.lastFoundAt <= STREAK_WINDOW_MS;
+        newCount = withinWindow ? prev.count + 1 : 1;
+        return { count: newCount, lastFoundAt: now };
+    });
+
+    const bonus = STREAK_BONUSES.find(b => b.count === newCount);
+    if (bonus) {
+        bonusCoins = bonus.coins;
+        currentGameRef.child(`players/${playerKey}/coins`).transaction(c => (c || 0) + bonusCoins).catch(() => {});
+        showToast(`🔥 ${newCount}-plate streak! +${bonusCoins}🪙 bonus!`, 'success');
+    }
+}
+
+// ── Quick Reactions ───────────────────────────────────────────────────────────
+
+const REACTION_EMOJIS = ['🔥', '😮', '👏', '💀'];
+
+function sendReaction(toKey, toName, emoji) {
+    if (!currentGameRef || !currentPlayer) return;
+    currentGameRef.child('reactions').push({
+        fromKey: currentPlayer.playerKey,
+        fromName: currentPlayer.displayName,
+        toKey,
+        toName,
+        emoji,
+        sentAt: firebase.database.ServerValue.TIMESTAMP,
+    }).catch(() => {});
+}
+
+function detectNewReactions() {
+    if (!gameData) return;
+    const reactions = gameData.reactions || {};
+    const currentKeys = Object.keys(reactions);
+    if (prevReactionKeys === null) { prevReactionKeys = new Set(currentKeys); return; }
+    currentKeys.forEach(key => {
+        if (!prevReactionKeys.has(key)) {
+            prevReactionKeys.add(key);
+            const r = reactions[key];
+            if (r.toKey === currentPlayer?.playerKey) {
+                showReactionPop(r.toKey, r.emoji, r.fromName);
+            } else {
+                showReactionPop(r.toKey, r.emoji, null);
+            }
+        }
+    });
+}
+
+function showReactionPop(playerKey, emoji, fromName) {
+    const card = document.querySelector(`.score-card[data-playerkey="${playerKey}"]`);
+    if (!card) return;
+    const pop = document.createElement('div');
+    pop.className = 'reaction-pop';
+    pop.textContent = emoji;
+    card.style.position = 'relative';
+    card.appendChild(pop);
+    if (fromName && playerKey === currentPlayer?.playerKey) {
+        showToast(`${emoji} ${fromName} reacted to your score!`, 'info');
+    }
+    setTimeout(() => pop.remove(), 1200);
+}
+
 async function claimChest(stateName) {
     const chest = gameData?.chests?.[stateName];
     if (!chest || !currentGameRef || !currentPlayer) return;
@@ -3612,6 +3718,7 @@ async function startNewRound() {
         updates.completedCorridor = null;
         updates.taunts = null;
         updates.announcements = null;
+        updates.reactions = null;
         updates.luckyPlate = null;
         updates.luckyPlateFound = null;
         updates.chests = null;
