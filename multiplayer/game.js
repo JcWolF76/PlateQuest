@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427c';
+const APP_VERSION = '20260427d';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -193,6 +193,12 @@ const CHANGELOG = {
         'Eagle Eye, Road Legend, Unstoppable, Lucky Break, Bounty Hunter, and more',
         'Achievements show in your player profile with locked/unlocked status',
         'Your achievement count is visible on your score card for the whole pack to see',
+    ],
+    '20260427d': [
+        '🎯 Secret Targets — host assigns each player a hidden target plate worth +200🪙 as first finder',
+        'Your target shows as a private banner above the plate grid — only you can see it',
+        '⚔️ Rivalries — challenge any player to a rivalry; head-to-head comparison shows in their profile',
+        '🔔 Sudden Death — host announces a plate; first player to tap it wins 150🪙',
     ],
 };
 
@@ -616,6 +622,8 @@ let speedRoundInterval = null;  // setInterval handle for countdown ticker
 let lastKnownSpeedRoundEnd = null; // dedup speed-round finalization
 let pendingAchievements = new Set(); // IDs written this session — prevents double-toast
 let lastAchievementCheck = 0;       // timestamp of last checkAchievements call
+let lastKnownRivalry = undefined;   // undefined = not initialized; null = no rival; string = rival key
+let lastKnownSuddenDeathWinner = null; // wonAt timestamp of last announced SD winner
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
 let pendingDeselect = null;     // stateName waiting for direct-deselect confirm
 let regionMigrationDone = false; // one-time migration guard per session
@@ -1319,6 +1327,10 @@ function bindEventListeners() {
     document.getElementById('rerollPrizesBtn')?.addEventListener('click', rerollPrizes);
     document.getElementById('placeBountyBtn')?.addEventListener('click', openBountyModal);
     document.getElementById('speedRoundBtn')?.addEventListener('click', openSpeedRoundModal);
+    document.getElementById('assignSecretTargetsBtn')?.addEventListener('click', assignSecretTargets);
+    document.getElementById('suddenDeathBtn')?.addEventListener('click', openSuddenDeathModal);
+    const suddenDeathModal = document.getElementById('suddenDeathModal');
+    if (suddenDeathModal) suddenDeathModal.addEventListener('click', e => { if (e.target === suddenDeathModal) closeSuddenDeathModal(); });
     const bountyModal = document.getElementById('bountyModal');
     if (bountyModal) bountyModal.addEventListener('click', e => { if (e.target === bountyModal) closeBountyModal(); });
     const speedRoundModal = document.getElementById('speedRoundModal');
@@ -1710,7 +1722,7 @@ function updateGameUI() {
         prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
         prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null;
         prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0;
-        lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0;
+        lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null;
         if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; }
         endGameScreenShown = false; lastRenderedStateSignature = '';
         closeEndGameScreen();
@@ -1727,6 +1739,9 @@ function updateGameUI() {
     detectNewReactions();
     detectSpeedRound();
     detectBlackout();
+    detectSuddenDeath();
+    updateSecretTargetDisplay();
+    detectRivalryChallenges();
     if (Date.now() - lastAchievementCheck > 4000) {
         lastAchievementCheck = Date.now();
         checkAchievements(currentPlayer.playerKey).catch(() => {});
@@ -1810,9 +1825,14 @@ function updateScores() {
         const streakBadge = streakActive ? `<div class="streak-badge">🔥×${streak.count}</div>` : '';
         const achCount = Object.keys(player.achievements || {}).length;
         const achLine = achCount > 0 ? `<div class="score-ach-count">🏆 ${achCount} achievement${achCount !== 1 ? 's' : ''}</div>` : '';
-        const reactionRow = !isMe ? `<div class="reaction-row">${REACTION_EMOJIS.map(e => `<button class="reaction-btn" data-emoji="${e}" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">${e}</button>`).join('')}</div>` : '';
+        const myRivalKey = gameData?.rivalries?.[currentPlayer.playerKey];
+        const isMyRival = !isMe && myRivalKey === player.playerKey;
+        const rivalBadge = isMyRival ? '<div class="rival-badge">⚔️ Rival</div>' : '';
+        const challengeLabel = isMyRival ? '⚔️ Drop' : '⚔️ Challenge';
+        const challengeBtn = !isMe ? `<button class="challenge-btn" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">${challengeLabel}</button>` : '';
+        const reactionRow = !isMe ? `<div class="reaction-row">${REACTION_EMOJIS.map(e => `<button class="reaction-btn" data-emoji="${e}" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">${e}</button>`).join('')}${challengeBtn}</div>` : '';
         const scoreCard = document.createElement('div');
-        scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
+        scoreCard.className = `score-card${isLeader ? ' leader' : ''}${isMyRival ? ' rival' : ''}`;
         scoreCard.dataset.playerkey = player.playerKey;
         scoreCard.setAttribute('role', 'button');
         scoreCard.setAttribute('tabindex', '0');
@@ -1820,7 +1840,7 @@ function updateScores() {
             <div class="score-card-header">
                 <span class="score-player-icon">${playerIcon}</span>
                 <div class="score-player-name">${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}${offlineMark}</div>
-                ${streakBadge}
+                ${streakBadge}${rivalBadge}
             </div>
             <div class="score-pts">${fogged ? '🌫️' : player.score}<span class="score-pts-label">${fogged ? '' : ' pts'}</span></div>
             <div class="score-meta">${fogged ? '— hidden in fog —' : `${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds`}</div>
@@ -1839,7 +1859,7 @@ function updateScores() {
             if (dx < 12 && dy < 12) { _tfire = Date.now(); openPlayerDetail(_pk); }
         }, { passive: true });
         scoreCard.addEventListener('click', e => {
-            if (e.target.closest('.reaction-btn')) return;
+            if (e.target.closest('.reaction-btn') || e.target.closest('.challenge-btn')) return;
             if (Date.now() - _tfire > 350) openPlayerDetail(_pk);
         });
         scoreCard.querySelectorAll('.reaction-btn').forEach(btn => {
@@ -1849,6 +1869,13 @@ function updateScores() {
                 showReactionPop(btn.dataset.tokey, btn.dataset.emoji, null);
             });
         });
+        const chalBtn = scoreCard.querySelector('.challenge-btn');
+        if (chalBtn) {
+            chalBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                setRivalry(chalBtn.dataset.tokey, chalBtn.dataset.toname);
+            });
+        }
         scoresContainer.appendChild(scoreCard);
     });
 
@@ -2152,6 +2179,8 @@ async function toggleState(stateName, currentlySelected) {
             if (gameData?.chests?.[stateName]) claimChest(stateName);
             if (gameData?.bounties?.[stateName]) claimBounty(stateName);
             if (isFirstFinder && gameData?.luckyPlate === stateName && !gameData?.luckyPlateFound) revealLuckyPlate(stateName);
+            if (isFirstFinder && gameData?.secretTargets?.[currentPlayer.playerKey] === stateName) claimSecretTarget(stateName);
+            if (isFirstFinder && gameData?.suddenDeath?.active && gameData?.suddenDeath?.plate === stateName) winSuddenDeath(stateName);
         }
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
         lastSyncAt = Date.now();
@@ -2262,7 +2291,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -3624,6 +3653,32 @@ function openPlayerDetail(playerKey) {
         }).join('');
     }
 
+    // Rivalry head-to-head (shown when viewing your rival)
+    const myRivalKey = gameData?.rivalries?.[currentPlayer?.playerKey];
+    const h2hSection = document.getElementById('detailH2H');
+    if (h2hSection) {
+        if (!isMe && myRivalKey === playerKey) {
+            const myStats = computePlayerStats(currentPlayer.playerKey) || { score: 0, foundCount: 0, firstCount: 0 };
+            const ahead = stats.score - myStats.score;
+            const aheadLabel = ahead > 0 ? `▲ ${ahead} pts ahead` : ahead < 0 ? `▼ ${Math.abs(ahead)} pts behind` : 'Tied';
+            h2hSection.innerHTML = `
+                <div class="detail-section-title">⚔️ Head to Head</div>
+                <div class="h2h-row">
+                    <div class="h2h-stat"><div class="h2h-val">${myStats.score}</div><div class="h2h-lbl">Your score</div></div>
+                    <div class="h2h-vs">${aheadLabel}</div>
+                    <div class="h2h-stat"><div class="h2h-val">${stats.score}</div><div class="h2h-lbl">${player.displayName}</div></div>
+                </div>
+                <div class="h2h-row">
+                    <div class="h2h-stat"><div class="h2h-val">${myStats.foundCount}</div><div class="h2h-lbl">Your plates</div></div>
+                    <div class="h2h-vs">vs</div>
+                    <div class="h2h-stat"><div class="h2h-val">${stats.foundCount}</div><div class="h2h-lbl">plates</div></div>
+                </div>`;
+            h2hSection.style.display = '';
+        } else {
+            h2hSection.style.display = 'none';
+        }
+    }
+
     modal.classList.add('visible');
     modal.style.display = 'flex';
 }
@@ -3953,6 +4008,150 @@ function detectBlackout() {
     showToast(`🏁 BLACKOUT! You found every plate! +${BLACKOUT_BONUS}🪙`, 'success');
 }
 
+// ── Secret Target ─────────────────────────────────────────────────────────────
+
+async function assignSecretTargets() {
+    if (!currentGameRef || gameData?.hostPlayerKey !== currentPlayer?.playerKey) return;
+    const entries = getActivePlateEntries(gameData?.settings?.plateScope);
+    const players = Object.values(playersData).filter(p => p.connected !== false);
+    if (players.length === 0) { showToast('No players to assign!', 'error'); return; }
+
+    const used = new Set();
+    const secretTargets = {};
+    for (const player of players) {
+        const found = new Set(Object.keys(player.states || {}));
+        const candidates = entries.filter(e => !found.has(e.name) && !used.has(e.name));
+        if (candidates.length === 0) continue;
+        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        used.add(pick.name);
+        secretTargets[player.playerKey] = pick.name;
+    }
+    await currentGameRef.update({ secretTargets });
+    showToast(`🎯 Secret Targets assigned to ${Object.keys(secretTargets).length} player${Object.keys(secretTargets).length !== 1 ? 's' : ''}!`, 'success');
+}
+
+function updateSecretTargetDisplay() {
+    const banner = document.getElementById('secretTargetBanner');
+    if (!banner || !currentPlayer) return;
+    const myTarget = gameData?.secretTargets?.[currentPlayer.playerKey];
+    const nameEl = document.getElementById('secretTargetName');
+    if (myTarget) {
+        if (nameEl) nameEl.textContent = myTarget;
+        banner.style.display = '';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
+async function claimSecretTarget(stateName) {
+    if (!currentGameRef || !currentPlayer) return;
+    await currentGameRef.update({
+        [`secretTargets/${currentPlayer.playerKey}`]: null,
+        [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(200),
+    });
+    showToast(`🎯 SECRET TARGET CLAIMED! ${stateName} — +200🪙!`, 'success');
+}
+
+// ── Rivalries ─────────────────────────────────────────────────────────────────
+
+function setRivalry(toKey, toName) {
+    if (!currentGameRef || !currentPlayer) return;
+    const myKey = currentPlayer.playerKey;
+    const currentRival = gameData?.rivalries?.[myKey];
+    const updates = {};
+    if (currentRival) updates[`rivalries/${currentRival}`] = null; // clear their side
+    if (currentRival === toKey) {
+        updates[`rivalries/${myKey}`] = null;
+        currentGameRef.update(updates).catch(() => {});
+        showToast('⚔️ Rivalry ended.', 'info');
+        return;
+    }
+    updates[`rivalries/${myKey}`] = toKey;
+    updates[`rivalries/${toKey}`] = myKey;
+    currentGameRef.update(updates).catch(() => {});
+    showToast(`⚔️ You challenged ${toName} to a rivalry!`, 'success');
+}
+
+function detectRivalryChallenges() {
+    if (!gameData || !currentPlayer) return;
+    const myRivalKey = gameData?.rivalries?.[currentPlayer.playerKey] || null;
+    if (myRivalKey === lastKnownRivalry) return;
+    const prev = lastKnownRivalry;
+    lastKnownRivalry = myRivalKey;
+    if (lastKnownRivalry === undefined) return; // first run — don't toast
+    if (myRivalKey && prev !== myRivalKey) {
+        const rival = playersData[myRivalKey];
+        if (rival?.playerKey !== currentPlayer.playerKey) {
+            showToast(`⚔️ ${rival?.displayName || '?'} challenged you to a rivalry!`, 'info');
+        }
+    }
+}
+
+// ── Sudden Death ──────────────────────────────────────────────────────────────
+
+function openSuddenDeathModal() {
+    if (gameData?.suddenDeath?.active) { showToast('A Sudden Death is already active!', 'info'); return; }
+    const modal = document.getElementById('suddenDeathModal');
+    if (!modal) return;
+    const select = document.getElementById('suddenDeathPlateSelect');
+    if (select) {
+        select.innerHTML = '';
+        const entries = getActivePlateEntries(gameData?.settings?.plateScope);
+        const unclaimed = entries.filter(e => !gameData?.claimedStates?.[e.name]);
+        (unclaimed.length ? unclaimed : entries).forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.name;
+            opt.textContent = e.name;
+            select.appendChild(opt);
+        });
+    }
+    modal.style.display = 'flex';
+}
+
+function closeSuddenDeathModal() {
+    const modal = document.getElementById('suddenDeathModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function startSuddenDeath() {
+    const plate = document.getElementById('suddenDeathPlateSelect')?.value;
+    if (!plate || !currentGameRef) return;
+    closeSuddenDeathModal();
+    await currentGameRef.update({ suddenDeath: { plate, active: true, startedAt: Date.now(), announcedBy: currentPlayer.displayName } });
+    showToast(`🔔 SUDDEN DEATH: Find ${plate} first!`, 'success');
+}
+
+async function winSuddenDeath(stateName) {
+    if (!currentGameRef || !currentPlayer) return;
+    await currentGameRef.update({
+        'suddenDeath/active': false,
+        'suddenDeath/winnerKey': currentPlayer.playerKey,
+        'suddenDeath/winnerName': currentPlayer.displayName,
+        'suddenDeath/wonAt': Date.now(),
+        [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(150),
+    });
+    showToast(`🔔 SUDDEN DEATH WIN! You found ${stateName} first! +150🪙!`, 'success');
+}
+
+function detectSuddenDeath() {
+    const sd = gameData?.suddenDeath;
+    const banner = document.getElementById('suddenDeathBanner');
+    if (!banner) return;
+    if (sd?.active) {
+        banner.style.display = '';
+        const plateEl = document.getElementById('suddenDeathBannerPlate');
+        if (plateEl) plateEl.textContent = sd.plate;
+    } else {
+        banner.style.display = 'none';
+        if (sd?.winnerKey && sd.wonAt !== lastKnownSuddenDeathWinner) {
+            lastKnownSuddenDeathWinner = sd.wonAt;
+            if (sd.winnerKey !== currentPlayer?.playerKey) {
+                showToast(`🔔 ${sd.winnerName} won Sudden Death — found ${sd.plate}! +150🪙`, 'info');
+            }
+        }
+    }
+}
+
 async function claimChest(stateName) {
     const chest = gameData?.chests?.[stateName];
     if (!chest || !currentGameRef || !currentPlayer) return;
@@ -4015,6 +4214,9 @@ async function startNewRound() {
         updates.reactions = null;
         updates.bounties = null;
         updates.speedRound = null;
+        updates.secretTargets = null;
+        updates.rivalries = null;
+        updates.suddenDeath = null;
         updates.luckyPlate = null;
         updates.luckyPlateFound = null;
         updates.chests = null;
