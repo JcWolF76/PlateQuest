@@ -196,6 +196,31 @@
         .chest-badge { position: absolute; top: 6px; left: 8px; font-size: 18px; line-height: 1; pointer-events: none; animation: chestPulse 2s ease-in-out infinite; }
         @keyframes chestPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
         .lucky-badge { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); background: rgba(39,174,96,0.9); color: #fff; font-size: 11px; font-weight: 800; border-radius: 8px; padding: 2px 8px; white-space: nowrap; pointer-events: none; }
+        /* Bounty badge on plate cards */
+        .bounty-badge { position: absolute; top: 6px; right: 8px; background: linear-gradient(135deg,#7d5a00,#c9960c); color: #ffe066; font-size: 11px; font-weight: 900; border-radius: 8px; padding: 2px 7px; pointer-events: none; white-space: nowrap; }
+        /* Speed round banner */
+        .speed-round-banner { background: linear-gradient(135deg,#1a0a3a,#2d1060); border: 1px solid rgba(155,89,182,0.5); border-radius: 12px; color: #d7bfff; font-size: 15px; font-weight: 800; text-align: center; padding: 10px 16px; margin-bottom: 8px; letter-spacing: 0.3px; }
+        #speedRoundCountdown { font-size: 19px; color: #e056fd; font-weight: 900; }
+        /* Bounty modal */
+        .bounty-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 1430; display: flex; align-items: flex-end; }
+        .bounty-sheet { width: 100%; max-height: 85vh; overflow-y: auto; background: linear-gradient(180deg,#1e2a3a,#16202e); border-radius: 20px 20px 0 0; padding: 22px 20px 32px; display: flex; flex-direction: column; gap: 12px; }
+        .bounty-header { display: flex; justify-content: space-between; align-items: center; }
+        .bounty-title { font-size: 19px; font-weight: 900; color: #f1c40f; }
+        .bounty-desc { font-size: 13px; color: #95a5a6; margin: 0; }
+        .bounty-balance { font-size: 13px; color: #f1c40f; font-weight: 700; }
+        .bounty-label { font-size: 12px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: -6px; }
+        .bounty-select, .bounty-input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #ecf0f1; font-size: 15px; padding: 10px 12px; box-sizing: border-box; }
+        .bounty-actions { display: flex; gap: 10px; margin-top: 4px; }
+        .bounty-actions .btn { flex: 1; }
+        .btn-bounty-confirm { background: linear-gradient(135deg,#7d5a00,#c9960c); color: #ffe066; font-weight: 800; border: none; }
+        .btn-bounty { background: linear-gradient(135deg,#7d5a00,#b8860b); color: #ffe066; }
+        /* Speed round modal */
+        .speed-round-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 1430; display: flex; align-items: flex-end; }
+        .speed-round-sheet { width: 100%; background: linear-gradient(180deg,#1e2a3a,#16202e); border-radius: 20px 20px 0 0; padding: 22px 20px 32px; display: flex; flex-direction: column; gap: 14px; }
+        .speed-prizes { text-align: center; font-size: 16px; font-weight: 800; color: #f1c40f; }
+        .speed-round-btns { display: flex; gap: 12px; }
+        .btn-speed-choice { flex: 1; background: linear-gradient(135deg,#2d1060,#5b2c8d); color: #d7bfff; font-size: 18px; font-weight: 900; border: 1px solid rgba(155,89,182,0.4); border-radius: 14px; padding: 18px 8px; touch-action: manipulation; cursor: pointer; }
+        .btn-speed-round { background: linear-gradient(135deg,#2d1060,#5b2c8d); color: #d7bfff; border: 1px solid rgba(155,89,182,0.3); }
         /* Active effects bar */
         .active-effects-bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 4px; }
         .effect-pill { display: flex; align-items: center; gap: 5px; background: rgba(231,76,60,0.18); border: 1px solid rgba(231,76,60,0.4); border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 700; color: #e74c3c; }
@@ -811,6 +836,9 @@
                 <div style="padding: 25px;">
                     <h3 style="color: #3498db; margin-bottom: 15px; font-size: 24px;">🗺️ License Plates</h3>
                     <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">Tap any state or province when you spot the plate. <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span></p>
+                    <div class="speed-round-banner" id="speedRoundBanner" style="display:none;">
+                        ⚡ Speed Round — <span id="speedRoundCountdown">0:00</span> left!
+                    </div>
                     <div class="active-effects-bar" id="activeEffectsBar" style="display:none;"></div>
                     <div class="states-grid" id="statesGrid"></div>
                 </div>
@@ -828,6 +856,8 @@
                             <button class="btn btn-new-round" id="newRoundBtn">🔁 New Round</button>
                             <button class="btn btn-end-game" id="endGameBtn">🏁 End Game</button>
                             <button class="btn btn-secondary action-span" id="rerollPrizesBtn">🎲 Re-roll Lucky Plate &amp; Chests</button>
+                            <button class="btn btn-bounty" id="placeBountyBtn">💰 Place Bounty</button>
+                            <button class="btn btn-speed-round" id="speedRoundBtn">⚡ Speed Round</button>
                         </div>
                     </div>
 
@@ -1112,6 +1142,43 @@
                     <button class="btn btn-secondary btn-small" id="closeShopBtn">✕</button>
                 </div>
                 <div class="shop-items" id="shopItemsList"></div>
+            </div>
+        </div>
+
+        <!-- Bounty Modal -->
+        <div id="bountyModal" class="bounty-modal" style="display:none;">
+            <div class="bounty-sheet">
+                <div class="bounty-header">
+                    <div class="bounty-title">💰 Place a Bounty</div>
+                    <button class="btn btn-secondary btn-small" onclick="closeBountyModal()">✕</button>
+                </div>
+                <p class="bounty-desc">Deduct coins from your balance and place a bounty on a plate. First player to spot it wins the reward.</p>
+                <div class="bounty-balance">Your balance: 🪙 <span id="bountyHostBalance">0</span></div>
+                <label class="bounty-label">Plate</label>
+                <select id="bountyStateSelect" class="bounty-select"></select>
+                <label class="bounty-label">Reward (🪙)</label>
+                <input id="bountyRewardInput" type="number" min="5" max="500" class="bounty-input" placeholder="e.g. 50">
+                <div class="bounty-actions">
+                    <button class="btn btn-secondary" onclick="closeBountyModal()">Cancel</button>
+                    <button class="btn btn-bounty-confirm" onclick="confirmPlaceBounty()">Place Bounty 💰</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Speed Round Modal -->
+        <div id="speedRoundModal" class="speed-round-modal" style="display:none;">
+            <div class="speed-round-sheet">
+                <div class="bounty-header">
+                    <div class="bounty-title">⚡ Start Speed Round</div>
+                    <button class="btn btn-secondary btn-small" onclick="closeSpeedRoundModal()">✕</button>
+                </div>
+                <p class="bounty-desc">A timed sprint — top 3 plate-finders in the window earn bonus coins. Results posted when time's up.</p>
+                <div class="speed-prizes">🥇 100🪙 &nbsp;·&nbsp; 🥈 60🪙 &nbsp;·&nbsp; 🥉 30🪙</div>
+                <div class="speed-round-btns">
+                    <button class="btn btn-speed-choice" onclick="startSpeedRound(3*60*1000); closeSpeedRoundModal()">3 min</button>
+                    <button class="btn btn-speed-choice" onclick="startSpeedRound(5*60*1000); closeSpeedRoundModal()">5 min</button>
+                    <button class="btn btn-speed-choice" onclick="startSpeedRound(10*60*1000); closeSpeedRoundModal()">10 min</button>
+                </div>
             </div>
         </div>
 
