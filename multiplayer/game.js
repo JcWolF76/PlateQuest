@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427a';
+const APP_VERSION = '20260427b';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -135,6 +135,13 @@ const CHANGELOG = {
         '🔥 Streaks — spot plates in a row within 10 minutes to earn bonus coins',
         '3 plates: +10🪙 · 5 plates: +25🪙 · 10 plates: +50🪙',
         'Streak count shows on your score card when you\'re on a hot run',
+    ],
+    '20260427b': [
+        '💰 Bounties — host can place a coin bounty on any plate; first finder wins the reward',
+        'Bounty amount shows right on the plate card so everyone knows what\'s at stake',
+        '⚡ Speed Round — host launches a timed sprint (3 / 5 / 10 min) for extra coin bonuses',
+        'Top 3 plate-finders in the window earn 100🪙, 60🪙, and 30🪙 — the pack gets final results',
+        '🏁 Blackout — first player to find ALL available plates wins a 500🪙 bonus',
     ],
 };
 
@@ -554,6 +561,8 @@ let prevChatKeys = null;                  // null = not yet initialized; reset o
 let prevReactionKeys = null;             // null = not yet initialized; reset on game exit
 let chatUnreadCount = 0;
 let lastKnownRound = null;       // tracks round number to detect new-round resets
+let speedRoundInterval = null;  // setInterval handle for countdown ticker
+let lastKnownSpeedRoundEnd = null; // dedup speed-round finalization
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
 let pendingDeselect = null;     // stateName waiting for direct-deselect confirm
 let regionMigrationDone = false; // one-time migration guard per session
@@ -1255,6 +1264,12 @@ function bindEventListeners() {
     if (chatPolicyModal) chatPolicyModal.addEventListener('click', e => { if (e.target === chatPolicyModal) chatPolicyModal.classList.remove('visible'); });
     document.getElementById('newRoundBtn')?.addEventListener('click', startNewRound);
     document.getElementById('rerollPrizesBtn')?.addEventListener('click', rerollPrizes);
+    document.getElementById('placeBountyBtn')?.addEventListener('click', openBountyModal);
+    document.getElementById('speedRoundBtn')?.addEventListener('click', openSpeedRoundModal);
+    const bountyModal = document.getElementById('bountyModal');
+    if (bountyModal) bountyModal.addEventListener('click', e => { if (e.target === bountyModal) closeBountyModal(); });
+    const speedRoundModal = document.getElementById('speedRoundModal');
+    if (speedRoundModal) speedRoundModal.addEventListener('click', e => { if (e.target === speedRoundModal) closeSpeedRoundModal(); });
     document.getElementById('shopBtn')?.addEventListener('click', openShopModal);
     document.getElementById('closeShopBtn')?.addEventListener('click', closeShopModal);
     const shopModal = document.getElementById('shopModal');
@@ -1642,6 +1657,8 @@ function updateGameUI() {
         prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
         prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null;
         prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0;
+        lastKnownSpeedRoundEnd = null; blackoutWon = false;
+        if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; }
         endGameScreenShown = false; lastRenderedStateSignature = '';
         closeEndGameScreen();
         showToast('New round started! 🏁 Plates cleared.', 'success');
@@ -1655,6 +1672,8 @@ function updateGameUI() {
     detectPlateDisputeRequests();
     detectNewChatMessages();
     detectNewReactions();
+    detectSpeedRound();
+    detectBlackout();
     autoCleanRegionBackups();
     autoCleanPlateBackups();
     updateAuditBadge();
@@ -1850,8 +1869,10 @@ function renderStates() {
         const firstFinderBadge = claim ? `<div class="ff-tag" title="First found by ${claim.displayName}">${claim.tag}</div>` : '';
         const hasChest = Boolean(gameData?.chests?.[state.name]);
         const isLucky = gameData?.luckyPlateFound?.stateName === state.name;
+        const bountyData = gameData?.bounties?.[state.name];
         const chestBadge = hasChest ? '<div class="chest-badge">🎁</div>' : '';
         const luckyBadge = isLucky ? '<div class="lucky-badge">🍀 Lucky Plate!</div>' : '';
+        const bountyBadge = bountyData ? `<div class="bounty-badge">💰${bountyData.reward}</div>` : '';
 
         card.innerHTML = `
             <div class="license-plate-header">${plateTypeLabel}</div>
@@ -1868,6 +1889,7 @@ function renderStates() {
             ${firstFinderBadge}
             ${chestBadge}
             ${luckyBadge}
+            ${bountyBadge}
             ${foundByMe ? '<button class="clear-req-btn" aria-label="Request host to remove plate">✕</button>' : ''}
         `;
         if (foundByMe) {
@@ -2068,6 +2090,7 @@ async function toggleState(stateName, currentlySelected) {
             showToast(`Found ${stateName}! +${coinsEarned}🪙${isFirstFinder ? ' First finder!' : ''}`, 'success');
             writeRegionCompletions();
             if (gameData?.chests?.[stateName]) claimChest(stateName);
+            if (gameData?.bounties?.[stateName]) claimBounty(stateName);
             if (isFirstFinder && gameData?.luckyPlate === stateName && !gameData?.luckyPlateFound) revealLuckyPlate(stateName);
         }
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
@@ -2179,7 +2202,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -3659,6 +3682,161 @@ function showReactionPop(playerKey, emoji, fromName) {
     setTimeout(() => pop.remove(), 1200);
 }
 
+// ── Bounties ──────────────────────────────────────────────────────────────────
+
+function openBountyModal() {
+    if (!currentGameRef || !currentPlayer) return;
+    const modal = document.getElementById('bountyModal');
+    if (!modal) return;
+    const myCoins = playersData[currentPlayer.playerKey]?.coins || 0;
+    document.getElementById('bountyHostBalance').textContent = myCoins.toLocaleString();
+    const select = document.getElementById('bountyStateSelect');
+    select.innerHTML = '';
+    const entries = getActivePlateEntries(gameData?.settings?.plateScope);
+    entries.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.name;
+        const existing = gameData?.bounties?.[e.name];
+        opt.textContent = existing ? `${e.name} (bounty: ${existing.reward}🪙)` : e.name;
+        select.appendChild(opt);
+    });
+    document.getElementById('bountyRewardInput').value = '30';
+    modal.style.display = 'flex';
+}
+
+function closeBountyModal() {
+    const modal = document.getElementById('bountyModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function confirmPlaceBounty() {
+    const stateName = document.getElementById('bountyStateSelect').value;
+    const reward = parseInt(document.getElementById('bountyRewardInput').value, 10);
+    if (!stateName || !reward || reward < 5) { showToast('Enter a reward of at least 5🪙', 'error'); return; }
+    const myCoins = playersData[currentPlayer.playerKey]?.coins || 0;
+    if (reward > myCoins) { showToast('Not enough coins!', 'error'); return; }
+    closeBountyModal();
+    await currentGameRef.update({
+        [`bounties/${stateName}`]: { reward, placedBy: currentPlayer.displayName, placedByKey: currentPlayer.playerKey, placedAt: Date.now() },
+        [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-reward),
+    });
+    showToast(`💰 Bounty placed on ${stateName}: ${reward}🪙!`, 'success');
+}
+
+async function claimBounty(stateName) {
+    const bounty = gameData?.bounties?.[stateName];
+    if (!bounty || !currentGameRef || !currentPlayer) return;
+    await currentGameRef.update({
+        [`bounties/${stateName}`]: null,
+        [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(bounty.reward),
+    });
+    showToast(`💰 Bounty claimed! +${bounty.reward}🪙`, 'success');
+}
+
+// ── Speed Round ───────────────────────────────────────────────────────────────
+
+function openSpeedRoundModal() {
+    if (gameData?.speedRound?.active) { showToast('A speed round is already running!', 'info'); return; }
+    const modal = document.getElementById('speedRoundModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeSpeedRoundModal() {
+    const modal = document.getElementById('speedRoundModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function startSpeedRound(durationMs) {
+    closeSpeedRoundModal();
+    if (!currentGameRef || gameData?.hostPlayerKey !== currentPlayer?.playerKey) return;
+    const startedAt = Date.now();
+    await currentGameRef.update({ speedRound: { active: true, startedAt, durationMs } });
+    showToast(`⚡ Speed Round started! ${durationMs / 60000} minutes — go!`, 'success');
+}
+
+function detectSpeedRound() {
+    const sr = gameData?.speedRound;
+    const banner = document.getElementById('speedRoundBanner');
+    if (!banner) return;
+
+    if (!sr?.active) {
+        banner.style.display = 'none';
+        if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; }
+        return;
+    }
+
+    banner.style.display = '';
+
+    const endsAt = sr.startedAt + sr.durationMs;
+    const isHost = gameData?.hostPlayerKey === currentPlayer?.playerKey;
+
+    function tick() {
+        const remaining = endsAt - Date.now();
+        if (remaining <= 0) {
+            clearInterval(speedRoundInterval);
+            speedRoundInterval = null;
+            banner.style.display = 'none';
+            if (isHost && lastKnownSpeedRoundEnd !== sr.startedAt) {
+                lastKnownSpeedRoundEnd = sr.startedAt;
+                finalizeSpeedRound(sr);
+            }
+            return;
+        }
+        const m = Math.floor(remaining / 60000);
+        const s = Math.ceil((remaining % 60000) / 1000);
+        const el = document.getElementById('speedRoundCountdown');
+        if (el) el.textContent = `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    if (!speedRoundInterval) {
+        tick();
+        speedRoundInterval = setInterval(tick, 500);
+    }
+}
+
+async function finalizeSpeedRound(sr) {
+    if (!currentGameRef) return;
+    const { startedAt, durationMs } = sr;
+    const endedAt = startedAt + durationMs;
+
+    const results = Object.values(playersData).map(p => {
+        const duringRound = Object.values(p.states || {}).filter(s => {
+            const t = typeof s.foundAt === 'number' ? s.foundAt : 0;
+            return t >= startedAt && t <= endedAt;
+        }).length;
+        return { playerKey: p.playerKey, displayName: p.displayName, count: duringRound };
+    }).filter(r => r.count > 0).sort((a, b) => b.count - a.count);
+
+    const SPEED_PRIZES = [100, 60, 30];
+    const updates = { 'speedRound/active': false };
+    results.slice(0, 3).forEach((r, i) => {
+        updates[`players/${r.playerKey}/coins`] = firebase.database.ServerValue.increment(SPEED_PRIZES[i]);
+    });
+    await currentGameRef.update(updates).catch(() => {});
+
+    const lines = results.slice(0, 3).map((r, i) => `${['🥇','🥈','🥉'][i]} ${r.displayName}: ${r.count} plates (+${SPEED_PRIZES[i]}🪙)`).join('\n');
+    const summary = results.length ? `⚡ Speed Round over!\n${lines}` : '⚡ Speed Round over — no plates found!';
+    showToast(summary, 'success');
+}
+
+// ── Blackout ──────────────────────────────────────────────────────────────────
+
+const BLACKOUT_BONUS = 500;
+let blackoutWon = false;
+
+function detectBlackout() {
+    if (blackoutWon || !gameData || !currentPlayer) return;
+    const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
+    if (totalPlates === 0) return;
+    const myStates = getMyStatesMap();
+    const myCount = Object.keys(myStates).length;
+    if (myCount < totalPlates) return;
+    blackoutWon = true;
+    currentGameRef?.child(`players/${currentPlayer.playerKey}/coins`)
+        .transaction(c => (c || 0) + BLACKOUT_BONUS).catch(() => {});
+    showToast(`🏁 BLACKOUT! You found every plate! +${BLACKOUT_BONUS}🪙`, 'success');
+}
+
 async function claimChest(stateName) {
     const chest = gameData?.chests?.[stateName];
     if (!chest || !currentGameRef || !currentPlayer) return;
@@ -3719,6 +3897,8 @@ async function startNewRound() {
         updates.taunts = null;
         updates.announcements = null;
         updates.reactions = null;
+        updates.bounties = null;
+        updates.speedRound = null;
         updates.luckyPlate = null;
         updates.luckyPlateFound = null;
         updates.chests = null;
