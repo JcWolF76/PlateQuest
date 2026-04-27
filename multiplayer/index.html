@@ -546,6 +546,15 @@
         .coin-wallet { display:inline-flex; align-items:center; gap:6px; background:rgba(241,196,15,0.12); border:1px solid rgba(241,196,15,0.3); border-radius:20px; padding:5px 14px; font-size:15px; font-weight:800; color:#f1c40f; margin-top:10px; letter-spacing:0.3px; }
         .coin-wallet-label { font-size:10px; font-weight:600; opacity:0.7; letter-spacing:1px; text-transform:uppercase; }
         .badge-mini { font-size:16px; line-height:1; pointer-events:none; }
+        .score-ach-count { font-size:11px; color:#f1c40f; font-weight:700; margin-bottom:4px; opacity:0.9; }
+        /* ── Achievements grid ── */
+        .achievement-grid { display:flex; flex-wrap:wrap; gap:8px; }
+        .ach-chip { display:flex; flex-direction:column; align-items:center; text-align:center; border-radius:12px; padding:9px 8px 7px; gap:4px; min-width:68px; max-width:88px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); transition:opacity 0.15s; }
+        .ach-chip.earned { background:rgba(241,196,15,0.12); border-color:rgba(241,196,15,0.35); }
+        .ach-chip.locked { opacity:0.28; filter:grayscale(1); }
+        .ach-chip-icon { font-size:22px; line-height:1; }
+        .ach-chip-name { font-size:9px; font-weight:800; color:#ecf0f1; letter-spacing:0.2px; line-height:1.2; }
+        .ach-chip-date { font-size:9px; color:#f1c40f; font-weight:600; }
 
         /* ── Player Detail Modal ── */
         .player-detail-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.78); z-index:1200; padding:18px; }
@@ -1031,6 +1040,10 @@
                 <div>
                     <div class="detail-section-title">📊 Score Breakdown</div>
                     <div id="detailBreakdownGrid" class="breakdown-grid"></div>
+                </div>
+                <div>
+                    <div class="detail-section-title">🏆 Achievements</div>
+                    <div id="detailAchievementGrid" class="achievement-grid"></div>
                 </div>
                 <div>
                     <div class="detail-section-title">🗺️ Plates Found</div>

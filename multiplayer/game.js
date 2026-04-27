@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427b';
+const APP_VERSION = '20260427c';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -37,6 +37,51 @@ const STREAK_BONUSES = [
     { count: 3,  coins: 10 },
     { count: 5,  coins: 25 },
     { count: 10, coins: 50 },
+];
+
+// check(stats, player, totalPlates) — undefined check means manually awarded
+const ACHIEVEMENTS = [
+    { id: 'first_plate',  icon: '🥇', name: 'First Find',       desc: 'Spot your very first plate',
+      check: s         => s.foundCount >= 1 },
+    { id: 'plates_10',   icon: '🔟', name: 'Tenner',            desc: 'Find 10 plates',
+      check: s         => s.foundCount >= 10 },
+    { id: 'plates_25',   icon: '💪', name: 'Quarter Century',   desc: 'Find 25 plates',
+      check: s         => s.foundCount >= 25 },
+    { id: 'plates_50',   icon: '🏅', name: 'Half Century',      desc: 'Find 50 plates',
+      check: s         => s.foundCount >= 50 },
+    { id: 'plates_all',  icon: '🏆', name: 'Road Legend',       desc: 'Find every available plate',
+      check: (s,_,t)   => t > 0 && s.foundCount >= t },
+    { id: 'ff_1',        icon: '⭐', name: 'Eagle Eye',         desc: 'Be first finder on any plate',
+      check: s         => s.firstCount >= 1 },
+    { id: 'ff_5',        icon: '🌟', name: 'Sharp Spotter',     desc: 'First finder on 5 plates',
+      check: s         => s.firstCount >= 5 },
+    { id: 'ff_15',       icon: '💫', name: 'First Hunter',      desc: 'First finder on 15 plates',
+      check: s         => s.firstCount >= 15 },
+    { id: 'region_1',   icon: '🗺️', name: 'Regional Scout',   desc: 'Complete any region or sub-region',
+      check: s         => (s.completedSubBonuses?.length||0) + (s.completedRegionBonuses?.length||0) >= 1 },
+    { id: 'region_3',   icon: '🌎', name: 'Road Mapper',        desc: 'Complete 3 regions',
+      check: s         => (s.completedSubBonuses?.length||0) + (s.completedRegionBonuses?.length||0) >= 3 },
+    { id: 'corridor',   icon: '🛣️', name: 'The Corridor',       desc: 'Complete the full travel corridor',
+      check: s         => s.corridorComplete },
+    { id: 'streak_5',   icon: '🔥', name: 'On Fire',            desc: 'Build a 5-plate streak',
+      check: (s,p)     => (p?.streak?.count||0) >= 5 },
+    { id: 'streak_10',  icon: '🌋', name: 'Unstoppable',        desc: 'Build a 10-plate streak',
+      check: (s,p)     => (p?.streak?.count||0) >= 10 },
+    { id: 'coins_100',  icon: '💰', name: 'Coin Collector',     desc: 'Hold 100 coins at once',
+      check: (s,p)     => (p?.coins||0) >= 100 },
+    { id: 'coins_500',  icon: '💎', name: 'High Roller',        desc: 'Hold 500 coins at once',
+      check: (s,p)     => (p?.coins||0) >= 500 },
+    { id: 'alaska',     icon: '🧊', name: 'Frozen North',       desc: 'Spot Alaska',
+      check: s         => s.foundSet?.has('Alaska') },
+    { id: 'hawaii',     icon: '🌺', name: 'Aloha!',             desc: 'Spot Hawaii',
+      check: s         => s.foundSet?.has('Hawaii') },
+    { id: 'dc',         icon: '🏛️', name: 'Capital Spotter',   desc: 'Spot Washington DC',
+      check: s         => s.foundSet?.has('Washington DC') },
+    { id: 'lucky',      icon: '🍀', name: 'Lucky Break',        desc: 'Find the Lucky Plate',
+      check: (s,p)     => gameData?.luckyPlateFound?.foundByKey === p?.playerKey },
+    // manually awarded:
+    { id: 'bounty_hunter', icon: '🎯', name: 'Bounty Hunter',   desc: 'Claim a bounty on any plate' },
+    { id: 'speed_podium',  icon: '⚡', name: 'Road Sprinter',   desc: 'Finish top 3 in a Speed Round' },
 ];
 
 const COIN_RATES = {
@@ -142,6 +187,12 @@ const CHANGELOG = {
         '⚡ Speed Round — host launches a timed sprint (3 / 5 / 10 min) for extra coin bonuses',
         'Top 3 plate-finders in the window earn 100🪙, 60🪙, and 30🪙 — the pack gets final results',
         '🏁 Blackout — first player to find ALL available plates wins a 500🪙 bonus',
+    ],
+    '20260427c': [
+        '🏆 Achievements — 21 unlockable milestones tracked per player per game',
+        'Eagle Eye, Road Legend, Unstoppable, Lucky Break, Bounty Hunter, and more',
+        'Achievements show in your player profile with locked/unlocked status',
+        'Your achievement count is visible on your score card for the whole pack to see',
     ],
 };
 
@@ -563,6 +614,8 @@ let chatUnreadCount = 0;
 let lastKnownRound = null;       // tracks round number to detect new-round resets
 let speedRoundInterval = null;  // setInterval handle for countdown ticker
 let lastKnownSpeedRoundEnd = null; // dedup speed-round finalization
+let pendingAchievements = new Set(); // IDs written this session — prevents double-toast
+let lastAchievementCheck = 0;       // timestamp of last checkAchievements call
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
 let pendingDeselect = null;     // stateName waiting for direct-deselect confirm
 let regionMigrationDone = false; // one-time migration guard per session
@@ -1657,7 +1710,7 @@ function updateGameUI() {
         prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
         prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null;
         prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0;
-        lastKnownSpeedRoundEnd = null; blackoutWon = false;
+        lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0;
         if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; }
         endGameScreenShown = false; lastRenderedStateSignature = '';
         closeEndGameScreen();
@@ -1674,6 +1727,10 @@ function updateGameUI() {
     detectNewReactions();
     detectSpeedRound();
     detectBlackout();
+    if (Date.now() - lastAchievementCheck > 4000) {
+        lastAchievementCheck = Date.now();
+        checkAchievements(currentPlayer.playerKey).catch(() => {});
+    }
     autoCleanRegionBackups();
     autoCleanPlateBackups();
     updateAuditBadge();
@@ -1751,6 +1808,8 @@ function updateScores() {
         const streak = player.streak || { count: 0, lastFoundAt: 0 };
         const streakActive = streak.count >= 3 && (Date.now() - (streak.lastFoundAt || 0)) <= STREAK_WINDOW_MS;
         const streakBadge = streakActive ? `<div class="streak-badge">🔥×${streak.count}</div>` : '';
+        const achCount = Object.keys(player.achievements || {}).length;
+        const achLine = achCount > 0 ? `<div class="score-ach-count">🏆 ${achCount} achievement${achCount !== 1 ? 's' : ''}</div>` : '';
         const reactionRow = !isMe ? `<div class="reaction-row">${REACTION_EMOJIS.map(e => `<button class="reaction-btn" data-emoji="${e}" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">${e}</button>`).join('')}</div>` : '';
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}`;
@@ -1766,6 +1825,7 @@ function updateScores() {
             <div class="score-pts">${fogged ? '🌫️' : player.score}<span class="score-pts-label">${fogged ? '' : ' pts'}</span></div>
             <div class="score-meta">${fogged ? '— hidden in fog —' : `${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds`}</div>
             <div class="score-coins">${fogged ? '' : `🪙 ${coins.toLocaleString()} coins`}</div>
+            ${fogged ? '' : achLine}
             ${badgeRow}
             ${reactionRow}
         `;
@@ -2202,7 +2262,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -3549,6 +3609,21 @@ function openPlayerDetail(playerKey) {
         }).join('') || '<div class="detail-empty">No plates found yet.</div>';
     }
 
+    // Achievements
+    const achGrid = document.getElementById('detailAchievementGrid');
+    if (achGrid) {
+        const earnedMap = player.achievements || {};
+        achGrid.innerHTML = ACHIEVEMENTS.map(ach => {
+            const earned = earnedMap[ach.id];
+            const earnedDate = earned ? new Date(earned).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+            return `<div class="ach-chip${earned ? ' earned' : ' locked'}" title="${ach.desc}${earnedDate ? ' · ' + earnedDate : ''}">
+                <div class="ach-chip-icon">${ach.icon}</div>
+                <div class="ach-chip-name">${ach.name}</div>
+                ${earned ? `<div class="ach-chip-date">${earnedDate}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
     modal.classList.add('visible');
     modal.style.display = 'flex';
 }
@@ -3731,6 +3806,7 @@ async function claimBounty(stateName) {
         [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(bounty.reward),
     });
     showToast(`💰 Bounty claimed! +${bounty.reward}🪙`, 'success');
+    awardManualAchievement('bounty_hunter');
 }
 
 // ── Speed Round ───────────────────────────────────────────────────────────────
@@ -3817,6 +3893,46 @@ async function finalizeSpeedRound(sr) {
     const lines = results.slice(0, 3).map((r, i) => `${['🥇','🥈','🥉'][i]} ${r.displayName}: ${r.count} plates (+${SPEED_PRIZES[i]}🪙)`).join('\n');
     const summary = results.length ? `⚡ Speed Round over!\n${lines}` : '⚡ Speed Round over — no plates found!';
     showToast(summary, 'success');
+    const myRank = results.findIndex(r => r.playerKey === currentPlayer?.playerKey);
+    if (myRank >= 0 && myRank <= 2) awardManualAchievement('speed_podium');
+}
+
+// ── Achievements ──────────────────────────────────────────────────────────────
+
+async function checkAchievements(playerKey) {
+    if (!currentGameRef || !playerKey) return;
+    const player = playersData[playerKey];
+    if (!player) return;
+    const stats = computePlayerStats(playerKey);
+    if (!stats) return;
+    const existing = player.achievements || {};
+    const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
+
+    const updates = {};
+    const newOnes = [];
+    for (const ach of ACHIEVEMENTS) {
+        if (!ach.check) continue;
+        if (existing[ach.id] || pendingAchievements.has(ach.id)) continue;
+        if (ach.check(stats, player, totalPlates)) {
+            pendingAchievements.add(ach.id);
+            updates[`players/${playerKey}/achievements/${ach.id}`] = Date.now();
+            newOnes.push(ach);
+        }
+    }
+    if (Object.keys(updates).length === 0) return;
+    await currentGameRef.update(updates);
+    newOnes.forEach(ach => showToast(`🏆 ${ach.icon} ${ach.name} unlocked!`, 'success'));
+}
+
+function awardManualAchievement(achievementId) {
+    if (!currentGameRef || !currentPlayer) return;
+    const existing = playersData[currentPlayer.playerKey]?.achievements || {};
+    if (existing[achievementId] || pendingAchievements.has(achievementId)) return;
+    const ach = ACHIEVEMENTS.find(a => a.id === achievementId);
+    if (!ach) return;
+    pendingAchievements.add(achievementId);
+    currentGameRef.update({ [`players/${currentPlayer.playerKey}/achievements/${achievementId}`]: Date.now() }).catch(() => {});
+    showToast(`🏆 ${ach.icon} ${ach.name} unlocked!`, 'success');
 }
 
 // ── Blackout ──────────────────────────────────────────────────────────────────
