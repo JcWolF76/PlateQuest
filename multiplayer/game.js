@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260426b';
+const APP_VERSION = '20260426c';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -114,6 +114,12 @@ const CHANGELOG = {
         '⏸️ Time Freeze (75🪙) — blocks other players from spotting plates for 2 minutes',
         '🌫️ Fog of War (50🪙) — hides all scores from other players for 5 minutes',
         '🛡️ Shield (35🪙) — blocks the next trick used against you',
+    ],
+    '20260426c': [
+        '🍀 Lucky Plate — one secret plate is worth triple points. Find it to win big.',
+        '🎁 Hidden Chests — scattered across plates, each holds coins, a trick, or a shield',
+        'Chests appear as 🎁 on unclaimed plates — claim the plate to open the chest',
+        'Host can re-roll prizes anytime with the new 🎲 Re-roll button in Host Controls',
     ],
 };
 
@@ -1232,6 +1238,7 @@ function bindEventListeners() {
     const chatPolicyModal = document.getElementById('chatPolicyModal');
     if (chatPolicyModal) chatPolicyModal.addEventListener('click', e => { if (e.target === chatPolicyModal) chatPolicyModal.classList.remove('visible'); });
     document.getElementById('newRoundBtn')?.addEventListener('click', startNewRound);
+    document.getElementById('rerollPrizesBtn')?.addEventListener('click', rerollPrizes);
     document.getElementById('shopBtn')?.addEventListener('click', openShopModal);
     document.getElementById('closeShopBtn')?.addEventListener('click', closeShopModal);
     const shopModal = document.getElementById('shopModal');
@@ -1488,6 +1495,7 @@ async function createGame() {
             players: { [currentPlayer.playerKey]: buildPlayerRoomRecord(currentPlayer, { isHost: true }) }
         };
         await roomRef.set(roomData);
+        await assignGamePrizes(code, plateScope);
         clearPendingJoinReload();
         await connectToGame(code, { showJoinedToast: true, joinedMessage: `Pack "${gameName}" created! 🐺` });
     } catch (error) {
@@ -1633,6 +1641,7 @@ function updateGameUI() {
     autoCleanRegionBackups();
     autoCleanPlateBackups();
     updateAuditBadge();
+    detectLuckyPlateReveal();
     maybeRunRegionMigration();
     const isHost = gameData?.hostPlayerKey === currentPlayer.playerKey;
     const isEnded = gameData?.status === 'ended';
@@ -1806,6 +1815,10 @@ function renderStates() {
         const rarityCfg = RARITY_CONFIG[rarityTier];
         const rarityBadge = `<div class="rarity-badge rarity-${rarityTier}" title="${rarityCfg.label} · ${rarityCfg.points} pts first find">${rarityCfg.points}pt</div>`;
         const firstFinderBadge = claim ? `<div class="ff-tag" title="First found by ${claim.displayName}">${claim.tag}</div>` : '';
+        const hasChest = Boolean(gameData?.chests?.[state.name]);
+        const isLucky = gameData?.luckyPlateFound?.stateName === state.name;
+        const chestBadge = hasChest ? '<div class="chest-badge">🎁</div>' : '';
+        const luckyBadge = isLucky ? '<div class="lucky-badge">🍀 Lucky Plate!</div>' : '';
 
         card.innerHTML = `
             <div class="license-plate-header">${plateTypeLabel}</div>
@@ -1820,6 +1833,8 @@ function renderStates() {
             </div>
             ${rarityBadge}
             ${firstFinderBadge}
+            ${chestBadge}
+            ${luckyBadge}
             ${foundByMe ? '<button class="clear-req-btn" aria-label="Request host to remove plate">✕</button>' : ''}
         `;
         if (foundByMe) {
@@ -2018,6 +2033,8 @@ async function toggleState(stateName, currentlySelected) {
             currentGameRef.child(`players/${currentPlayer.playerKey}`).update({ coins: firebase.database.ServerValue.increment(coinsEarned) }).catch(() => {});
             showToast(`Found ${stateName}! +${coinsEarned}🪙${isFirstFinder ? ' First finder!' : ''}`, 'success');
             writeRegionCompletions();
+            if (gameData?.chests?.[stateName]) claimChest(stateName);
+            if (isFirstFinder && gameData?.luckyPlate === stateName && !gameData?.luckyPlateFound) revealLuckyPlate(stateName);
         }
         await currentGameRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
         lastSyncAt = Date.now();
@@ -2128,7 +2145,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -3238,13 +3255,15 @@ function computePlayerStats(playerKey) {
     const corridor = gameData?.settings?.playAreaStates || [];
     const useGps = gameData?.settings?.gpsRarity;
     let score = 0;
+    const luckyStateName = gameData?.luckyPlateFound?.stateName;
     foundSet.forEach(name => {
         const stateData = player.states?.[name];
         const effectiveCorridor = (useGps && stateData?.foundNearState) ? [stateData.foundNearState] : corridor;
         const tier = computeRarityForState(name, effectiveCorridor);
         const pts = RARITY_CONFIG[tier].points;
         const isFirst = gameData?.claimedStates?.[name]?.playerKey === playerKey;
-        score += isFirst ? pts : pts / 2;
+        const multiplier = (isFirst && name === luckyStateName) ? 3 : 1;
+        score += isFirst ? pts * multiplier : pts / 2;
     });
 
     // Sub-region completions — rarity-weighted: max(60, raritySum × 1.5), first/later split
@@ -3498,6 +3517,85 @@ async function endGame() {
     }
 }
 
+// ── Lucky Plate + Hidden Chests ───────────────────────────────────────────────
+
+const CHEST_PRIZES = [
+    { prize: 'coins', amount: 30 },
+    { prize: 'coins', amount: 50 },
+    { prize: 'coins', amount: 75 },
+    { prize: 'trick', effectKey: 'blender', name: 'Blender', icon: '🌀' },
+    { prize: 'trick', effectKey: 'freeze',  name: 'Time Freeze', icon: '⏸️' },
+    { prize: 'trick', effectKey: 'fog',     name: 'Fog of War', icon: '🌫️' },
+    { prize: 'shield', name: 'Shield', icon: '🛡️' },
+];
+
+async function assignGamePrizes(gameCode, plateScope) {
+    if (!gameCode) return;
+    const entries = getActivePlateEntries(plateScope);
+    if (entries.length < 3) return;
+    const shuffled = [...entries].sort(() => Math.random() - 0.5);
+    const luckyPlate = shuffled[0].name;
+    const chestCount = Math.max(3, Math.min(10, Math.floor(entries.length * 0.06)));
+    const chests = {};
+    shuffled.slice(1, chestCount + 1).forEach(e => {
+        chests[e.name] = CHEST_PRIZES[Math.floor(Math.random() * CHEST_PRIZES.length)];
+    });
+    await database.ref(`games/${gameCode}`).update({ luckyPlate, chests });
+}
+
+let lastKnownLuckyFound = null;
+
+function detectLuckyPlateReveal() {
+    const found = gameData?.luckyPlateFound;
+    if (!found || found.foundAt === lastKnownLuckyFound) return;
+    lastKnownLuckyFound = found.foundAt;
+    if (found.foundByKey === currentPlayer?.playerKey) return; // showed in toggleState
+    showToast(`🍀 ${found.foundBy} found the Lucky Plate — ${found.stateName}! Triple points!`, 'success');
+}
+
+async function claimChest(stateName) {
+    const chest = gameData?.chests?.[stateName];
+    if (!chest || !currentGameRef || !currentPlayer) return;
+    const updates = { [`chests/${stateName}`]: null };
+
+    if (chest.prize === 'coins') {
+        updates[`players/${currentPlayer.playerKey}/coins`] = firebase.database.ServerValue.increment(chest.amount);
+        showToast(`🎁 Chest! +${chest.amount}🪙`, 'success');
+    } else if (chest.prize === 'trick') {
+        const shopItem = SHOP_ITEMS.find(i => i.effectKey === chest.effectKey);
+        const expiry = Date.now() + (shopItem?.duration || 3 * 60 * 1000);
+        const others = Object.values(playersData).filter(p => p.playerKey !== currentPlayer.playerKey);
+        await Promise.all(others.map(t =>
+            currentGameRef.child(`players/${t.playerKey}/effects`).transaction(ex => {
+                if (ex?.shield) { updates[`players/${t.playerKey}/effects/shield`] = null; return { ...ex, shield: null }; }
+                return { ...(ex || {}), [chest.effectKey]: expiry };
+            })
+        ));
+        showToast(`🎁 Chest! ${chest.icon} ${chest.name} activated on the pack!`, 'success');
+    } else if (chest.prize === 'shield') {
+        updates[`players/${currentPlayer.playerKey}/effects/shield`] = true;
+        showToast('🎁 Chest! 🛡️ Shield equipped!', 'success');
+    }
+
+    await currentGameRef.update(updates);
+}
+
+async function revealLuckyPlate(stateName) {
+    const bonusCoins = 75;
+    await currentGameRef.update({
+        luckyPlateFound: { stateName, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey, foundAt: Date.now() },
+        [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(bonusCoins),
+    });
+    showToast(`🍀 YOU found the Lucky Plate — ${stateName}! Triple points + ${bonusCoins}🪙!`, 'success');
+}
+
+async function rerollPrizes() {
+    if (!currentGameRef || gameData?.hostPlayerKey !== currentPlayer?.playerKey) return;
+    await currentGameRef.update({ luckyPlate: null, luckyPlateFound: null, chests: null });
+    await assignGamePrizes(currentGameCode, gameData?.settings?.plateScope);
+    showToast('🎲 Prizes re-rolled!', 'success');
+}
+
 async function startNewRound() {
     if (!currentGameRef || !currentPlayer) return;
     if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
@@ -3514,11 +3612,15 @@ async function startNewRound() {
         updates.completedCorridor = null;
         updates.taunts = null;
         updates.announcements = null;
+        updates.luckyPlate = null;
+        updates.luckyPlateFound = null;
+        updates.chests = null;
         updates.status = 'active';
         updates.endedAt = null;
         updates.roundNumber = (room.roundNumber || 1) + 1;
         updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         await currentGameRef.update(updates);
+        await assignGamePrizes(currentGameCode, room.settings?.plateScope);
     } catch (err) {
         console.error('Error starting new round:', err);
         showToast('Failed to start new round.', 'error');
