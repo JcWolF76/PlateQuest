@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427d';
+const APP_VERSION = '20260427e';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -199,6 +199,10 @@ const CHANGELOG = {
         'Your target shows as a private banner above the plate grid — only you can see it',
         '⚔️ Rivalries — challenge any player to a rivalry; head-to-head comparison shows in their profile',
         '🔔 Sudden Death — host announces a plate; first player to tap it wins 150🪙',
+    ],
+    '20260427e': [
+        '🔍 Audit expanded — now checks and repairs coin balances and missing achievements for all players',
+        '🔢 Developer PIN keypad fixed — digits now register correctly on all devices',
     ],
 };
 
@@ -1420,11 +1424,12 @@ function bindEventListeners() {
     document.getElementById('activityBtn')?.addEventListener('click', toggleActivityFeed);
     document.getElementById('closeActivityBtn')?.addEventListener('click', closeActivityFeed);
     document.getElementById('wolfAdminBtn')?.addEventListener('click', () => window.open('admin.html', '_blank'));
-    // Wolf PIN modal
+    // Wolf PIN modal — use delegation so clicks on inner <span> still resolve to the button
     document.getElementById('wolfPinCancelBtn')?.addEventListener('click', closeWolfPinModal);
     document.getElementById('wolfPinBackBtn')?.addEventListener('click', wolfPinBackspace);
-    document.querySelectorAll('.wolf-pin-key[data-digit]').forEach(key => {
-        key.addEventListener('click', () => wolfPinDigit(key.dataset.digit));
+    document.getElementById('wolfPinModal')?.addEventListener('click', e => {
+        const btn = e.target.closest('.wolf-pin-key[data-digit]');
+        if (btn) wolfPinDigit(btn.dataset.digit);
     });
     // Feedback modal
     document.querySelectorAll('.open-feedback-btn').forEach(btn => btn.addEventListener('click', openFeedbackModal));
@@ -2731,8 +2736,8 @@ async function runAuditCorrections() {
         return;
     }
 
-    const { corrections, regionCorrections } = results;
-    const totalFixes = corrections.length + regionCorrections.length;
+    const { corrections, regionCorrections, coinCorrections, achievementCorrections } = results;
+    const totalFixes = corrections.length + regionCorrections.length + coinCorrections.length + achievementCorrections.length;
 
     if (!totalFixes) {
         body.innerHTML = '<div class="audit-ok">✅ All records are accurate — no changes needed.</div>';
@@ -2757,8 +2762,19 @@ async function runAuditCorrections() {
             }
         });
 
-        // Region / corridor completion fixes (force-write, bypasses transaction guards)
+        // Region / corridor completion fixes
         regionCorrections.forEach(c => { updates[c.path] = c.value; });
+
+        // Coin top-ups (only ever increase, never decrease)
+        coinCorrections.forEach(c => {
+            updates[`players/${c.playerKey}/coins`] = firebase.database.ServerValue.increment(c.delta);
+        });
+
+        // Achievement awards
+        const now = Date.now();
+        achievementCorrections.forEach(c => {
+            updates[`players/${c.playerKey}/achievements/${c.achId}`] = now;
+        });
 
         updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         await currentGameRef.update(updates);
@@ -2774,15 +2790,24 @@ async function runAuditCorrections() {
             const arrow = c.oldName ? `${c.oldName} → <strong>${c.newName}</strong>` : `<strong>${c.newName}</strong> set as first completer`;
             return `<div class="audit-item">🗺️ <strong>${c.label}</strong>: ${arrow}</div>`;
         }).join('');
+        const coinItems = coinCorrections.map(c =>
+            `<div class="audit-item">🪙 <strong>${c.playerName}</strong>: ${c.currentCoins} → ${c.expectedCoins} coins (+${c.delta})</div>`
+        ).join('');
+        const achItems = achievementCorrections.map(c =>
+            `<div class="audit-item">🏆 <strong>${c.playerName}</strong>: ${c.achIcon} ${c.achName} awarded</div>`
+        ).join('');
         const overflow = corrections.length > MAX_SHOWN ? `<div class="audit-more">…and ${corrections.length - MAX_SHOWN} more plate fixes</div>` : '';
 
-        let summary = '';
-        if (corrections.length) summary += `${corrections.length} plate first-finder record${corrections.length === 1 ? '' : 's'}`;
-        if (regionCorrections.length) summary += (summary ? ' · ' : '') + `${regionCorrections.length} region completion record${regionCorrections.length === 1 ? '' : 's'}`;
+        const parts = [];
+        if (corrections.length) parts.push(`${corrections.length} plate record${corrections.length === 1 ? '' : 's'}`);
+        if (regionCorrections.length) parts.push(`${regionCorrections.length} region record${regionCorrections.length === 1 ? '' : 's'}`);
+        if (coinCorrections.length) parts.push(`${coinCorrections.length} coin balance${coinCorrections.length === 1 ? '' : 's'}`);
+        if (achievementCorrections.length) parts.push(`${achievementCorrections.length} achievement${achievementCorrections.length === 1 ? '' : 's'}`);
+        const summary = parts.join(' · ');
 
         body.innerHTML = `
-            <div class="audit-ok">✅ Fixed ${summary} — scores &amp; badges updated for all players.</div>
-            <div class="audit-list" style="margin-top:10px">${plateItems}${overflow}${regionItems}</div>`;
+            <div class="audit-ok">✅ Fixed ${summary}.</div>
+            <div class="audit-list" style="margin-top:10px">${plateItems}${overflow}${regionItems}${coinItems}${achItems}</div>`;
         showToast(`✅ Audit fixed ${summary}`, 'success');
         renderRegionRecords();
     } catch (err) {
@@ -3248,7 +3273,54 @@ async function computeAuditCorrections() {
             }
         }
 
-        return { corrections, regionCorrections, players };
+        // ── Coin corrections ─────────────────────────────────────────────────────
+        const coinCorrections = [];
+        Object.entries(players).forEach(([playerKey, playerData]) => {
+            const foundSet = new Set(Object.keys(playerData.states || {}));
+            const foundCount = foundSet.size;
+            const firstCount = Array.from(foundSet).filter(name => currentClaims[name]?.playerKey === playerKey).length;
+
+            let expected = foundCount * COIN_RATES.plateFind + firstCount * COIN_RATES.plateFirst;
+            Object.keys(room.completedSubRegions || {}).forEach(key => {
+                if (room.completedSubRegions[key]?.playerKey === playerKey) expected += COIN_RATES.subRegionFirst;
+            });
+            Object.keys(room.completedRegions || {}).forEach(key => {
+                if (room.completedRegions[key]?.playerKey === playerKey) expected += COIN_RATES.primaryRegionFirst;
+            });
+            if (room.completedCorridor?.playerKey === playerKey) expected += COIN_RATES.corridorFirst;
+
+            const actual = playerData.coins || 0;
+            if (actual < expected) {
+                coinCorrections.push({ playerKey, playerName: playerData.displayName || playerKey, currentCoins: actual, expectedCoins: expected, delta: expected - actual });
+            }
+        });
+
+        // ── Achievement corrections ───────────────────────────────────────────────
+        const achievementCorrections = [];
+        const totalPlatesForAudit = getActivePlateEntries(room.settings?.plateScope).length;
+        Object.entries(players).forEach(([playerKey, playerData]) => {
+            const existing = playerData.achievements || {};
+            const foundSet = new Set(Object.keys(playerData.states || {}));
+            const foundCount = foundSet.size;
+            const firstCount = Array.from(foundSet).filter(name => currentClaims[name]?.playerKey === playerKey).length;
+            const completedRegions = Object.entries(REGION_STATES)
+                .filter(([, states]) => states.every(s => foundSet.has(s))).map(([key]) => key);
+            const corridorStates = room.settings?.playAreaStates || [];
+            const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
+            const stats = { foundSet, foundCount, firstCount, completedRegions, corridorComplete };
+
+            ACHIEVEMENTS.forEach(ach => {
+                if (!ach.check || existing[ach.id]) return;
+                try {
+                    const passes = ach.id === 'lucky'
+                        ? room.luckyPlateFound?.foundByKey === playerKey
+                        : ach.check(stats, playerData, totalPlatesForAudit);
+                    if (passes) achievementCorrections.push({ playerKey, playerName: playerData.displayName || playerKey, achId: ach.id, achName: ach.name, achIcon: ach.icon });
+                } catch (e) {}
+            });
+        });
+
+        return { corrections, regionCorrections, coinCorrections, achievementCorrections, players };
     } catch (err) {
         console.error('Audit failed:', err);
         return null;
