@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429a';
+const APP_VERSION = '20260429b';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -216,6 +216,9 @@ const CHANGELOG = {
     ],
     '20260429a': [
         '🎯 Secret Targets — pressing the button now assigns a target plate to every player in the pack, including anyone temporarily offline. Each player sees their own target privately and it stays until they find it first.',
+    ],
+    '20260429b': [
+        '🔄 Update notifications fixed — the banner no longer reappears after you update, and if you missed several updates you\'ll see all of them listed together in one go',
     ],
 };
 
@@ -1084,6 +1087,8 @@ function checkAppVersion() {
 }
 
 function doAppReload() {
+    document.getElementById('updateBanner')?.remove();
+    document.getElementById('updateModal')?.remove();
     const url = new URL(window.location.href);
     url.searchParams.set('_v', Date.now());
     url.searchParams.delete('joinrefresh');
@@ -1100,10 +1105,12 @@ function handleVersionMismatch(latest) {
     document.body.prepend(banner);
 }
 
-function showUpdateModal(version) {
+function showUpdateModal(latest) {
     if (document.getElementById('updateModal')) return;
-    const notes = CHANGELOG[version] || ['🚀 Performance improvements and bug fixes'];
-    const bullets = notes.map(n => `<li>${n}</li>`).join('');
+    const missedVersions = Object.keys(CHANGELOG).sort().filter(v => v > APP_VERSION && v <= latest);
+    const allNotes = missedVersions.flatMap(v => CHANGELOG[v]);
+    const bullets = (allNotes.length ? allNotes : ['🚀 Performance improvements and bug fixes'])
+        .map(n => `<li>${n}</li>`).join('');
     const overlay = document.createElement('div');
     overlay.id = 'updateModal';
     overlay.className = 'update-modal-overlay';
@@ -1111,7 +1118,7 @@ function showUpdateModal(version) {
         <div class="update-modal-card">
             <div class="update-modal-icon">🐺</div>
             <div class="update-modal-title">What's New in PlateQuest</div>
-            <div class="update-modal-version">Version ${version}</div>
+            <div class="update-modal-version">Version ${latest}</div>
             <ul class="update-modal-notes">${bullets}</ul>
             <div class="update-modal-footer">— Dev log: JcWolF is always on duty. Bugs squashed. Features incoming. 🐺🎮</div>
             <div class="update-modal-actions">
