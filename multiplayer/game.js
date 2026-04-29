@@ -4530,11 +4530,6 @@ async function executeThief(targetPlayerKey, cost) {
     if (myCoins < cost) { showToast('Not enough coins!', 'error'); return; }
     const target = playersData[targetPlayerKey];
     if (!target) { showToast('Player not found.', 'error'); return; }
-    if (target.effects?.shield) {
-        await currentGameRef.update({ [`players/${targetPlayerKey}/effects/shield`]: null });
-        showToast(`🌙 Blocked! ${target.displayName || '?'}'s shield absorbed the theft!`, 'info');
-        return;
-    }
     const corridor = gameData?.settings?.playAreaStates || [];
     const plates = Object.keys(target.states || {});
     let bestPlate = null, bestPts = -1;
