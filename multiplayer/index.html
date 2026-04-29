@@ -13,7 +13,7 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html { -webkit-text-size-adjust: 100%; }
+        html { -webkit-text-size-adjust: 100%; overflow-x: hidden; overscroll-behavior-x: none; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%); min-height: 100vh; color: #ecf0f1; position: relative; overflow-x: hidden; overscroll-behavior-x: none; padding-bottom: env(safe-area-inset-bottom, 0px); }
         body.dark { background: linear-gradient(135deg, #111827 0%, #0f172a 50%, #111827 100%); color: #f8fafc; }
         body.dark #game, body.dark .welcome-text, body.dark .mode-card, body.dark .state-card, body.dark input, body.dark select, body.dark .btn-secondary, body.dark .diagnostics-panel, body.dark .diagnostic-card, body.dark .play-area-panel, body.dark .play-area-chip, body.dark .setup-inline-card, body.dark .creator-games-panel, body.dark .creator-game-card, body.dark .edit-pack-dialog { background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)); color: #f8fafc; }
@@ -670,7 +670,7 @@
         <div id="game">
             <div class="game-code-header" id="gameCodeHeader" style="display: none;">
                 <div class="game-code-info"><span style="font-size: 16px;">Pack Code:</span><div class="game-code-display" id="persistentGameCode">LOADING...</div></div>
-                <div class="share-controls"><button class="btn btn-secondary btn-small" id="copyCodeBtn">📋 Copy</button><button class="btn btn-secondary btn-small" id="shareCodeBtn">📤 Share</button><button class="btn btn-secondary btn-small" id="inviteNewBtn">➕ Invite</button><button class="btn btn-secondary btn-small" id="qrCodeBtn">📱 QR</button><button class="btn btn-secondary btn-small" id="refreshBtn">🔄 Refresh</button></div>
+                <div class="share-controls"><button class="btn btn-secondary btn-small" id="copyCodeBtn">📋 Copy</button><button class="btn btn-secondary btn-small" id="shareCodeBtn">📤 Share</button><button class="btn btn-secondary btn-small" id="inviteNewBtn">➕ Invite</button><button class="btn btn-secondary btn-small" id="qrCodeBtn">📱 QR</button><button class="btn btn-secondary btn-small" id="refreshBtn">🔄 Refresh</button><button class="btn btn-secondary btn-small" id="how2PlayBtn">❓ How2Play</button></div>
             </div>
 
             <div class="game-header">
@@ -1450,7 +1450,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260429d"></script>
+    <script src="game.js?v=20260429e"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

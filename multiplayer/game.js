@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429d';
+const APP_VERSION = '20260429e';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -225,6 +225,10 @@ const CHANGELOG = {
     ],
     '20260429d': [
         '📱 Swiping on plates no longer causes the screen to bounce horizontally — left swipes and swipes on already-spotted plates are now fully absorbed by the card instead of the page',
+    ],
+    '20260429e': [
+        '📖 How to Play instructions are now available anytime via the How2Play button in the top bar — they no longer pop up automatically on every join',
+        '📵 Horizontal page bounce fully suppressed at the document level',
     ],
 };
 
@@ -1448,6 +1452,7 @@ function bindEventListeners() {
     document.getElementById('winnersCircleBtn')?.addEventListener('click', shareWinnersCircle);
     document.getElementById('howToPlayOkBtn')?.addEventListener('click', closeHowToPlay);
     document.getElementById('howToPlayHelpBtn')?.addEventListener('click', showHowToPlay);
+    document.getElementById('how2PlayBtn')?.addEventListener('click', showHowToPlay);
     document.getElementById('howToPlayModal')?.addEventListener('click', e => { if (e.target === document.getElementById('howToPlayModal')) closeHowToPlay(); });
     document.getElementById('qrCodeBtn')?.addEventListener('click', showQRModal);
     document.getElementById('closeQRBtn')?.addEventListener('click', closeQRModal);
@@ -1684,7 +1689,6 @@ async function connectToGame(code, options = {}) {
     setupPresence();
     showActiveGame();
     if (options.showJoinedToast) showToast(options.joinedMessage || `Joined "${room.name}" pack! 🐺`, 'success');
-    setTimeout(showHowToPlay, 500);
     updateDiagnosticsPanel();
 }
 
