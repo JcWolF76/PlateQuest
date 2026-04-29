@@ -625,6 +625,32 @@
         @media (max-width: 768px) { .container { padding: 10px; } .states-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } .input-row { flex-direction: column; align-items: stretch; } .game-mode-selector { grid-template-columns: 1fr; } .logo { width: min(250px, 80vw); } .game-code-header { flex-direction: column; gap: 12px; text-align: center; padding-left: 12px; padding-right: 12px; } .share-controls { justify-content: center; width: 100%; flex-wrap: wrap; } .diagnostics-grid { grid-template-columns: 1fr 1fr; } .diagnostics-panel { padding: 10px; } .diagnostics-header span { font-size: 11px !important; } .game-title { font-size: 24px; } .game-subtitle { font-size: 15px; } .game-code-display { font-size: 20px; letter-spacing: 2px; } .welcome-text { padding: 28px 20px; } .setup-section, .game-header, .live-scores, .game-active > div, .game-active > div:last-child { padding-left: 16px !important; padding-right: 16px !important; } .btn { min-height: 46px; } .mode-input { min-height: 48px; } .toast-container { left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top, 0px)); } .toast { max-width: none; width: 100%; margin-bottom: 8px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(3, minmax(0, 1fr)); }
           .state-card { min-height: unset; aspect-ratio: unset; } .license-plate-header { padding: 4px 8px; font-size: 8px; letter-spacing: 1px; } .plate-body { padding: 8px 10px; } .plate-name { font-size: 13px; margin-bottom: 3px; } .plate-abbr { font-size: 10px; letter-spacing: 1px; } .state-flag { width: 34px; height: 24px; font-size: 9px; } .state-card .rarity-badge { font-size: 8px; padding: 1px 4px; bottom: 5px; left: 5px; } .ff-tag { top: 5px; left: 5px; min-width: 20px; height: 20px; font-size: 9px; padding: 0 4px; } }
         @media (max-width: 520px) { .diagnostics-grid { grid-template-columns: 1fr; } .share-controls .btn { flex: 1 1 30%; } .game-code-info { flex-direction: column; gap: 8px; } .play-area-map, .edit-play-area-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+        /* ── How to Play Modal ───────────────────────────────────────────────── */
+        .htp-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1600; display:flex; align-items:center; justify-content:center; padding:16px; overflow-y:auto; }
+        .htp-card { width:min(96vw,460px); background:linear-gradient(145deg,#0d1f35,#162840); border:2px solid rgba(255,215,0,0.4); border-radius:22px; padding:24px 20px 20px; display:flex; flex-direction:column; gap:15px; box-shadow:0 20px 60px rgba(0,0,0,0.7); max-height:calc(100vh - 32px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .htp-title { font-size:21px; font-weight:900; color:#FFD700; text-align:center; }
+        .htp-section { border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:13px 14px; background:rgba(255,255,255,0.03); }
+        .htp-section-head { font-size:11px; font-weight:800; color:#5dade2; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; }
+        .htp-section-body { font-size:14px; color:rgba(255,255,255,0.82); line-height:1.6; }
+        .htp-legend { display:flex; flex-direction:column; gap:9px; }
+        .htp-legend-row { display:flex; align-items:center; gap:10px; font-size:14px; color:rgba(255,255,255,0.8); }
+        .htp-dot { width:16px; height:16px; border-radius:4px; flex-shrink:0; }
+        .htp-dot-you { background:rgba(46,204,113,0.35); border:2px solid #2ecc71; }
+        .htp-dot-pack { background:rgba(243,156,18,0.25); border:2px solid #f39c12; }
+        .htp-dot-none { background:rgba(255,255,255,0.05); border:2px solid rgba(255,255,255,0.22); }
+        .htp-tips { display:flex; flex-direction:column; gap:8px; }
+        .htp-tip { font-size:13px; color:rgba(255,255,255,0.72); padding-left:16px; position:relative; line-height:1.5; }
+        .htp-tip::before { content:'•'; position:absolute; left:2px; color:#FFD700; }
+        .htp-ok-btn { width:100%; padding:14px; font-size:16px; font-weight:800; margin-top:4px; }
+        .htp-help-btn { background:none; border:1px solid rgba(52,152,219,0.5); border-radius:50%; width:26px; height:26px; color:#5dade2; font-size:13px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; padding:0; line-height:1; }
+        .htp-help-btn:hover { background:rgba(52,152,219,0.15); }
+        /* ── Swipe Hint Bar ──────────────────────────────────────────────────── */
+        .swipe-hint-bar { grid-column:1 / -1; background:rgba(52,152,219,0.08); border:1px solid rgba(52,152,219,0.2); border-radius:10px; padding:9px 14px; display:flex; flex-wrap:wrap; align-items:center; gap:3px 10px; font-size:13px; color:rgba(255,255,255,0.58); }
+        .swipe-hint-bar b { color:#5dade2; font-weight:700; }
+        .swipe-hint-bar .h-you { color:#2ecc71; font-weight:600; }
+        .swipe-hint-bar .h-pack { color:#f39c12; font-weight:600; }
+        .swipe-hint-sep { color:rgba(255,255,255,0.25); }
     </style>
 </head>
 <body>
@@ -863,8 +889,10 @@
                     </div>
                 </div>
                 <div style="padding: 25px;">
-                    <h3 style="color: #3498db; margin-bottom: 15px; font-size: 24px;">🗺️ License Plates</h3>
-                    <p style="color: #bdc3c7; margin-bottom: 25px; font-size: 16px;">Tap any state or province when you spot the plate. <span style="color: #2ecc71; font-weight: bold;">🐺 You found</span> <span style="color: #f39c12; font-weight: bold;">👤 Pack found</span></p>
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                        <h3 style="color: #3498db; font-size: 24px; margin:0;">🗺️ License Plates</h3>
+                        <button class="htp-help-btn" id="howToPlayHelpBtn" title="How to play">?</button>
+                    </div>
                     <div class="speed-round-banner" id="speedRoundBanner" style="display:none;">
                         ⚡ Speed Round — <span id="speedRoundCountdown">0:00</span> left!
                     </div>
@@ -1365,6 +1393,44 @@
         </div>
 
         <!-- End Game Modal -->
+        <!-- How to Play modal — shown on every game join -->
+        <div id="howToPlayModal" class="htp-overlay" style="display:none;">
+            <div class="htp-card">
+                <div class="htp-title">🐺 Welcome to PlateQuest!</div>
+
+                <div class="htp-section">
+                    <div class="htp-section-head">👆 How to Spot a Plate</div>
+                    <div class="htp-section-body">See a license plate from another state or province? <strong>Swipe right</strong> on its card in the list below. You earn coins and points — more for rarer plates, plus a bonus if you're the first in the pack to spot it.</div>
+                </div>
+
+                <div class="htp-section">
+                    <div class="htp-section-head">🗺️ Reading the Grid</div>
+                    <div class="htp-legend">
+                        <div class="htp-legend-row"><span class="htp-dot htp-dot-you"></span>You spotted it — green card with your tag</div>
+                        <div class="htp-legend-row"><span class="htp-dot htp-dot-pack"></span>Pack spotted it first — tinted with their tag</div>
+                        <div class="htp-legend-row"><span class="htp-dot htp-dot-none"></span>Not found yet — fair game for everyone</div>
+                    </div>
+                </div>
+
+                <div class="htp-section">
+                    <div class="htp-section-head">🏆 Points &amp; Coins</div>
+                    <div class="htp-section-body">The number on each card is its rarity value in points. First finder gets full points + 5🪙 bonus coins. Spot all plates in a region to earn extra coin bonuses and unlock badges.</div>
+                </div>
+
+                <div class="htp-section">
+                    <div class="htp-section-head">💡 Tips</div>
+                    <div class="htp-tips">
+                        <div class="htp-tip">Long-press any plate you've marked to request its removal</div>
+                        <div class="htp-tip">Tap any player on the leaderboard to see their full stats &amp; achievements</div>
+                        <div class="htp-tip">Host can run Speed Rounds ⚡, place Bounties 💰, and call Sudden Death 🔔</div>
+                        <div class="htp-tip">Earn achievements 🏆 as you hit milestones — check your profile to see them all</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary htp-ok-btn" id="howToPlayOkBtn">🚗 Let's Play!</button>
+            </div>
+        </div>
+
         <div id="endGameModal" class="end-game-modal">
             <div class="end-game-dialog">
                 <div class="end-game-header">

@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427g';
+const APP_VERSION = '20260427h';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -209,6 +209,10 @@ const CHANGELOG = {
     ],
     '20260427g': [
         '🏆 Winners Circle — tap "Winners Circle" on the End Game screen to generate a shareable graphic of the top 3 players with a custom description, shareable via text, email, or saved as a photo',
+    ],
+    '20260427h': [
+        '📖 How to Play — a welcome guide now appears every time you join a game explaining swiping, scoring, and features. Tap ? next to License Plates to reopen it anytime',
+        '👆 Swipe hint bar added at the top of the plate list as a permanent quick reference',
     ],
 };
 
@@ -1379,7 +1383,7 @@ function bindEventListeners() {
     });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); }
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); closeHowToPlay(); }
     });
     // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds
     const liveScores = document.getElementById('liveScores');
@@ -1424,6 +1428,9 @@ function bindEventListeners() {
     document.getElementById('closeEndGameBtn')?.addEventListener('click', closeEndGameScreen);
     document.getElementById('shareResultsBtn')?.addEventListener('click', shareEndGameResults);
     document.getElementById('winnersCircleBtn')?.addEventListener('click', shareWinnersCircle);
+    document.getElementById('howToPlayOkBtn')?.addEventListener('click', closeHowToPlay);
+    document.getElementById('howToPlayHelpBtn')?.addEventListener('click', showHowToPlay);
+    document.getElementById('howToPlayModal')?.addEventListener('click', e => { if (e.target === document.getElementById('howToPlayModal')) closeHowToPlay(); });
     document.getElementById('qrCodeBtn')?.addEventListener('click', showQRModal);
     document.getElementById('closeQRBtn')?.addEventListener('click', closeQRModal);
     document.getElementById('qrModal')?.addEventListener('click', e => { if (e.target === document.getElementById('qrModal')) closeQRModal(); });
@@ -1659,6 +1666,7 @@ async function connectToGame(code, options = {}) {
     setupPresence();
     showActiveGame();
     if (options.showJoinedToast) showToast(options.joinedMessage || `Joined "${room.name}" pack! 🐺`, 'success');
+    setTimeout(showHowToPlay, 500);
     updateDiagnosticsPanel();
 }
 
@@ -1931,6 +1939,13 @@ function renderStates() {
     const statesGrid = document.getElementById('statesGrid');
     if (!statesGrid || !currentPlayer) return;
     statesGrid.innerHTML = '';
+
+    // Swipe instruction — always at the top of the plate list
+    const hint = document.createElement('div');
+    hint.className = 'swipe-hint-bar';
+    hint.innerHTML = '<b>👆 Swipe right</b> to mark a plate spotted <span class="swipe-hint-sep">·</span> <b>Long-press</b> to remove <span class="swipe-hint-sep">·</span> <span class="h-you">🐺 you found it</span> <span class="swipe-hint-sep">·</span> <span class="h-pack">👤 pack found it first</span>';
+    statesGrid.appendChild(hint);
+
     const myStates = getMyStatesMap();
     const fx = getMyEffects();
     let plateEntries = getActivePlateEntries(gameData?.settings?.plateScope);
@@ -4458,6 +4473,16 @@ function showEndGameScreen() {
 
 function closeEndGameScreen() {
     const modal = document.getElementById('endGameModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function showHowToPlay() {
+    const modal = document.getElementById('howToPlayModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeHowToPlay() {
+    const modal = document.getElementById('howToPlayModal');
     if (modal) modal.style.display = 'none';
 }
 
