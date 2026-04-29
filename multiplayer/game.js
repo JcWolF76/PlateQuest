@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429m';
+const APP_VERSION = '20260429n';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -36,13 +36,25 @@ const PRAISE_LIST = [
 const PLAYER_ICONS = ['🦊','🐻','🐯','🦁','🦅','🐸','🦝','🦉','🦄','🐲','🦋','🚗','🦈','🐬','🦖','🦏','🦬','🐆','🦓','🐘','🦒','🦜','🐊','🦦'];
 
 const SHOP_ITEMS = [
-    { id: 'blender',  name: 'Blender',      icon: '🌀', cost: 40, effectKey: 'blender', duration: 3*60*1000,
+    { id: 'blender',   name: 'Blender',          icon: '🌀', cost: 40, effectKey: 'blender',   duration: 3*60*1000,
       category: 'trick',   desc: 'Scrambles the plate order for all other players for 3 minutes.' },
-    { id: 'freeze',   name: 'Time Freeze',  icon: '⏸️', cost: 75, effectKey: 'freeze',  duration: 2*60*1000,
+    { id: 'freeze',    name: 'Time Freeze',       icon: '⏸️', cost: 75, effectKey: 'freeze',    duration: 2*60*1000,
       category: 'trick',   desc: 'Blocks other players from spotting new plates for 2 minutes.' },
-    { id: 'fog',      name: 'Fog of War',   icon: '🌫️', cost: 50, effectKey: 'fog',     duration: 5*60*1000,
+    { id: 'fog',       name: 'Fog of War',        icon: '🌫️', cost: 50, effectKey: 'fog',       duration: 5*60*1000,
       category: 'trick',   desc: "Hides everyone else's scores and plate counts for 5 minutes." },
-    { id: 'shield',   name: 'Shield',       icon: '🛡️', cost: 35, effectKey: 'shield',  duration: null,
+    { id: 'oilSlick',  name: 'Oil Slick',         icon: '🛢️', cost: 60, effectKey: 'oilSlick',  duration: 3*60*1000,
+      category: 'trick',   desc: 'Blacks out the screen for all other players for 3 minutes — they can\'t see a thing.' },
+    { id: 'haze',      name: 'Haze',              icon: '🌁', cost: 50, effectKey: 'haze',      duration: 3*60*1000,
+      category: 'trick',   desc: 'Blankets other players\' screens in thick fog for 3 minutes.' },
+    { id: 'wrongWay',  name: 'Wrong Way',         icon: '🔃', cost: 30, effectKey: 'wrongWay',  duration: 3*60*1000,
+      category: 'trick',   desc: 'Reverses the plate grid for all other players for 3 minutes.' },
+    { id: 'speedTrap', name: 'Speed Trap',        icon: '🚔', cost: 65, effectKey: 'speedTrap', duration: 3*60*1000,
+      category: 'trick',   desc: 'Forces a 30-second cooldown between plate spots for all other players for 3 minutes.' },
+    { id: 'roulette',  name: 'Russian Roulette',  icon: '🎰', cost: 80, effectKey: null,         duration: null,
+      category: 'trick',   desc: 'Instantly removes one random spotted plate from every player — including yourself. Pure chaos.' },
+    { id: 'ghost',     name: 'Ghost Mode',        icon: '👻', cost: 45, effectKey: 'ghost',     duration: 5*60*1000,
+      category: 'boost',   desc: 'Hides your score and plate count from all other players for 5 minutes. Play in stealth.' },
+    { id: 'shield',    name: 'Shield',            icon: '🛡️', cost: 35, effectKey: 'shield',    duration: null,
       category: 'defense', desc: 'Blocks the next trick used against you. One use only.' },
 ];
 
@@ -272,6 +284,14 @@ const CHANGELOG = {
     ],
     '20260429m': [
         '🍀 Lucky Plate and 🎯 Secret Targets now only draw from U.S. states — territorial and international plates are excluded from secret assignments',
+    ],
+    '20260429n': [
+        '🛢️ Oil Slick — blacks out other players\' screens completely for 3 minutes with a countdown they can\'t dismiss',
+        '🌁 Haze — blankets other players\' screens in thick fog for 3 minutes',
+        '🎰 Russian Roulette — instantly removes one random spotted plate from every player including yourself',
+        '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
+        '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
+        '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
     ],
 };
 
@@ -1308,7 +1328,9 @@ function renderShopModal() {
             let statusHtml = '';
             if (item.id === 'shield') {
                 if (myEffects.shield) statusHtml = '<span class="shop-status-pill">Active</span>';
-            } else {
+            } else if (item.id === 'ghost') {
+                if ((myEffects.ghost || 0) > now) statusHtml = '<span class="shop-status-pill">Active</span>';
+            } else if (item.effectKey) {
                 const anyActive = Object.values(playersData).some(
                     p => p.playerKey !== currentPlayer?.playerKey && (p.effects?.[item.effectKey] || 0) > now
                 );
@@ -1328,6 +1350,7 @@ function renderShopModal() {
     };
 
     renderGroup('⚔️ Tricks — affects all other players', SHOP_ITEMS.filter(i => i.category === 'trick'));
+    renderGroup('🚀 Boosts — enhances yourself', SHOP_ITEMS.filter(i => i.category === 'boost'));
     renderGroup('🛡️ Defense — protects yourself', SHOP_ITEMS.filter(i => i.category === 'defense'));
 
     list.querySelectorAll('.btn-shop-buy:not([disabled])').forEach(btn => {
@@ -1347,6 +1370,43 @@ async function buyShopItem(itemId) {
             [`players/${currentPlayer.playerKey}/effects/shield`]: true,
         });
         showToast('🛡️ Shield equipped! You\'re protected from the next trick.', 'success');
+        closeShopModal();
+        return;
+    }
+
+    if (item.id === 'ghost') {
+        const expiry = Date.now() + item.duration;
+        await currentGameRef.update({
+            [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-item.cost),
+            [`players/${currentPlayer.playerKey}/effects/ghost`]: expiry,
+        });
+        showToast('👻 Ghost Mode active — opponents can\'t see your score for 5 minutes!', 'success');
+        closeShopModal();
+        return;
+    }
+
+    if (item.id === 'roulette') {
+        const allPlayers = Object.values(playersData);
+        const updates = { [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-item.cost) };
+        const lost = [];
+        let shielded = 0;
+        for (const player of allPlayers) {
+            const isMe = player.playerKey === currentPlayer.playerKey;
+            if (!isMe && player.effects?.shield) {
+                updates[`players/${player.playerKey}/effects/shield`] = null;
+                shielded++;
+                continue;
+            }
+            const plates = Object.keys(player.states || {});
+            if (plates.length === 0) continue;
+            const pick = plates[Math.floor(Math.random() * plates.length)];
+            updates[`players/${player.playerKey}/states/${pick}`] = null;
+            lost.push(`${player.displayName || '?'} lost ${pick}`);
+        }
+        if (lost.length === 0 && shielded === 0) { showToast('No one has plates to lose!', 'info'); return; }
+        await currentGameRef.update(updates);
+        const msg = `🎰 Russian Roulette! ${lost.join(' · ')}${shielded ? ` · ${shielded} shielded` : ''}`;
+        showToast(msg, 'info');
         closeShopModal();
         return;
     }
@@ -1378,14 +1438,52 @@ function updateActiveEffectsBar() {
     const fx = getMyEffects();
     const now = Date.now();
     const active = [];
-    if ((fx.blender || 0) > now) active.push({ icon: '🌀', label: 'Plates scrambled', expiry: fx.blender });
-    if ((fx.freeze  || 0) > now) active.push({ icon: '⏸️', label: 'You are frozen',   expiry: fx.freeze });
-    if ((fx.fog     || 0) > now) active.push({ icon: '🌫️', label: 'Scores hidden',    expiry: fx.fog });
-    if (fx.shield)               active.push({ icon: '🛡️', label: 'Shielded',          expiry: null });
+    if ((fx.blender   || 0) > now) active.push({ icon: '🌀', label: 'Plates scrambled',      expiry: fx.blender });
+    if ((fx.freeze    || 0) > now) active.push({ icon: '⏸️', label: 'You are frozen',         expiry: fx.freeze });
+    if ((fx.fog       || 0) > now) active.push({ icon: '🌫️', label: 'Scores hidden',          expiry: fx.fog });
+    if ((fx.oilSlick  || 0) > now) active.push({ icon: '🛢️', label: 'Oil Slick',              expiry: fx.oilSlick });
+    if ((fx.haze      || 0) > now) active.push({ icon: '🌁', label: 'Hazed in',               expiry: fx.haze });
+    if ((fx.wrongWay  || 0) > now) active.push({ icon: '🔃', label: 'Grid reversed',          expiry: fx.wrongWay });
+    if ((fx.speedTrap || 0) > now) active.push({ icon: '🚔', label: 'Speed trap — 30s delay', expiry: fx.speedTrap });
+    if ((fx.ghost     || 0) > now) active.push({ icon: '👻', label: 'Ghost Mode — stealth',   expiry: fx.ghost });
+    if (fx.shield)                 active.push({ icon: '🛡️', label: 'Shielded',               expiry: null });
     bar.style.display = active.length ? 'flex' : 'none';
     bar.innerHTML = active.map(e =>
         `<div class="effect-pill">${e.icon} ${e.label}${e.expiry ? ` <span class="effect-time">${formatTimeLeft(e.expiry)}</span>` : ''}</div>`
     ).join('');
+}
+
+let _trickOverlayIv = null;
+function updateTrickOverlay() {
+    const fx = getMyEffects();
+    const now = Date.now();
+    const active =
+        (fx.oilSlick || 0) > now ? { expiry: fx.oilSlick, title: '🛢️ You hit an oil slick!',     dark: true  } :
+        (fx.haze     || 0) > now ? { expiry: fx.haze,     title: '🌁 Visibility near zero!',       dark: false } :
+        null;
+    let overlay = document.getElementById('trickOverlay');
+    if (!active) {
+        overlay?.remove();
+        if (_trickOverlayIv) { clearInterval(_trickOverlayIv); _trickOverlayIv = null; }
+        return;
+    }
+    const fmtMs = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'trickOverlay';
+        document.body.appendChild(overlay);
+    }
+    overlay.className = `trick-overlay${active.dark ? ' trick-overlay-dark' : ' trick-overlay-light'}`;
+    overlay.innerHTML = `<div class="trick-overlay-title">${active.title}</div><div class="trick-overlay-timer" id="trickOverlayTimer">${fmtMs(active.expiry - now)}</div><div class="trick-overlay-sub">Lifts automatically</div>`;
+    if (!_trickOverlayIv) {
+        _trickOverlayIv = setInterval(() => {
+            const el = document.getElementById('trickOverlayTimer');
+            if (!el) { clearInterval(_trickOverlayIv); _trickOverlayIv = null; return; }
+            const ms = active.expiry - Date.now();
+            if (ms <= 0) { document.getElementById('trickOverlay')?.remove(); clearInterval(_trickOverlayIv); _trickOverlayIv = null; return; }
+            el.textContent = fmtMs(ms);
+        }, 1000);
+    }
 }
 
 function openFeedbackModal() {
@@ -1985,11 +2083,12 @@ function updateGameUI() {
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
     const signature = buildStateSignature();
-    if (signature === lastRenderedStateSignature) { updateScores(); updateActiveEffectsBar(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
+    if (signature === lastRenderedStateSignature) { updateScores(); updateActiveEffectsBar(); updateTrickOverlay(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
     updateScores();
     renderStates();
     updateActiveEffectsBar();
+    updateTrickOverlay();
     updateConnectionBadgeText();
     document.getElementById('gameTitle').textContent = `${gameData.name} Pack 🐺`;
     updateSetupSubtitle();
@@ -2037,7 +2136,7 @@ function updateScores() {
             ? `<div class="badge-row">${badges.map(b => `<span class="badge-mini" title="${b.label}">${b.icon}</span>`).join('')}</div>`
             : '';
         const coins = player.coins || 0;
-        const fogged = !isMe && (getMyEffects().fog || 0) > Date.now();
+        const fogged = !isMe && ((getMyEffects().fog || 0) > Date.now() || (player.effects?.ghost || 0) > Date.now());
         const streak = player.streak || { count: 0, lastFoundAt: 0 };
         const streakActive = streak.count >= 3 && (Date.now() - (streak.lastFoundAt || 0)) <= STREAK_WINDOW_MS;
         const streakBadge = streakActive ? `<div class="streak-badge">🔥×${streak.count}</div>` : '';
@@ -2148,7 +2247,8 @@ function renderStates() {
     const myStates = getMyStatesMap();
     const fx = getMyEffects();
     let plateEntries = getActivePlateEntries(gameData?.settings?.plateScope);
-    if ((fx.blender || 0) > Date.now()) plateEntries = seededShuffle(plateEntries, fx.blender);
+    if ((fx.blender  || 0) > Date.now()) plateEntries = seededShuffle(plateEntries, fx.blender);
+    if ((fx.wrongWay || 0) > Date.now()) plateEntries = [...plateEntries].reverse();
     let territoryHeaderAdded = false;
     let canadaHeaderAdded = false;
     let latamMexicoHeaderAdded = false;
@@ -2401,6 +2501,11 @@ async function toggleState(stateName, currentlySelected) {
     if (!currentGameRef || !currentPlayer) return;
     if (gameData?.status === 'ended') { showToast('The game has ended — no more spotting!', 'info'); return; }
     if (!currentlySelected && (getMyEffects().freeze || 0) > Date.now()) { showToast('⏸️ You\'re frozen! Can\'t spot plates right now.', 'error'); return; }
+    if (!currentlySelected && (getMyEffects().speedTrap || 0) > Date.now()) {
+        const lastSpot = playersData[currentPlayer.playerKey]?.lastSpotAt || 0;
+        const wait = Math.ceil((30000 - (Date.now() - lastSpot)) / 1000);
+        if (wait > 0) { showToast(`🚔 Speed Trap! Wait ${wait}s before your next spot.`, 'error'); return; }
+    }
     const playerStatesRef = currentGameRef.child(`players/${currentPlayer.playerKey}/states`);
     const stateClaimRef = currentGameRef.child(`claimedStates/${stateName}`);
     try {
@@ -2414,7 +2519,7 @@ async function toggleState(stateName, currentlySelected) {
             const stateRecord = { state: stateName, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey };
             if (foundNearState) stateRecord.foundNearState = foundNearState;
             await playerStatesRef.child(stateName).set(stateRecord);
-            currentGameRef.child(`players/${currentPlayer.playerKey}`).update({ coins: firebase.database.ServerValue.increment(coinsEarned) }).catch(() => {});
+            currentGameRef.child(`players/${currentPlayer.playerKey}`).update({ coins: firebase.database.ServerValue.increment(coinsEarned), lastSpotAt: Date.now() }).catch(() => {});
             updateStreak(currentPlayer.playerKey).catch(() => {});
             showToast(`Found ${stateName}! +${coinsEarned}🪙${isFirstFinder ? ' First finder!' : ''}`, 'success');
             writeRegionCompletions();
@@ -4172,9 +4277,14 @@ const CHEST_PRIZES = [
     { prize: 'coins', amount: 30 },
     { prize: 'coins', amount: 50 },
     { prize: 'coins', amount: 75 },
-    { prize: 'trick', effectKey: 'blender', name: 'Blender', icon: '🌀' },
-    { prize: 'trick', effectKey: 'freeze',  name: 'Time Freeze', icon: '⏸️' },
-    { prize: 'trick', effectKey: 'fog',     name: 'Fog of War', icon: '🌫️' },
+    { prize: 'trick', effectKey: 'blender',   name: 'Blender',      icon: '🌀' },
+    { prize: 'trick', effectKey: 'freeze',    name: 'Time Freeze',  icon: '⏸️' },
+    { prize: 'trick', effectKey: 'fog',       name: 'Fog of War',   icon: '🌫️' },
+    { prize: 'trick', effectKey: 'oilSlick',  name: 'Oil Slick',    icon: '🛢️' },
+    { prize: 'trick', effectKey: 'haze',      name: 'Haze',         icon: '🌁' },
+    { prize: 'trick', effectKey: 'wrongWay',  name: 'Wrong Way',    icon: '🔃' },
+    { prize: 'trick', effectKey: 'speedTrap', name: 'Speed Trap',   icon: '🚔' },
+    { prize: 'self',  effectKey: 'ghost',     name: 'Ghost Mode',   icon: '👻' },
     { prize: 'shield', name: 'Shield', icon: '🛡️' },
 ];
 
@@ -4636,6 +4746,11 @@ async function claimChest(stateName) {
     } else if (chest.prize === 'shield') {
         updates[`players/${currentPlayer.playerKey}/effects/shield`] = true;
         showToast('🎁 Chest! 🛡️ Shield equipped!', 'success');
+    } else if (chest.prize === 'self') {
+        const shopItem = SHOP_ITEMS.find(i => i.effectKey === chest.effectKey);
+        const expiry = Date.now() + (shopItem?.duration || 5 * 60 * 1000);
+        updates[`players/${currentPlayer.playerKey}/effects/${chest.effectKey}`] = expiry;
+        showToast(`🎁 Chest! ${chest.icon} ${chest.name} activated!`, 'success');
     }
 
     await currentGameRef.update(updates);
