@@ -1094,8 +1094,9 @@ function checkAppVersion() {
         try {
             const res = await fetch(`version.json?_v=${Date.now()}`, { cache: 'no-store' });
             if (!res.ok) return;
-            const { version: latest } = await res.json();
-            if (latest && latest !== APP_VERSION) handleVersionMismatch(latest);
+            const data = await res.json();
+            const latest = data.version;
+            if (latest && latest !== APP_VERSION) handleVersionMismatch(latest, data.changelog);
         } catch (e) { /* network error, skip */ }
     };
     doCheck();
@@ -1111,20 +1112,22 @@ function doAppReload() {
     window.location.replace(url.toString());
 }
 
-function handleVersionMismatch(latest) {
+function handleVersionMismatch(latest, remoteChangelog) {
     if (document.getElementById('updateBanner')) return;
     const banner = document.createElement('div');
     banner.id = 'updateBanner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#1a73e8,#0d47a1);color:#fff;text-align:center;padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.2px;-webkit-tap-highlight-color:rgba(0,0,0,0.1);box-shadow:0 2px 8px rgba(0,0,0,0.3);';
     banner.textContent = '🔄 Update available — see what\'s new!';
-    banner.addEventListener('click', () => showUpdateModal(latest));
+    banner.addEventListener('click', () => showUpdateModal(latest, remoteChangelog));
     document.body.prepend(banner);
 }
 
-function showUpdateModal(latest) {
+function showUpdateModal(latest, remoteChangelog) {
     if (document.getElementById('updateModal')) return;
-    const missedVersions = Object.keys(CHANGELOG).sort().filter(v => v > APP_VERSION && v <= latest);
-    const allNotes = missedVersions.flatMap(v => CHANGELOG[v]);
+    // Prefer fresh changelog from version.json — old cached JS won't have new entries
+    const sourceChangelog = remoteChangelog || CHANGELOG;
+    const missedVersions = Object.keys(sourceChangelog).sort().filter(v => v > APP_VERSION && v <= latest);
+    const allNotes = missedVersions.flatMap(v => sourceChangelog[v]);
     const bullets = (allNotes.length ? allNotes : ['🚀 Performance improvements and bug fixes'])
         .map(n => `<li>${n}</li>`).join('');
     const overlay = document.createElement('div');
