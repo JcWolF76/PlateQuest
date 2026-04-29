@@ -1,11 +1,12 @@
 {
-  "version": "20260429h",
+  "version": "20260429i",
   "changelog": {
     "20260429c": ["📣 Announcements and taunts now reliably reach all players — previously a race condition could cause other pack members to miss them entirely"],
     "20260429d": ["📱 Swiping on plates no longer causes the screen to bounce horizontally — left swipes and swipes on already-spotted plates are now fully absorbed by the card instead of the page"],
     "20260429e": ["📖 How to Play instructions are now available anytime via the How2Play button in the top bar — they no longer pop up automatically on every join", "📵 Horizontal page bounce fully suppressed at the document level"],
     "20260429f": ["💬 Chat now supports private messages — tap the recipient chips above the input to send to specific players or everyone. The host and pack leader always see all messages. Private messages show a 🔒 lock indicator."],
     "20260429g": ["👏 New Praise feature — tap the gold Praise button in the Social section to send a compliment to one or more players, with 12 different messages to choose from", "⚡ Quick-react on plate finds — whenever a pack member spots a plate, their notification now shows instant 👏 Praise and 😈 Taunt buttons pre-targeting that player so you can react in two taps"],
-    "20260429h": ["📋 Update notes now clearly describe every new feature — no more generic \"bug fixes\" messages when you see the update banner"]
+    "20260429h": ["📋 Update notes now clearly describe every new feature — no more generic \"bug fixes\" messages when you see the update banner"],
+    "20260429i": ["🌎 Mexico, Central America & South America — a new Latin America section now appears in the plate grid when enabled under Plate Coverage", "🗺️ Four scope options: U.S. only, U.S. + Canada, U.S. + Latin America, or U.S. + Canada + Latin America"]
   }
 }

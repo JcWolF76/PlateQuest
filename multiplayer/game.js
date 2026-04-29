@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429h';
+const APP_VERSION = '20260429i';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -255,6 +255,10 @@ const CHANGELOG = {
     '20260429h': [
         '📋 Update notes now clearly describe every new feature — no more generic "bug fixes" messages when you see the update banner',
     ],
+    '20260429i': [
+        '🌎 Mexico, Central America & South America — a new Latin America section now appears in the plate grid when enabled under Plate Coverage',
+        '🗺️ Four scope options: U.S. only, U.S. + Canada, U.S. + Latin America, or U.S. + Canada + Latin America',
+    ],
 };
 
 const firebaseConfig = {
@@ -305,6 +309,32 @@ const CANADA_PLATES = [
     { name: "Quebec", abbr: "QC", category: "canada" },
     { name: "Saskatchewan", abbr: "SK", category: "canada" },
     { name: "Yukon", abbr: "YT", category: "canada" }
+];
+
+const LATAM_PLATES = [
+    // Mexico
+    { name: "Mexico",       abbr: "MX",  category: "latam", region: "mexico" },
+    // Central America
+    { name: "Belize",       abbr: "BZ",  category: "latam", region: "central" },
+    { name: "Costa Rica",   abbr: "CR",  category: "latam", region: "central" },
+    { name: "El Salvador",  abbr: "SV",  category: "latam", region: "central" },
+    { name: "Guatemala",    abbr: "GT",  category: "latam", region: "central" },
+    { name: "Honduras",     abbr: "HN",  category: "latam", region: "central" },
+    { name: "Nicaragua",    abbr: "NI",  category: "latam", region: "central" },
+    { name: "Panama",       abbr: "PAN", category: "latam", region: "central" },
+    // South America
+    { name: "Argentina",    abbr: "ARG", category: "latam", region: "south" },
+    { name: "Bolivia",      abbr: "BO",  category: "latam", region: "south" },
+    { name: "Brazil",       abbr: "BR",  category: "latam", region: "south" },
+    { name: "Chile",        abbr: "CL",  category: "latam", region: "south" },
+    { name: "Colombia",     abbr: "COL", category: "latam", region: "south" },
+    { name: "Ecuador",      abbr: "EC",  category: "latam", region: "south" },
+    { name: "Guyana",       abbr: "GY",  category: "latam", region: "south" },
+    { name: "Paraguay",     abbr: "PY",  category: "latam", region: "south" },
+    { name: "Peru",         abbr: "PER", category: "latam", region: "south" },
+    { name: "Suriname",     abbr: "SR",  category: "latam", region: "south" },
+    { name: "Uruguay",      abbr: "UY",  category: "latam", region: "south" },
+    { name: "Venezuela",    abbr: "VE",  category: "latam", region: "south" },
 ];
 
 const PRIMARY_REGIONS = {
@@ -725,8 +755,12 @@ function getPlateScope(scopeOverride = null) {
 }
 
 function getActivePlateEntries(scopeOverride = null) {
+    const scope = getPlateScope(scopeOverride);
     const base = [...US_PLATES, ...TERRITORY_PLATES];
-    return getPlateScope(scopeOverride) === 'us_canada' ? [...base, ...CANADA_PLATES] : base;
+    if (scope === 'us_canada')       return [...base, ...CANADA_PLATES];
+    if (scope === 'us_latam')        return [...base, ...LATAM_PLATES];
+    if (scope === 'us_canada_latam') return [...base, ...CANADA_PLATES, ...LATAM_PLATES];
+    return base;
 }
 
 function getUsStateEntries() {
@@ -1904,7 +1938,7 @@ function updateSetupSubtitle() {
     if (!subtitle) return;
     const regionLabel = PRIMARY_REGIONS[gameData?.settings?.playRegion]?.label;
     const playAreaCount = gameData?.settings?.playAreaStates?.length || 0;
-    const scopeLabel = gameData?.settings?.plateScope === 'us_canada' ? 'US + Canada' : 'US only';
+    const scopeLabel = { 'us_canada': 'US + Canada', 'us_latam': 'US + Latin America', 'us_canada_latam': 'US + Canada + Latin America' }[gameData?.settings?.plateScope] || 'US only';
     subtitle.textContent = regionLabel ? `${regionLabel} • ${scopeLabel} • ${playAreaCount} trip-area states` : 'Live adventure with your pack!';
 }
 
@@ -2054,6 +2088,9 @@ function renderStates() {
     if ((fx.blender || 0) > Date.now()) plateEntries = seededShuffle(plateEntries, fx.blender);
     let territoryHeaderAdded = false;
     let canadaHeaderAdded = false;
+    let latamMexicoHeaderAdded = false;
+    let latamCentralHeaderAdded = false;
+    let latamSouthHeaderAdded = false;
 
     plateEntries.forEach((state, index) => {
         if (state.category === 'territory' && !territoryHeaderAdded) {
@@ -2063,6 +2100,20 @@ function renderStates() {
         if (state.category === 'canada' && !canadaHeaderAdded) {
             statesGrid.appendChild(createSectionHeader('🇨🇦 Canadian Provinces & Territories'));
             canadaHeaderAdded = true;
+        }
+        if (state.category === 'latam') {
+            if (!latamMexicoHeaderAdded && state.region === 'mexico') {
+                statesGrid.appendChild(createSectionHeader('🇲🇽 Mexico'));
+                latamMexicoHeaderAdded = true;
+            }
+            if (!latamCentralHeaderAdded && state.region === 'central') {
+                statesGrid.appendChild(createSectionHeader('🌎 Central America'));
+                latamCentralHeaderAdded = true;
+            }
+            if (!latamSouthHeaderAdded && state.region === 'south') {
+                statesGrid.appendChild(createSectionHeader('🌍 South America'));
+                latamSouthHeaderAdded = true;
+            }
         }
 
         const card = document.createElement('div');
@@ -2074,7 +2125,7 @@ function renderStates() {
         if (foundByMe) card.classList.add('selected'); else if (foundByOther) card.classList.add('selected-by-other');
 
         const flagImg = `../flags/${state.abbr.toLowerCase()}.png`;
-        const plateTypeLabel = state.category === 'canada' ? 'PROVINCE PLATE' : state.category === 'territory' ? 'TERRITORY PLATE' : 'LICENSE PLATE';
+        const plateTypeLabel = state.category === 'canada' ? 'PROVINCE PLATE' : state.category === 'territory' ? 'TERRITORY PLATE' : state.category === 'latam' ? 'COUNTRY PLATE' : 'LICENSE PLATE';
         const corridor = gameData?.settings?.playAreaStates || [];
         const myStateData = getMyStatesMap()[state.name];
         const cardCorridor = (gameData?.settings?.gpsRarity && myStateData?.foundNearState) ? [myStateData.foundNearState] : corridor;
@@ -3960,7 +4011,7 @@ function openPlayerDetail(playerKey) {
     const foundGrid = document.getElementById('detailFoundGrid');
     if (foundGrid) {
         const tierRank = { ultra: 0, 'gold-elite': 1, 'silver-elite': 2, legendary: 3, epic: 4, 'mega-rare': 5, rare: 6, 'semi-rare': 7, scarce: 8, occasional: 9, common: 10 };
-        const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES];
+        const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES, ...LATAM_PLATES];
         const sorted = Array.from(stats.foundSet).sort((a, b) => {
             const sdA = player.states?.[a]; const sdB = player.states?.[b];
             const ca = (detailUseGps && sdA?.foundNearState) ? [sdA.foundNearState] : detailCorridor;

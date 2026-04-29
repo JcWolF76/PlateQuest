@@ -1079,7 +1079,30 @@
             { name: "Washington", abbr: "WA" },
             { name: "West Virginia", abbr: "WV" },
             { name: "Wisconsin", abbr: "WI" },
-            { name: "Wyoming", abbr: "WY" }
+            { name: "Wyoming", abbr: "WY" },
+            // Mexico
+            { name: "Mexico", abbr: "MX", category: "mexico" },
+            // Central America
+            { name: "Belize", abbr: "BZ", category: "central" },
+            { name: "Costa Rica", abbr: "CR", category: "central" },
+            { name: "El Salvador", abbr: "SV", category: "central" },
+            { name: "Guatemala", abbr: "GT", category: "central" },
+            { name: "Honduras", abbr: "HN", category: "central" },
+            { name: "Nicaragua", abbr: "NI", category: "central" },
+            { name: "Panama", abbr: "PAN", category: "central" },
+            // South America
+            { name: "Argentina", abbr: "ARG", category: "south" },
+            { name: "Bolivia", abbr: "BO", category: "south" },
+            { name: "Brazil", abbr: "BR", category: "south" },
+            { name: "Chile", abbr: "CL", category: "south" },
+            { name: "Colombia", abbr: "COL", category: "south" },
+            { name: "Ecuador", abbr: "EC", category: "south" },
+            { name: "Guyana", abbr: "GY", category: "south" },
+            { name: "Paraguay", abbr: "PY", category: "south" },
+            { name: "Peru", abbr: "PER", category: "south" },
+            { name: "Suriname", abbr: "SR", category: "south" },
+            { name: "Uruguay", abbr: "UY", category: "south" },
+            { name: "Venezuela", abbr: "VE", category: "south" }
         ];
 
         const STORAGE_KEYS = {
@@ -1640,7 +1663,31 @@
             statesGrid.innerHTML = '';
             const states = currentTripData?.states || {};
 
+            let soloMexicoHeaderAdded = false;
+            let soloCentralHeaderAdded = false;
+            let soloSouthHeaderAdded = false;
             statesData.forEach((state, index) => {
+                if (state.category === 'mexico' && !soloMexicoHeaderAdded) {
+                    const h = document.createElement('div');
+                    h.style.cssText = 'grid-column:1/-1;padding:8px 4px 2px;font-size:18px;font-weight:800;color:#5dade2;letter-spacing:0.5px;';
+                    h.textContent = '🇲🇽 Mexico';
+                    statesGrid.appendChild(h);
+                    soloMexicoHeaderAdded = true;
+                }
+                if (state.category === 'central' && !soloCentralHeaderAdded) {
+                    const h = document.createElement('div');
+                    h.style.cssText = 'grid-column:1/-1;padding:8px 4px 2px;font-size:18px;font-weight:800;color:#5dade2;letter-spacing:0.5px;';
+                    h.textContent = '🌎 Central America';
+                    statesGrid.appendChild(h);
+                    soloCentralHeaderAdded = true;
+                }
+                if (state.category === 'south' && !soloSouthHeaderAdded) {
+                    const h = document.createElement('div');
+                    h.style.cssText = 'grid-column:1/-1;padding:8px 4px 2px;font-size:18px;font-weight:800;color:#5dade2;letter-spacing:0.5px;';
+                    h.textContent = '🌍 South America';
+                    statesGrid.appendChild(h);
+                    soloSouthHeaderAdded = true;
+                }
                 const card = document.createElement('div');
                 card.className = 'state-card';
                 const stateRecord = states[state.name];
