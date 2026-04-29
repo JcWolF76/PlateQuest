@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429g';
+const APP_VERSION = '20260429h';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -249,7 +249,11 @@ const CHANGELOG = {
         '💬 Chat now supports private messages — tap the recipient chips above the input to send to specific players or everyone. The host and pack leader always see all messages. Private messages show a 🔒 lock indicator.',
     ],
     '20260429g': [
-        '👏 Praise is here — send compliments to players from the new Praise button in the Social section, or tap the quick-react buttons that appear on any plate find notification to instantly praise or taunt the finder',
+        '👏 New Praise feature — tap the gold Praise button in the Social section to send a compliment to one or more players, with 12 different messages to choose from',
+        '⚡ Quick-react on plate finds — whenever a pack member spots a plate, their notification now shows instant 👏 Praise and 😈 Taunt buttons pre-targeting that player so you can react in two taps',
+    ],
+    '20260429h': [
+        '📋 Update notes now clearly describe every new feature — no more generic "bug fixes" messages when you see the update banner',
     ],
 };
 
