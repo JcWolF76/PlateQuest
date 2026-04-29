@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427e';
+const APP_VERSION = '20260427f';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -203,6 +203,9 @@ const CHANGELOG = {
     '20260427e': [
         '🔍 Audit expanded — now checks and repairs coin balances and missing achievements for all players',
         '🔢 Developer PIN keypad fixed — digits now register correctly on all devices',
+    ],
+    '20260427f': [
+        '🛡️ Update notifications no longer cause a silent reload — you now always see the banner and choose when to update',
     ],
 };
 
@@ -1079,7 +1082,6 @@ function doAppReload() {
 
 function handleVersionMismatch(latest) {
     if (document.getElementById('updateBanner')) return;
-    if (!currentGameCode) { doAppReload(); return; }
     const banner = document.createElement('div');
     banner.id = 'updateBanner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#1a73e8,#0d47a1);color:#fff;text-align:center;padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.2px;-webkit-tap-highlight-color:rgba(0,0,0,0.1);box-shadow:0 2px 8px rgba(0,0,0,0.3);';
