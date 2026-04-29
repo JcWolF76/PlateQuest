@@ -1,5 +1,5 @@
 {
-  "version": "20260429l",
+  "version": "20260429m",
   "changelog": {
     "20260429c": ["📣 Announcements and taunts now reliably reach all players — previously a race condition could cause other pack members to miss them entirely"],
     "20260429d": ["📱 Swiping on plates no longer causes the screen to bounce horizontally — left swipes and swipes on already-spotted plates are now fully absorbed by the card instead of the page"],
@@ -10,6 +10,7 @@
     "20260429i": ["🌎 Mexico, Central America & South America — a new Latin America section now appears in the plate grid when enabled under Plate Coverage", "🗺️ Four scope options: U.S. only, U.S. + Canada, U.S. + Latin America, or U.S. + Canada + Latin America"],
     "20260429j": ["🔔 Update notes now always fetch fresh from the server — no more \"Performance improvements\" placeholder regardless of how old your cached version is"],
     "20260429k": ["🌍 South American plates are now worth 200 pts (Global tier) and Central American plates 150 pts (International tier) — the rarest finds in the game", "🇲🇽 Mexico is now worth 70 pts (Gold Elite), matching Canadian territories", "🌺 Hawaii and Puerto Rico both bumped to 100 pts (Ultra tier)"],
-    "20260429l": ["📍 Mexico rarity is now distance-based — playing in San Diego or Texas puts it at 20 pts (Rare), scaling up to 70 pts (Gold Elite) the further you are from the border"]
+    "20260429l": ["📍 Mexico rarity is now distance-based — playing in San Diego or Texas puts it at 20 pts (Rare), scaling up to 70 pts (Gold Elite) the further you are from the border"],
+    "20260429m": ["🍀 Lucky Plate and 🎯 Secret Targets now only draw from U.S. states — territorial and international plates are excluded from secret assignments"]
   }
 }
