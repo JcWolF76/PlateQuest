@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427f';
+const APP_VERSION = '20260427g';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -206,6 +206,9 @@ const CHANGELOG = {
     ],
     '20260427f': [
         '🛡️ Update notifications no longer cause a silent reload — you now always see the banner and choose when to update',
+    ],
+    '20260427g': [
+        '🏆 Winners Circle — tap "Winners Circle" on the End Game screen to generate a shareable graphic of the top 3 players with a custom description, shareable via text, email, or saved as a photo',
     ],
 };
 
@@ -1420,6 +1423,7 @@ function bindEventListeners() {
     document.getElementById('viewResultsBtn')?.addEventListener('click', showEndGameScreen);
     document.getElementById('closeEndGameBtn')?.addEventListener('click', closeEndGameScreen);
     document.getElementById('shareResultsBtn')?.addEventListener('click', shareEndGameResults);
+    document.getElementById('winnersCircleBtn')?.addEventListener('click', shareWinnersCircle);
     document.getElementById('qrCodeBtn')?.addEventListener('click', showQRModal);
     document.getElementById('closeQRBtn')?.addEventListener('click', closeQRModal);
     document.getElementById('qrModal')?.addEventListener('click', e => { if (e.target === document.getElementById('qrModal')) closeQRModal(); });
@@ -4473,6 +4477,269 @@ function shareEndGameResults() {
         `Play at: ${window.location.origin}${window.location.pathname}`,
     ];
     copyToClipboard(lines.join('\n'), '📋 Results copied!');
+}
+
+// ── Winners Circle ────────────────────────────────────────────────────────────
+
+function buildPithyDescription(sorted, totalPlates) {
+    if (!sorted.length) return 'The road goes ever on. 🐺';
+    const winner = sorted[0];
+    const winnerName = (winner.name || winner.displayName || 'Winner').split(' ')[0];
+    const margin = sorted.length >= 2 ? winner.score - sorted[1].score : null;
+    const totalFound = sorted.reduce((sum, p) => sum + (p.foundCount || 0), 0);
+    const n = sorted.length;
+    const anyAlaska = sorted.some(p => p.foundSet?.has('Alaska'));
+    const anyHawaii = sorted.some(p => p.foundSet?.has('Hawaii'));
+
+    if (anyAlaska && anyHawaii) return pick([
+        'Alaska AND Hawaii spotted in the same game. This pack is elite.',
+        'Two mythical plates in one trip. The highway surrendered.',
+    ]);
+    if (anyAlaska) return `Alaska appeared and ${winnerName} still dominated. Pure efficiency.`;
+    if (anyHawaii) return `Hawaii showed up. ${winnerName} remained unfazed. True road royalty.`;
+
+    if (n === 1) return pick([
+        `Solo run. ${winner.foundCount} plates, ${winner.score} pts. ${winnerName} doesn't need competition — just a highway.`,
+        `One player, ${winner.foundCount} plates, zero chill. ${winnerName} plays for keeps.`,
+    ]);
+
+    if (margin === 0) return pick([
+        `A PERFECT TIE at ${winner.score} points. The highway refused to pick a side.`,
+        `Tied at ${winner.score} pts. Rematch requested. Road pending.`,
+    ]);
+
+    if (margin !== null && margin > 80) return pick([
+        `${winnerName} won by ${margin} points. The rest of the pack sends their regards.`,
+        `A ${margin}-point lead. ${winnerName} wasn't racing the pack — ${winnerName} was racing history.`,
+        `The gap was ${margin} points. ${winnerName} did not leave crumbs.`,
+    ]);
+
+    if (margin !== null && margin <= 15 && margin > 0) return pick([
+        `Final margin: ${margin} points. One more plate would have changed everything.`,
+        `${winnerName} by just ${margin} pts. The back seat saw that coming a mile away.`,
+        `${margin} points separated legend from runner-up. ${winnerName} holds the crown.`,
+    ]);
+
+    if (totalFound > 60) return pick([
+        `A combined ${totalFound} plates spotted. The interstate has been fully reviewed.`,
+        `${totalFound} plates across ${n} road warriors. The highway had nowhere to hide.`,
+    ]);
+
+    return pick([
+        `${n} players. ${totalFound} plates. ${winnerName} took the crown. Road trip complete.`,
+        `Pack closed. ${winnerName}: victorious. ${totalFound} plates documented. No notes.`,
+        `${winnerName} wins with ${winner.score} pts. The road knew it before we did.`,
+        `Miles driven. Plates spotted. ${winnerName} emerged. Life is good.`,
+    ]);
+}
+
+function _canvasWrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    let curY = y;
+    words.forEach(word => {
+        const test = line + word + ' ';
+        if (ctx.measureText(test).width > maxWidth && line.length) {
+            ctx.fillText(line.trim(), x, curY);
+            line = word + ' ';
+            curY += lineHeight;
+        } else {
+            line = test;
+        }
+    });
+    if (line.trim()) ctx.fillText(line.trim(), x, curY);
+    return curY;
+}
+
+function renderWinnersCanvas(sorted, pithyDesc) {
+    const topN = Math.min(sorted.length, 3);
+    const W = 600;
+    const HEADER_H = 72;
+    const ROW_H = 72, ROW_GAP = 8;
+    const DESC_H = 80;
+    const FOOTER_H = 30;
+    const H = HEADER_H + 10 + topN * (ROW_H + ROW_GAP) + 14 + DESC_H + FOOTER_H;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#0d1f35');
+    bg.addColorStop(1, '#162840');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, W, H, 18);
+    ctx.fill();
+
+    // Gold border
+    ctx.strokeStyle = 'rgba(255,215,0,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(1, 1, W - 2, H - 2, 18);
+    ctx.stroke();
+
+    // Header shimmer
+    const hdrGrad = ctx.createLinearGradient(0, 0, W, 0);
+    hdrGrad.addColorStop(0, 'rgba(255,215,0,0.04)');
+    hdrGrad.addColorStop(0.5, 'rgba(255,215,0,0.12)');
+    hdrGrad.addColorStop(1, 'rgba(255,215,0,0.04)');
+    ctx.fillStyle = hdrGrad;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, W, HEADER_H, [18, 18, 0, 0]);
+    ctx.fill();
+
+    // Header text
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 21px system-ui, -apple-system, sans-serif';
+    ctx.fillText('🏁  WINNERS CIRCLE', W / 2, 31);
+
+    const packLabel = (gameData?.name || 'PlateQuest Pack') + '  ·  ' +
+        new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    ctx.fillStyle = 'rgba(255,255,255,0.42)';
+    ctx.font = '13px system-ui, -apple-system, sans-serif';
+    ctx.fillText(packLabel, W / 2, 53);
+
+    // Header divider
+    ctx.strokeStyle = 'rgba(255,215,0,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(20, HEADER_H - 1);
+    ctx.lineTo(W - 20, HEADER_H - 1);
+    ctx.stroke();
+
+    // Player rows
+    const MEDALS = ['🥇', '🥈', '🥉'];
+    const NAME_COLORS = ['#FFD700', '#D8D8D8', '#E08840'];
+    const CARD_BG    = ['rgba(255,215,0,0.08)', 'rgba(200,200,200,0.05)', 'rgba(180,100,40,0.07)'];
+    const CARD_EDGE  = ['rgba(255,215,0,0.3)',  'rgba(200,200,200,0.18)', 'rgba(200,120,50,0.22)'];
+
+    sorted.slice(0, 3).forEach((p, i) => {
+        const cardY = HEADER_H + 10 + i * (ROW_H + ROW_GAP);
+        const PL = 18;
+
+        ctx.fillStyle = CARD_BG[i];
+        ctx.beginPath();
+        ctx.roundRect(PL, cardY, W - PL * 2, ROW_H, 10);
+        ctx.fill();
+        ctx.strokeStyle = CARD_EDGE[i];
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(PL, cardY, W - PL * 2, ROW_H, 10);
+        ctx.stroke();
+
+        // Medal
+        ctx.textAlign = 'left';
+        ctx.font = '28px serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(MEDALS[i], PL + 12, cardY + ROW_H / 2 + 10);
+
+        // Name (max 22 chars)
+        const name = (p.displayName || p.name || 'Player').slice(0, 22);
+        ctx.font = `bold 17px system-ui, -apple-system, sans-serif`;
+        ctx.fillStyle = NAME_COLORS[i];
+        ctx.fillText(name, PL + 56, cardY + ROW_H / 2 - 5);
+
+        // Stats
+        ctx.font = '13px system-ui, -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.48)';
+        ctx.fillText(`${p.score} pts  ·  ${p.foundCount} plates  ·  ${p.firstCount} first-finds`, PL + 56, cardY + ROW_H / 2 + 16);
+
+        // Rank coins if present
+        if ((p.coins || 0) > 0) {
+            ctx.textAlign = 'right';
+            ctx.font = '12px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255,215,0,0.6)';
+            ctx.fillText(`${p.coins}🪙`, W - PL - 14, cardY + ROW_H / 2 + 6);
+        }
+    });
+
+    // Description section
+    const descY = HEADER_H + 10 + topN * (ROW_H + ROW_GAP) + 14;
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(20, descY);
+    ctx.lineTo(W - 20, descY);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.68)';
+    ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
+    _canvasWrapText(ctx, pithyDesc, W / 2, descY + 24, W - 60, 22);
+
+    // Footer
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.font = '12px system-ui, -apple-system, sans-serif';
+    ctx.fillText('🐺  PlateQuest', W / 2, H - 10);
+
+    return canvas;
+}
+
+async function shareWinnersCircle() {
+    if (!gameData) return;
+    const totalPlates = getActivePlateEntries(gameData?.settings?.plateScope).length;
+    const sorted = Object.values(playersData).map(p => {
+        const s = computePlayerStats(p.playerKey) || { score: 0, foundCount: 0, firstCount: 0, foundSet: new Set() };
+        return { ...p, ...s };
+    }).sort((a, b) => b.score - a.score || b.foundCount - a.foundCount);
+
+    const pithyDesc = buildPithyDescription(sorted, totalPlates);
+    const canvas = renderWinnersCanvas(sorted, pithyDesc);
+
+    const medals = ['🥇', '🥈', '🥉'];
+    const shareText = [
+        `🏆 PlateQuest — ${gameData.name || 'Pack'} Winners Circle`,
+        '',
+        ...sorted.slice(0, 3).map((p, i) => `${medals[i]} ${p.displayName || p.name} — ${p.score} pts · ${p.foundCount}/${totalPlates} plates`),
+        '',
+        pithyDesc,
+        '',
+        '🐺 PlateQuest',
+    ].join('\n');
+
+    const btn = document.getElementById('winnersCircleBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
+
+    canvas.toBlob(async blob => {
+        if (btn) { btn.disabled = false; btn.textContent = '🏆 Winners Circle'; }
+        if (!blob) { copyToClipboard(shareText, '📋 Results copied!'); return; }
+
+        const file = new File([blob], 'platequest-winners.png', { type: 'image/png' });
+
+        // Try image share
+        try {
+            if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                await navigator.share({ title: `PlateQuest — ${gameData.name || 'Pack'} Results`, text: shareText, files: [file] });
+                return;
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+        }
+
+        // Try text-only share
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: 'PlateQuest Results', text: shareText });
+                return;
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+        }
+
+        // Fallback: download image
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'platequest-winners.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        showToast('📥 Winners Circle saved!', 'success');
+    }, 'image/png');
 }
 
 // ── QR Code ───────────────────────────────────────────────────────────────────
