@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427h';
+const APP_VERSION = '20260427i';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -213,6 +213,9 @@ const CHANGELOG = {
     '20260427h': [
         '📖 How to Play — a welcome guide now appears every time you join a game explaining swiping, scoring, and features. Tap ? next to License Plates to reopen it anytime',
         '👆 Swipe hint bar added at the top of the plate list as a permanent quick reference',
+    ],
+    '20260427i': [
+        '🎯 Secret Targets now assigned to all players in the pack, including anyone temporarily offline — they\'ll see their target the moment they reconnect',
     ],
 };
 
@@ -4106,7 +4109,7 @@ function detectBlackout() {
 async function assignSecretTargets() {
     if (!currentGameRef || gameData?.hostPlayerKey !== currentPlayer?.playerKey) return;
     const entries = getActivePlateEntries(gameData?.settings?.plateScope);
-    const players = Object.values(playersData).filter(p => p.connected !== false);
+    const players = Object.values(playersData);
     if (players.length === 0) { showToast('No players to assign!', 'error'); return; }
 
     const used = new Set();
