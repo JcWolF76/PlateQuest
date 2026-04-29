@@ -400,6 +400,11 @@
         .chat-msg.mine .chat-msg-bubble { background:rgba(26,188,156,0.28); border:1px solid rgba(26,188,156,0.5); }
         .chat-msg-time { font-size:9px; opacity:0.45; margin-top:1px; }
         .chat-footer { display:flex; gap:8px; padding:10px 14px; padding-bottom:max(10px,env(safe-area-inset-bottom,0px)); border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0; align-items:center; }
+        .chat-recipients { display:flex; align-items:center; gap:6px; padding:7px 14px 0; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; flex-shrink:0; }
+        .chat-recipients::-webkit-scrollbar { display:none; }
+        .chat-to-label { font-size:11px; font-weight:700; color:rgba(255,255,255,0.35); flex-shrink:0; text-transform:uppercase; letter-spacing:0.5px; }
+        .chat-to-chip { display:inline-flex; align-items:center; padding:4px 10px; background:rgba(26,188,156,0.08); border:1.5px solid rgba(26,188,156,0.2); border-radius:20px; cursor:pointer; white-space:nowrap; font-size:12px; font-weight:600; color:rgba(255,255,255,0.45); flex-shrink:0; touch-action:manipulation; user-select:none; transition:all 0.15s; }
+        .chat-to-chip.selected { background:rgba(26,188,156,0.22); border-color:rgba(26,188,156,0.6); color:#a9dfbf; }
         .chat-input { flex:1; background:rgba(255,255,255,0.07); border:1.5px solid rgba(26,188,156,0.3); border-radius:22px; padding:10px 16px; color:#fff; font-size:15px; outline:none; -webkit-appearance:none; min-height:44px; }
         .chat-input::placeholder { color:rgba(255,255,255,0.3); }
         .chat-input:focus { border-color:rgba(26,188,156,0.65); }
@@ -1377,6 +1382,7 @@
                 <button class="btn btn-secondary btn-small" id="closeChatBtn">✕</button>
             </div>
             <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-recipients" id="chatRecipients"></div>
             <div class="chat-footer">
                 <input type="text" class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" autocomplete="off" enterkeyhint="send">
                 <button class="btn btn-chat-send" id="chatSendBtn">Send</button>
@@ -1450,7 +1456,7 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260429e"></script>
+    <script src="game.js?v=20260429f"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

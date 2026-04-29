@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429e';
+const APP_VERSION = '20260429f';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -229,6 +229,9 @@ const CHANGELOG = {
     '20260429e': [
         '📖 How to Play instructions are now available anytime via the How2Play button in the top bar — they no longer pop up automatically on every join',
         '📵 Horizontal page bounce fully suppressed at the document level',
+    ],
+    '20260429f': [
+        '💬 Chat now supports private messages — tap the recipient chips above the input to send to specific players or everyone. The host and pack leader always see all messages. Private messages show a 🔒 lock indicator.',
     ],
 };
 
@@ -643,6 +646,7 @@ let prevAnnouncementKeys = null; // null = not yet initialized; reset on game ex
 let prevTauntKeys = null;        // null = not yet initialized; reset on game exit
 let announcementsChildRef = null;
 let tauntsChildRef = null;
+let chatChildRef = null;
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let prevPlateDisputeKeys = null;         // same, for individual plate first-finder disputes
@@ -1697,6 +1701,7 @@ function teardownCurrentRoomListeners() {
     gameListenerAttached = false;
     if (announcementsChildRef) { announcementsChildRef.off(); announcementsChildRef = null; }
     if (tauntsChildRef) { tauntsChildRef.off(); tauntsChildRef = null; }
+    if (chatChildRef) { chatChildRef.off(); chatChildRef = null; }
     if (presenceCleanup) { presenceCleanup(); presenceCleanup = null; }
     if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
 }
@@ -1706,6 +1711,7 @@ function setupGameListeners() {
     if (gameListenerAttached) { currentGameRef.off(); gameListenerAttached = false; }
     if (announcementsChildRef) { announcementsChildRef.off(); announcementsChildRef = null; }
     if (tauntsChildRef) { tauntsChildRef.off(); tauntsChildRef = null; }
+    if (chatChildRef) { chatChildRef.off(); chatChildRef = null; }
     currentGameRef.on('value', (snapshot) => {
         if (!snapshot.exists()) { showToast('Pack no longer exists.', 'error'); returnToSetup(true); return; }
         gameData = snapshot.val();
@@ -1744,6 +1750,24 @@ function setupGameListeners() {
         showTauntNotification(snap.val());
     });
     currentGameRef.child('taunts').once('value', () => { tauntReady = true; });
+
+    let chatReady = false;
+    chatChildRef = currentGameRef.child('chat');
+    chatChildRef.on('child_added', snap => {
+        if (!chatReady || !currentPlayer) return;
+        const msg = snap.val();
+        if (!msg) return;
+        const sheet = document.getElementById('chatSheet');
+        const isOpen = sheet?.classList.contains('open');
+        if (isOpen) {
+            renderChatMessages();
+        } else if (canSeeChatMessage(msg) && msg.playerKey !== currentPlayer.playerKey) {
+            chatUnreadCount++;
+            showToast(`💬 ${escapeHtml(msg.displayName || '?')}: ${escapeHtml((msg.message || '').slice(0, 60))}`, 'info');
+            updateChatBadge();
+        }
+    });
+    currentGameRef.child('chat').once('value', () => { chatReady = true; });
 }
 
 function setupPresence() {
@@ -1802,7 +1826,6 @@ function updateGameUI() {
     detectClearRequests();
     detectRegionClearRequests();
     detectPlateDisputeRequests();
-    detectNewChatMessages();
     detectNewReactions();
     detectSpeedRound();
     detectBlackout();
@@ -2677,6 +2700,52 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function canSeeChatMessage(msg) {
+    if (!msg.targetKeys) return true; // backward compat: old messages visible to all
+    if (msg.targetKeys.includes('all')) return true;
+    if (msg.playerKey === currentPlayer?.playerKey) return true; // sender always sees own
+    if (msg.targetKeys.includes(currentPlayer?.playerKey)) return true;
+    if (gameData?.hostPlayerKey === currentPlayer?.playerKey) return true; // host sees all
+    if (currentPlayer?.tag?.toLowerCase() === 'jcwolf') return true; // developer sees all
+    return false;
+}
+
+function renderChatRecipients() {
+    const container = document.getElementById('chatRecipients');
+    if (!container || !currentPlayer || !playersData) return;
+    container.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'chat-to-label';
+    label.textContent = 'To:';
+    container.appendChild(label);
+    const otherPlayers = Object.values(playersData).filter(p => p.playerKey !== currentPlayer.playerKey);
+    const allChip = document.createElement('div');
+    allChip.className = 'chat-to-chip selected';
+    allChip.dataset.key = 'all';
+    allChip.textContent = '🐺 Everyone';
+    container.appendChild(allChip);
+    otherPlayers.forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'chat-to-chip';
+        chip.dataset.key = p.playerKey;
+        chip.textContent = p.displayName || p.name || 'Player';
+        container.appendChild(chip);
+    });
+    container.querySelectorAll('.chat-to-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            if (chip.dataset.key === 'all') {
+                container.querySelectorAll('.chat-to-chip').forEach(c => c.classList.toggle('selected', c.dataset.key === 'all'));
+            } else {
+                container.querySelector('[data-key="all"]')?.classList.remove('selected');
+                chip.classList.toggle('selected');
+                if (!container.querySelector('.chat-to-chip.selected')) {
+                    container.querySelector('[data-key="all"]')?.classList.add('selected');
+                }
+            }
+        });
+    });
+}
+
 function openChat() {
     try {
         if (!localStorage.getItem('platequest_chat_agreed')) {
@@ -2693,6 +2762,7 @@ function _openChatSheet() {
     sheet.classList.add('open');
     chatUnreadCount = 0;
     updateChatBadge();
+    renderChatRecipients();
     renderChatMessages();
     setTimeout(() => document.getElementById('chatInput')?.focus(), 300);
 }
@@ -2716,6 +2786,7 @@ function renderChatMessages() {
     const container = document.getElementById('chatMessages');
     if (!container) return;
     const entries = Object.values(gameData?.chat || {})
+        .filter(msg => canSeeChatMessage(msg))
         .sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0))
         .slice(-100);
     if (!entries.length) {
@@ -2725,8 +2796,9 @@ function renderChatMessages() {
     container.innerHTML = entries.map(msg => {
         const isMe = msg.playerKey === currentPlayer?.playerKey;
         const ts = formatFoundAt(msg.sentAt) || '';
+        const isPrivate = msg.targetKeys && !msg.targetKeys.includes('all');
         const sender = isMe ? '' : `<div class="chat-msg-sender">${escapeHtml(msg.displayName || '?')}</div>`;
-        const time = ts ? `<div class="chat-msg-time">${ts}</div>` : '';
+        const time = ts ? `<div class="chat-msg-time">${isPrivate ? '🔒 private · ' : ''}${ts}</div>` : (isPrivate ? '<div class="chat-msg-time">🔒 private</div>' : '');
         return `<div class="chat-msg${isMe ? ' mine' : ''}">${sender}<div class="chat-msg-bubble">${escapeHtml(msg.message || '')}</div>${time}</div>`;
     }).join('');
     container.scrollTop = container.scrollHeight;
@@ -2737,12 +2809,24 @@ async function sendChatMessage() {
     const input = document.getElementById('chatInput');
     const message = input?.value.trim();
     if (!message) return;
+    // Build targetKeys from recipient chips
+    const selectedChips = [...document.querySelectorAll('#chatRecipients .chat-to-chip.selected')];
+    const isAll = selectedChips.some(c => c.dataset.key === 'all') || !selectedChips.length;
+    let targetKeys = isAll ? ['all'] : selectedChips.map(c => c.dataset.key);
+    // Always include host and developer so they see every message
+    if (!isAll) {
+        const hostKey = gameData?.hostPlayerKey;
+        if (hostKey && !targetKeys.includes(hostKey)) targetKeys.push(hostKey);
+        const devKey = Object.values(playersData).find(p => p.tag?.toLowerCase() === 'jcwolf')?.playerKey;
+        if (devKey && !targetKeys.includes(devKey)) targetKeys.push(devKey);
+    }
     const sendBtn = document.getElementById('chatSendBtn');
     if (sendBtn) sendBtn.disabled = true;
     try {
         await currentGameRef.child('chat').push({
             playerKey: currentPlayer.playerKey,
             displayName: currentPlayer.displayName,
+            targetKeys,
             message,
             sentAt: firebase.database.ServerValue.TIMESTAMP,
         });
