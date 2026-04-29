@@ -801,8 +801,10 @@
                         <select id="pausedPackScopeSelect" class="mode-input" style="margin-bottom:0;">
                             <option value="us_only">U.S. States Only</option>
                             <option value="us_canada">U.S. + Canada</option>
+                            <option value="us_latam">U.S. + Latin America</option>
+                            <option value="us_canada_latam">U.S. + Canada + Latin America</option>
                         </select>
-                        <div class="setup-hint">Turning Canada off is blocked if this pack already contains Canadian plate progress.</div>
+                        <div class="setup-hint">Removing a region is blocked if this pack already has progress from that region.</div>
                     </div>
                     <div class="play-area-panel">
                         <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
@@ -871,8 +873,10 @@
                             <select id="plateScopeSelect" class="mode-input" disabled style="margin-bottom:0;">
                                 <option value="us_only">U.S. States Only</option>
                                 <option value="us_canada">U.S. + Canada</option>
+                                <option value="us_latam">U.S. + Latin America</option>
+                                <option value="us_canada_latam">U.S. + Canada + Latin America</option>
                             </select>
-                            <div class="setup-hint">When enabled, Canadian provinces and territories appear below the U.S. states in a separate alphabetical section.</div>
+                            <div class="setup-hint">Extra regions appear in labeled sections below U.S. states.</div>
                         </div>
                         <div class="setup-inline-card">
                             <label style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">📍 Rarity Mode</label>
@@ -1071,8 +1075,10 @@
                     <select id="editPlateScopeSelect" class="mode-input" style="margin-bottom:0;">
                         <option value="us_only">U.S. States Only</option>
                         <option value="us_canada">U.S. + Canada</option>
+                        <option value="us_latam">U.S. + Latin America</option>
+                        <option value="us_canada_latam">U.S. + Canada + Latin America</option>
                     </select>
-                    <div class="setup-hint">Turning Canada off is blocked if this pack already contains saved Canadian plate progress.</div>
+                    <div class="setup-hint">Removing a region is blocked if this pack already contains progress from that region.</div>
                 </div>
                 <div class="edit-pack-section">
                     <label style="margin-bottom:8px; display:block; color:#3498db; font-weight:700; font-size:14px;">📍 Rarity Mode</label>
@@ -1514,13 +1520,14 @@
         <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    <script src="game.js?v=20260429h"></script>
+    <script src="game.js?v=20260429i"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
         const FIREBASE_CREATOR_GAMES_PATH = 'creatorGames';
         const pendingCreateMeta = { gameName: null };
         const CANADA_PLATE_NAMES = ['Alberta','British Columbia','Manitoba','New Brunswick','Newfoundland and Labrador','Northwest Territories','Nova Scotia','Nunavut','Ontario','Prince Edward Island','Quebec','Saskatchewan','Yukon'];
+        const LATAM_PLATE_NAMES = ['Mexico','Belize','Costa Rica','El Salvador','Guatemala','Honduras','Nicaragua','Panama','Argentina','Bolivia','Brazil','Chile','Colombia','Ecuador','Guyana','Paraguay','Peru','Suriname','Uruguay','Venezuela'];
 
         // Use shared constants exposed by game.js to avoid duplication.
         // Falls back to an empty structure if game.js hasn't loaded yet.
@@ -1635,7 +1642,11 @@
             if (!nextPlayAreaStates.length) { if (typeof showToast === 'function') showToast('Select at least one trip-area state.', 'error'); return; }
             const room = pack.data || {};
             const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name)));
-            if (nextScope === 'us_only' && hasCanadianProgress) { if (typeof showToast === 'function') showToast('Cannot turn Canada off — this pack already has Canadian plate progress.', 'error'); return; }
+            const hasLatamProgress = Object.keys(room.claimedStates || {}).some((name) => LATAM_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => LATAM_PLATE_NAMES.includes(name)));
+            const nextHasCanada = nextScope === 'us_canada' || nextScope === 'us_canada_latam';
+            const nextHasLatam = nextScope === 'us_latam' || nextScope === 'us_canada_latam';
+            if (!nextHasCanada && hasCanadianProgress) { if (typeof showToast === 'function') showToast('Cannot remove Canada — this pack already has Canadian plate progress.', 'error'); return; }
+            if (!nextHasLatam && hasLatamProgress) { if (typeof showToast === 'function') showToast('Cannot remove Latin America — this pack already has Latin American plate progress.', 'error'); return; }
             const payload = { settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates }, updatedAt: Date.now() };
             try {
                 await db.ref(`games/${pack.code}`).update(payload);
@@ -1753,7 +1764,11 @@
             if (!nextRegion) { if (typeof showToast === 'function') showToast('Please choose a primary play region.', 'error'); return; }
             if (!nextPlayAreaStates.length) { if (typeof showToast === 'function') showToast('Select at least one trip-area state.', 'error'); return; }
             const hasCanadianProgress = Object.keys(room.claimedStates || {}).some((name) => CANADA_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => CANADA_PLATE_NAMES.includes(name)));
-            if (nextScope === 'us_only' && hasCanadianProgress) { if (typeof showToast === 'function') showToast('Cannot turn Canada off — this pack already has Canadian plate progress.', 'error'); return; }
+            const hasLatamProgress = Object.keys(room.claimedStates || {}).some((name) => LATAM_PLATE_NAMES.includes(name)) || Object.values(room.players || {}).some((player) => Object.keys(player?.states || {}).some((name) => LATAM_PLATE_NAMES.includes(name)));
+            const nextHasCanada = nextScope === 'us_canada' || nextScope === 'us_canada_latam';
+            const nextHasLatam = nextScope === 'us_latam' || nextScope === 'us_canada_latam';
+            if (!nextHasCanada && hasCanadianProgress) { if (typeof showToast === 'function') showToast('Cannot remove Canada — this pack already has Canadian plate progress.', 'error'); return; }
+            if (!nextHasLatam && hasLatamProgress) { if (typeof showToast === 'function') showToast('Cannot remove Latin America — this pack already has Latin American plate progress.', 'error'); return; }
             const payload = { name: nextName, settings: { ...(room.settings || {}), playRegion: nextRegion, plateScope: nextScope, playAreaStates: nextPlayAreaStates, gpsRarity: nextGpsRarity }, updatedAt: Date.now() };
             try {
                 await db.ref(`games/${code}`).update(payload);
