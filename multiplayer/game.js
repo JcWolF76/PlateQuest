@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260427i';
+const APP_VERSION = '20260429a';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -214,8 +214,8 @@ const CHANGELOG = {
         '📖 How to Play — a welcome guide now appears every time you join a game explaining swiping, scoring, and features. Tap ? next to License Plates to reopen it anytime',
         '👆 Swipe hint bar added at the top of the plate list as a permanent quick reference',
     ],
-    '20260427i': [
-        '🎯 Secret Targets now assigned to all players in the pack, including anyone temporarily offline — they\'ll see their target the moment they reconnect',
+    '20260429a': [
+        '🎯 Secret Targets — pressing the button now assigns a target plate to every player in the pack, including anyone temporarily offline. Each player sees their own target privately and it stays until they find it first.',
     ],
 };
 
