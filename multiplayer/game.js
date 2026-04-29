@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429i';
+const APP_VERSION = '20260429j';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -258,6 +258,9 @@ const CHANGELOG = {
     '20260429i': [
         '🌎 Mexico, Central America & South America — a new Latin America section now appears in the plate grid when enabled under Plate Coverage',
         '🗺️ Four scope options: U.S. only, U.S. + Canada, U.S. + Latin America, or U.S. + Canada + Latin America',
+    ],
+    '20260429j': [
+        '🔔 Update notes now always fetch fresh from the server — no more "Performance improvements" placeholder regardless of how old your cached version is',
     ],
 };
 
@@ -1180,31 +1183,41 @@ function handleVersionMismatch(latest, remoteChangelog) {
 
 function showUpdateModal(latest, remoteChangelog) {
     if (document.getElementById('updateModal')) return;
-    // Prefer fresh changelog from version.json — old cached JS won't have new entries
-    const sourceChangelog = remoteChangelog || CHANGELOG;
-    const missedVersions = Object.keys(sourceChangelog).sort().filter(v => v > APP_VERSION && v <= latest);
-    const allNotes = missedVersions.flatMap(v => sourceChangelog[v]);
-    const bullets = (allNotes.length ? allNotes : ['🚀 Performance improvements and bug fixes'])
-        .map(n => `<li>${n}</li>`).join('');
-    const overlay = document.createElement('div');
-    overlay.id = 'updateModal';
-    overlay.className = 'update-modal-overlay';
-    overlay.innerHTML = `
-        <div class="update-modal-card">
-            <div class="update-modal-icon">🐺</div>
-            <div class="update-modal-title">What's New in PlateQuest</div>
-            <div class="update-modal-version">Version ${latest}</div>
-            <ul class="update-modal-notes">${bullets}</ul>
-            <div class="update-modal-footer">— Dev log: JcWolF is always on duty. Bugs squashed. Features incoming. 🐺🎮</div>
-            <div class="update-modal-actions">
-                <button class="btn btn-secondary update-modal-later">Maybe Later</button>
-                <button class="btn btn-primary update-modal-now">🚀 Update Now</button>
+
+    const renderModal = (changelog, resolvedLatest) => {
+        if (document.getElementById('updateModal')) return;
+        const ver = resolvedLatest || latest;
+        const sourceChangelog = changelog || CHANGELOG;
+        const missedVersions = Object.keys(sourceChangelog).sort().filter(v => v > APP_VERSION && v <= ver);
+        const allNotes = missedVersions.flatMap(v => sourceChangelog[v]);
+        const bullets = (allNotes.length ? allNotes : ['🚀 Performance improvements and bug fixes'])
+            .map(n => `<li>${n}</li>`).join('');
+        const overlay = document.createElement('div');
+        overlay.id = 'updateModal';
+        overlay.className = 'update-modal-overlay';
+        overlay.innerHTML = `
+            <div class="update-modal-card">
+                <div class="update-modal-icon">🐺</div>
+                <div class="update-modal-title">What's New in PlateQuest</div>
+                <div class="update-modal-version">Version ${ver}</div>
+                <ul class="update-modal-notes">${bullets}</ul>
+                <div class="update-modal-footer">— Dev log: JcWolF is always on duty. Bugs squashed. Features incoming. 🐺🎮</div>
+                <div class="update-modal-actions">
+                    <button class="btn btn-secondary update-modal-later">Maybe Later</button>
+                    <button class="btn btn-primary update-modal-now">🚀 Update Now</button>
+                </div>
             </div>
-        </div>
-    `;
-    overlay.querySelector('.update-modal-now').addEventListener('click', doAppReload);
-    overlay.querySelector('.update-modal-later').addEventListener('click', () => overlay.remove());
-    document.body.appendChild(overlay);
+        `;
+        overlay.querySelector('.update-modal-now').addEventListener('click', doAppReload);
+        overlay.querySelector('.update-modal-later').addEventListener('click', () => overlay.remove());
+        document.body.appendChild(overlay);
+    };
+
+    // Always re-fetch version.json so the modal shows real notes even on old cached JS
+    fetch(`version.json?_v=${Date.now()}`, { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => renderModal(d.changelog || remoteChangelog, d.version || latest))
+        .catch(() => renderModal(remoteChangelog, latest));
 }
 
 let feedbackType = 'bug'; // 'bug' or 'feature'
