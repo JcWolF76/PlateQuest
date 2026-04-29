@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429o';
+const APP_VERSION = '20260429p';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -54,6 +54,8 @@ const SHOP_ITEMS = [
       category: 'trick',   desc: 'Instantly removes one random spotted plate from every player — including yourself. Pure chaos.' },
     { id: 'copycat',     name: 'Copycat',      icon: '🪄', cost: 55, effectKey: null,           duration: null,
       category: 'trick',   desc: "Steals a copy of one random spotted plate from the leader's collection." },
+    { id: 'thiefInTheNight', name: 'Thief in the Night', icon: '🌙', cost: 75, effectKey: null, duration: null,
+      category: 'trick',   desc: 'Pick any opponent — steals their single highest-value plate. They lose it permanently.' },
     { id: 'deadBattery', name: 'Dead Battery', icon: '🔋', cost: 40, effectKey: 'deadBattery', duration: 3*60*1000,
       category: 'trick',   desc: 'Kills chat for all other players for 3 minutes.' },
     { id: 'bountyBoard', name: 'Bounty Board', icon: '🎯', cost: 0,  effectKey: null,           duration: null,
@@ -300,6 +302,9 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429p': [
+        '🌙 Thief in the Night — pick any opponent and steal their single highest-value plate; they lose it permanently (75🪙)',
     ],
     '20260429o': [
         '🪄 Copycat — steals a copy of one random plate from the leader\'s collection (55🪙)',
@@ -1413,6 +1418,12 @@ async function buyShopItem(itemId) {
         showToast(`🪄 Copycat! Swiped ${pick} from ${leader.displayName || 'the leader'}!`, 'success');
         writeRegionCompletions();
         closeShopModal();
+        return;
+    }
+
+    if (item.id === 'thiefInTheNight') {
+        closeShopModal();
+        openThiefModal(item.cost);
         return;
     }
 
@@ -4468,6 +4479,86 @@ function openBountyModal() {
 function closeBountyModal() {
     const modal = document.getElementById('bountyModal');
     if (modal) modal.style.display = 'none';
+}
+
+function openThiefModal(cost) {
+    if (document.getElementById('thiefModal')) return;
+    const corridor = gameData?.settings?.playAreaStates || [];
+    const others = Object.values(playersData).filter(p => p.playerKey !== currentPlayer.playerKey);
+    const playerRows = others.map(p => {
+        const plates = Object.keys(p.states || {});
+        let bestPlate = null, bestPts = -1;
+        for (const name of plates) {
+            const tier = computeRarityForState(name, corridor);
+            const pts = RARITY_CONFIG[tier]?.points || 0;
+            if (pts > bestPts) { bestPts = pts; bestPlate = name; }
+        }
+        const disabled = !bestPlate;
+        const icon = resolvePlayerIcon(p);
+        const label = disabled
+            ? `<span class="thief-no-plates">No plates yet</span>`
+            : `<span class="thief-plate-preview">${bestPlate} <span class="thief-pts">${bestPts} pts</span></span>`;
+        return `<button class="thief-player-btn${disabled ? ' disabled' : ''}" ${disabled ? 'disabled' : `onclick="executeThief('${p.playerKey}',${cost})"`}>
+            <span class="thief-player-icon">${icon}</span>
+            <span class="thief-player-name">${escapeHtml(p.displayName || '?')}</span>
+            ${label}
+        </button>`;
+    }).join('');
+    const overlay = document.createElement('div');
+    overlay.id = 'thiefModal';
+    overlay.className = 'bounty-modal';
+    overlay.innerHTML = `
+        <div class="bounty-sheet" style="max-width:500px;margin:0 auto;">
+            <div class="bounty-header">
+                <span class="bounty-title">🌙 Thief in the Night</span>
+                <button onclick="closeThiefModal()" style="background:none;border:none;color:#7f8c8d;font-size:22px;cursor:pointer;padding:0 4px;">✕</button>
+            </div>
+            <p class="bounty-desc">Pick a target — steal their highest-value plate. They lose it permanently.</p>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">${playerRows || '<p style="opacity:.6;text-align:center;color:#95a5a6">No other players in the pack.</p>'}</div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeThiefModal(); });
+}
+
+function closeThiefModal() {
+    document.getElementById('thiefModal')?.remove();
+}
+
+async function executeThief(targetPlayerKey, cost) {
+    closeThiefModal();
+    const myCoins = playersData[currentPlayer.playerKey]?.coins || 0;
+    if (myCoins < cost) { showToast('Not enough coins!', 'error'); return; }
+    const target = playersData[targetPlayerKey];
+    if (!target) { showToast('Player not found.', 'error'); return; }
+    if (target.effects?.shield) {
+        await currentGameRef.update({ [`players/${targetPlayerKey}/effects/shield`]: null });
+        showToast(`🌙 Blocked! ${target.displayName || '?'}'s shield absorbed the theft!`, 'info');
+        return;
+    }
+    const corridor = gameData?.settings?.playAreaStates || [];
+    const plates = Object.keys(target.states || {});
+    let bestPlate = null, bestPts = -1;
+    for (const name of plates) {
+        const tier = computeRarityForState(name, corridor);
+        const pts = RARITY_CONFIG[tier]?.points || 0;
+        if (pts > bestPts) { bestPts = pts; bestPlate = name; }
+    }
+    if (!bestPlate) { showToast(`${target.displayName || '?'} has no plates to steal!`, 'info'); return; }
+    const stateRecord = { state: bestPlate, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey, stolenFrom: target.displayName || '?' };
+    await currentGameRef.update({
+        [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-cost),
+        [`players/${currentPlayer.playerKey}/states/${bestPlate}`]: stateRecord,
+        [`players/${targetPlayerKey}/states/${bestPlate}`]: null,
+    });
+    await currentGameRef.child('taunts').push({
+        senderKey: currentPlayer.playerKey,
+        senderName: currentPlayer.displayName,
+        targetKeys: [targetPlayerKey],
+        message: `🌙 Thief in the Night stole your ${bestPlate}!`,
+        sentAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+    showToast(`🌙 Stole ${bestPlate} from ${target.displayName || '?'}!`, 'success');
+    writeRegionCompletions();
 }
 
 async function confirmPlaceBounty() {
