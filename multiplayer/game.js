@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429n';
+const APP_VERSION = '20260429o';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -52,8 +52,16 @@ const SHOP_ITEMS = [
       category: 'trick',   desc: 'Forces a 30-second cooldown between plate spots for all other players for 3 minutes.' },
     { id: 'roulette',  name: 'Russian Roulette',  icon: '🎰', cost: 80, effectKey: null,         duration: null,
       category: 'trick',   desc: 'Instantly removes one random spotted plate from every player — including yourself. Pure chaos.' },
+    { id: 'copycat',     name: 'Copycat',      icon: '🪄', cost: 55, effectKey: null,           duration: null,
+      category: 'trick',   desc: "Steals a copy of one random spotted plate from the leader's collection." },
+    { id: 'deadBattery', name: 'Dead Battery', icon: '🔋', cost: 40, effectKey: 'deadBattery', duration: 3*60*1000,
+      category: 'trick',   desc: 'Kills chat for all other players for 3 minutes.' },
+    { id: 'bountyBoard', name: 'Bounty Board', icon: '🎯', cost: 0,  effectKey: null,           duration: null,
+      category: 'trick',   desc: 'Place a coin bounty on any plate — first finder collects the pot. Cost comes from your coins.' },
     { id: 'ghost',     name: 'Ghost Mode',        icon: '👻', cost: 45, effectKey: 'ghost',     duration: 5*60*1000,
       category: 'boost',   desc: 'Hides your score and plate count from all other players for 5 minutes. Play in stealth.' },
+    { id: 'decoy',     name: 'Decoy',             icon: '🎭', cost: 50, effectKey: 'decoy',     duration: 5*60*1000,
+      category: 'boost',   desc: 'All other players see your score inflated by 50% for 5 minutes. Make them sweat.' },
     { id: 'shield',    name: 'Shield',            icon: '🛡️', cost: 35, effectKey: 'shield',    duration: null,
       category: 'defense', desc: 'Blocks the next trick used against you. One use only.' },
 ];
@@ -292,6 +300,13 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429o': [
+        '🪄 Copycat — steals a copy of one random plate from the leader\'s collection (55🪙)',
+        '🔋 Dead Battery — kills chat for all other players for 3 minutes (40🪙)',
+        '🎭 Decoy — makes opponents see your score inflated 50% for 5 minutes (50🪙, Boosts)',
+        '🎯 Bounty Board — opens the bounty panel so any player can place a coin bounty on any plate',
+        '🐛 Fixed: Russian Roulette now correctly respects your own Shield — buying it while shielded protects your plate and consumes the shield',
     ],
 };
 
@@ -1324,18 +1339,19 @@ function renderShopModal() {
         items.forEach(item => {
             const div = document.createElement('div');
             div.className = 'shop-item';
-            const canAfford = myCoins >= item.cost;
+            const canAfford = item.id === 'bountyBoard' || myCoins >= item.cost;
             let statusHtml = '';
             if (item.id === 'shield') {
                 if (myEffects.shield) statusHtml = '<span class="shop-status-pill">Active</span>';
-            } else if (item.id === 'ghost') {
-                if ((myEffects.ghost || 0) > now) statusHtml = '<span class="shop-status-pill">Active</span>';
+            } else if (item.id === 'ghost' || item.id === 'decoy') {
+                if ((myEffects[item.effectKey] || 0) > now) statusHtml = '<span class="shop-status-pill">Active</span>';
             } else if (item.effectKey) {
                 const anyActive = Object.values(playersData).some(
                     p => p.playerKey !== currentPlayer?.playerKey && (p.effects?.[item.effectKey] || 0) > now
                 );
                 if (anyActive) statusHtml = '<span class="shop-status-pill">Active on pack</span>';
             }
+            const costLabel = item.id === 'bountyBoard' ? 'Open' : `🪙${item.cost}`;
             div.innerHTML = `
                 <div class="shop-item-icon">${item.icon}</div>
                 <div class="shop-item-body">
@@ -1343,7 +1359,7 @@ function renderShopModal() {
                     <div class="shop-item-desc">${item.desc}</div>
                 </div>
                 <button class="btn-shop-buy${canAfford ? '' : ' btn-shop-buy--off'}" data-iid="${item.id}" ${canAfford ? '' : 'disabled'}>
-                    🪙${item.cost}
+                    ${costLabel}
                 </button>`;
             list.appendChild(div);
         });
@@ -1374,6 +1390,31 @@ async function buyShopItem(itemId) {
         return;
     }
 
+    if (item.id === 'bountyBoard') {
+        closeShopModal();
+        openBountyModal();
+        return;
+    }
+
+    if (item.id === 'copycat') {
+        const others = Object.values(playersData).filter(p => p.playerKey !== currentPlayer.playerKey);
+        const myPlates = new Set(Object.keys(playersData[currentPlayer.playerKey]?.states || {}));
+        // Pick the player with the most plates as the target
+        const leader = others.sort((a, b) => Object.keys(b.states || {}).length - Object.keys(a.states || {}).length)[0];
+        if (!leader) { showToast('No other players to copy from!', 'info'); return; }
+        const available = Object.keys(leader.states || {}).filter(p => !myPlates.has(p));
+        if (available.length === 0) { showToast('🪄 You already have all of the leader\'s plates!', 'info'); return; }
+        const pick = available[Math.floor(Math.random() * available.length)];
+        const stateRecord = { state: pick, foundAt: firebase.database.ServerValue.TIMESTAMP, foundBy: currentPlayer.displayName, foundByKey: currentPlayer.playerKey, copiedFrom: leader.displayName || '?' };
+        await currentGameRef.update({
+            [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-item.cost),
+            [`players/${currentPlayer.playerKey}/states/${pick}`]: stateRecord,
+        });
+        showToast(`🪄 Copycat! Swiped ${pick} from ${leader.displayName || 'the leader'}!`, 'success');
+        closeShopModal();
+        return;
+    }
+
     if (item.id === 'ghost') {
         const expiry = Date.now() + item.duration;
         await currentGameRef.update({
@@ -1385,14 +1426,24 @@ async function buyShopItem(itemId) {
         return;
     }
 
+    if (item.id === 'decoy') {
+        const expiry = Date.now() + item.duration;
+        await currentGameRef.update({
+            [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-item.cost),
+            [`players/${currentPlayer.playerKey}/effects/decoy`]: expiry,
+        });
+        showToast('🎭 Decoy active — opponents see a fake inflated score for 5 minutes!', 'success');
+        closeShopModal();
+        return;
+    }
+
     if (item.id === 'roulette') {
         const allPlayers = Object.values(playersData);
         const updates = { [`players/${currentPlayer.playerKey}/coins`]: firebase.database.ServerValue.increment(-item.cost) };
         const lost = [];
         let shielded = 0;
         for (const player of allPlayers) {
-            const isMe = player.playerKey === currentPlayer.playerKey;
-            if (!isMe && player.effects?.shield) {
+            if (player.effects?.shield) {
                 updates[`players/${player.playerKey}/effects/shield`] = null;
                 shielded++;
                 continue;
@@ -1438,15 +1489,17 @@ function updateActiveEffectsBar() {
     const fx = getMyEffects();
     const now = Date.now();
     const active = [];
-    if ((fx.blender   || 0) > now) active.push({ icon: '🌀', label: 'Plates scrambled',      expiry: fx.blender });
-    if ((fx.freeze    || 0) > now) active.push({ icon: '⏸️', label: 'You are frozen',         expiry: fx.freeze });
-    if ((fx.fog       || 0) > now) active.push({ icon: '🌫️', label: 'Scores hidden',          expiry: fx.fog });
-    if ((fx.oilSlick  || 0) > now) active.push({ icon: '🛢️', label: 'Oil Slick',              expiry: fx.oilSlick });
-    if ((fx.haze      || 0) > now) active.push({ icon: '🌁', label: 'Hazed in',               expiry: fx.haze });
-    if ((fx.wrongWay  || 0) > now) active.push({ icon: '🔃', label: 'Grid reversed',          expiry: fx.wrongWay });
-    if ((fx.speedTrap || 0) > now) active.push({ icon: '🚔', label: 'Speed trap — 30s delay', expiry: fx.speedTrap });
-    if ((fx.ghost     || 0) > now) active.push({ icon: '👻', label: 'Ghost Mode — stealth',   expiry: fx.ghost });
-    if (fx.shield)                 active.push({ icon: '🛡️', label: 'Shielded',               expiry: null });
+    if ((fx.blender     || 0) > now) active.push({ icon: '🌀', label: 'Plates scrambled',      expiry: fx.blender });
+    if ((fx.freeze      || 0) > now) active.push({ icon: '⏸️', label: 'You are frozen',         expiry: fx.freeze });
+    if ((fx.fog         || 0) > now) active.push({ icon: '🌫️', label: 'Scores hidden',          expiry: fx.fog });
+    if ((fx.oilSlick    || 0) > now) active.push({ icon: '🛢️', label: 'Oil Slick',              expiry: fx.oilSlick });
+    if ((fx.haze        || 0) > now) active.push({ icon: '🌁', label: 'Hazed in',               expiry: fx.haze });
+    if ((fx.wrongWay    || 0) > now) active.push({ icon: '🔃', label: 'Grid reversed',          expiry: fx.wrongWay });
+    if ((fx.speedTrap   || 0) > now) active.push({ icon: '🚔', label: 'Speed trap — 30s delay', expiry: fx.speedTrap });
+    if ((fx.deadBattery || 0) > now) active.push({ icon: '🔋', label: 'Chat disabled',          expiry: fx.deadBattery });
+    if ((fx.ghost       || 0) > now) active.push({ icon: '👻', label: 'Ghost Mode — stealth',   expiry: fx.ghost });
+    if ((fx.decoy       || 0) > now) active.push({ icon: '🎭', label: 'Decoy score active',     expiry: fx.decoy });
+    if (fx.shield)                   active.push({ icon: '🛡️', label: 'Shielded',               expiry: null });
     bar.style.display = active.length ? 'flex' : 'none';
     bar.innerHTML = active.map(e =>
         `<div class="effect-pill">${e.icon} ${e.label}${e.expiry ? ` <span class="effect-time">${formatTimeLeft(e.expiry)}</span>` : ''}</div>`
@@ -2137,6 +2190,8 @@ function updateScores() {
             : '';
         const coins = player.coins || 0;
         const fogged = !isMe && ((getMyEffects().fog || 0) > Date.now() || (player.effects?.ghost || 0) > Date.now());
+        const decoyed = !isMe && (player.effects?.decoy || 0) > Date.now();
+        const displayScore = decoyed ? Math.round((player.score || 0) * 1.5) : (player.score || 0);
         const streak = player.streak || { count: 0, lastFoundAt: 0 };
         const streakActive = streak.count >= 3 && (Date.now() - (streak.lastFoundAt || 0)) <= STREAK_WINDOW_MS;
         const streakBadge = streakActive ? `<div class="streak-badge">🔥×${streak.count}</div>` : '';
@@ -2159,7 +2214,7 @@ function updateScores() {
                 <div class="score-player-name">${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}${offlineMark}</div>
                 ${streakBadge}${rivalBadge}
             </div>
-            <div class="score-pts">${fogged ? '🌫️' : player.score}<span class="score-pts-label">${fogged ? '' : ' pts'}</span></div>
+            <div class="score-pts">${fogged ? '🌫️' : displayScore}<span class="score-pts-label">${fogged ? '' : ' pts'}</span></div>
             <div class="score-meta">${fogged ? '— hidden in fog —' : `${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds`}</div>
             <div class="score-coins">${fogged ? '' : `🪙 ${coins.toLocaleString()} coins`}</div>
             ${fogged ? '' : achLine}
@@ -3148,6 +3203,7 @@ function renderChatMessages() {
 
 async function sendChatMessage() {
     if (!currentGameRef || !currentPlayer) return;
+    if ((getMyEffects().deadBattery || 0) > Date.now()) { showToast('🔋 Dead Battery! Your chat is disabled.', 'error'); return; }
     const input = document.getElementById('chatInput');
     const message = input?.value.trim();
     if (!message) return;
@@ -4280,11 +4336,13 @@ const CHEST_PRIZES = [
     { prize: 'trick', effectKey: 'blender',   name: 'Blender',      icon: '🌀' },
     { prize: 'trick', effectKey: 'freeze',    name: 'Time Freeze',  icon: '⏸️' },
     { prize: 'trick', effectKey: 'fog',       name: 'Fog of War',   icon: '🌫️' },
-    { prize: 'trick', effectKey: 'oilSlick',  name: 'Oil Slick',    icon: '🛢️' },
-    { prize: 'trick', effectKey: 'haze',      name: 'Haze',         icon: '🌁' },
-    { prize: 'trick', effectKey: 'wrongWay',  name: 'Wrong Way',    icon: '🔃' },
-    { prize: 'trick', effectKey: 'speedTrap', name: 'Speed Trap',   icon: '🚔' },
-    { prize: 'self',  effectKey: 'ghost',     name: 'Ghost Mode',   icon: '👻' },
+    { prize: 'trick', effectKey: 'oilSlick',    name: 'Oil Slick',    icon: '🛢️' },
+    { prize: 'trick', effectKey: 'haze',        name: 'Haze',         icon: '🌁' },
+    { prize: 'trick', effectKey: 'wrongWay',    name: 'Wrong Way',    icon: '🔃' },
+    { prize: 'trick', effectKey: 'speedTrap',   name: 'Speed Trap',   icon: '🚔' },
+    { prize: 'trick', effectKey: 'deadBattery', name: 'Dead Battery', icon: '🔋' },
+    { prize: 'self',  effectKey: 'ghost',       name: 'Ghost Mode',   icon: '👻' },
+    { prize: 'self',  effectKey: 'decoy',       name: 'Decoy',        icon: '🎭' },
     { prize: 'shield', name: 'Shield', icon: '🛡️' },
 ];
 
