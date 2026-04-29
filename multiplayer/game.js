@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429l';
+const APP_VERSION = '20260429m';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -269,6 +269,9 @@ const CHANGELOG = {
     ],
     '20260429l': [
         '📍 Mexico rarity is now distance-based — playing in San Diego or Texas puts it at 20 pts (Rare), scaling up to 70 pts (Gold Elite) the further you are from the border',
+    ],
+    '20260429m': [
+        '🍀 Lucky Plate and 🎯 Secret Targets now only draw from U.S. states — territorial and international plates are excluded from secret assignments',
     ],
 };
 
@@ -4177,7 +4180,7 @@ const CHEST_PRIZES = [
 
 async function assignGamePrizes(gameCode, plateScope) {
     if (!gameCode) return;
-    const entries = getActivePlateEntries(plateScope);
+    const entries = getActivePlateEntries(plateScope).filter(e => e.category === 'us');
     if (entries.length < 3) return;
     const shuffled = [...entries].sort(() => Math.random() - 0.5);
     const luckyPlate = shuffled[0].name;
@@ -4471,7 +4474,7 @@ function detectBlackout() {
 
 async function assignSecretTargets() {
     if (!currentGameRef || gameData?.hostPlayerKey !== currentPlayer?.playerKey) return;
-    const entries = getActivePlateEntries(gameData?.settings?.plateScope);
+    const entries = getActivePlateEntries(gameData?.settings?.plateScope).filter(e => e.category === 'us');
     const players = Object.values(playersData);
     if (players.length === 0) { showToast('No players to assign!', 'error'); return; }
 
