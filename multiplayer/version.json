@@ -1,6 +1,7 @@
 {
-  "version": "20260429o",
+  "version": "20260429p",
   "changelog": {
+    "20260429p": ["🌙 Thief in the Night — pick any opponent and steal their single highest-value plate; they lose it permanently (75🪙)"],
     "20260429c": ["📣 Announcements and taunts now reliably reach all players — previously a race condition could cause other pack members to miss them entirely"],
     "20260429d": ["📱 Swiping on plates no longer causes the screen to bounce horizontally — left swipes and swipes on already-spotted plates are now fully absorbed by the card instead of the page"],
     "20260429e": ["📖 How to Play instructions are now available anytime via the How2Play button in the top bar — they no longer pop up automatically on every join", "📵 Horizontal page bounce fully suppressed at the document level"],
