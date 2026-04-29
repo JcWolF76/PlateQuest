@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429f';
+const APP_VERSION = '20260429g';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -15,6 +15,21 @@ const TAUNT_LIST = [
     "Found it first, [name]. Maybe next highway! 🛣️",
     "Keep refreshing — the view from second place isn't getting better, [name]. 😂",
     "What's that sound? Oh, just me finding plates while you're napping, [name]! 🎉",
+];
+
+const PRAISE_LIST = [
+    "Nice find, [name]! Eyes sharp as ever! 👀",
+    "On fire today, [name]! Keep 'em coming! 🔥",
+    "That's the road warrior spirit, [name]! 🚗",
+    "You've got eagle eyes, [name]! 🦅",
+    "First finder energy from [name] — respect! 🌟",
+    "Spotted before I even looked, [name]! Well played! 👏",
+    "The pack appreciates you, [name]! 🐺",
+    "Always one step ahead, [name] — impressive! 🏆",
+    "Plate hunter extraordinaire, [name]! 🎯",
+    "Keeping the pack sharp, [name]! 💪",
+    "Can't stop [name] today — unstoppable! ⚡",
+    "Love the hustle, [name]! That's how it's done! 🙌",
 ];
 
 // Available player icons — 🐺 is reserved for the developer (JcWolF tag)
@@ -232,6 +247,9 @@ const CHANGELOG = {
     ],
     '20260429f': [
         '💬 Chat now supports private messages — tap the recipient chips above the input to send to specific players or everyone. The host and pack leader always see all messages. Private messages show a 🔒 lock indicator.',
+    ],
+    '20260429g': [
+        '👏 Praise is here — send compliments to players from the new Praise button in the Social section, or tap the quick-react buttons that appear on any plate find notification to instantly praise or taunt the finder',
     ],
 };
 
@@ -1387,6 +1405,12 @@ function bindEventListeners() {
     document.getElementById('sendTauntBtn')?.addEventListener('click', sendTaunt);
     const tauntModal = document.getElementById('tauntModal');
     if (tauntModal) tauntModal.addEventListener('click', e => { if (e.target === tauntModal) closeTauntModal(); });
+    document.getElementById('praiseBtn')?.addEventListener('click', () => openPraiseModal());
+    document.getElementById('closePraiseBtn')?.addEventListener('click', closePraiseModal);
+    document.getElementById('cancelPraiseBtn')?.addEventListener('click', closePraiseModal);
+    document.getElementById('sendPraiseBtn')?.addEventListener('click', sendPraise);
+    const praiseModal = document.getElementById('praiseModal');
+    if (praiseModal) praiseModal.addEventListener('click', e => { if (e.target === praiseModal) closePraiseModal(); });
     document.getElementById('editIdentityBtn').addEventListener('click', openEditIdentityModal);
     document.getElementById('cancelEditIdentityBtn').addEventListener('click', closeEditIdentityModal);
     document.getElementById('saveEditIdentityBtn').addEventListener('click', saveEditIdentity);
@@ -1412,7 +1436,7 @@ function bindEventListeners() {
     });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); closeHowToPlay(); }
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closePraiseModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); closeHowToPlay(); }
     });
     // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds
     const liveScores = document.getElementById('liveScores');
@@ -2391,7 +2415,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal(); closePraiseModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -2457,7 +2481,7 @@ function detectNewFinds() {
                         const msg = isFirst
                             ? `⭐ ${player.displayName} was first to find ${stateName}!`
                             : `🐾 ${player.displayName} found ${stateName}!`;
-                        showToast(msg, 'pack');
+                        showFindReactionToast(msg, playerKey, player.displayName);
                         playChime(isFirst);
                     }
                 }
@@ -2547,6 +2571,18 @@ async function sendAnnouncement() {
 
 function showToast(message, type = 'info') { const container = document.getElementById('toastContainer'); if (!container) return; const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; container.appendChild(toast); setTimeout(() => { if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); } }, 4000); }
 
+function showFindReactionToast(message, finderKey, finderName) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast pack find-react';
+    toast.innerHTML = `<span>${escapeHtml(message)}</span><div class="toast-react-row"><button class="toast-react-btn toast-react-praise">👏 Praise</button><button class="toast-react-btn toast-react-taunt">😈 Taunt</button></div>`;
+    toast.querySelector('.toast-react-praise').addEventListener('click', e => { e.stopPropagation(); toast.remove(); openPraiseModal(finderKey); });
+    toast.querySelector('.toast-react-taunt').addEventListener('click', e => { e.stopPropagation(); toast.remove(); openTauntModal(finderKey); });
+    container.appendChild(toast);
+    setTimeout(() => { if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); } }, 8000);
+}
+
 // ── Taunts ────────────────────────────────────────────────────────────────────
 
 function resolveTauntText(template, nameLabel) {
@@ -2560,49 +2596,56 @@ function resolveTauntText(template, nameLabel) {
     return template.replace(/\[name\]/g, nameLabel);
 }
 
-function openTauntModal() {
-    if (!currentPlayer || !playersData) return;
-    const modal = document.getElementById('tauntModal');
-    if (!modal) return;
-
-    const playerList = document.getElementById('tauntPlayerList');
+function _buildPlayerChipList(container, chipClass, allChipClass, labelClass, onUpdate, preTargetKey) {
     const otherPlayers = Object.values(playersData).filter(p => p.playerKey !== currentPlayer.playerKey);
-    playerList.innerHTML = '';
-
+    container.innerHTML = '';
     const allChip = document.createElement('div');
-    allChip.className = 'taunt-player-chip taunt-all-chip';
+    allChip.className = `${chipClass} ${allChipClass}`;
     allChip.dataset.key = 'all';
-    allChip.innerHTML = `<input type="checkbox"><span class="taunt-player-chip-label">🐺 All Players</span>`;
-    playerList.appendChild(allChip);
-
+    allChip.innerHTML = `<input type="checkbox"><span class="${labelClass}">🐺 All Players</span>`;
+    container.appendChild(allChip);
     otherPlayers.forEach(p => {
         const chip = document.createElement('div');
-        chip.className = 'taunt-player-chip';
+        chip.className = chipClass;
         chip.dataset.key = p.playerKey;
-        chip.innerHTML = `<input type="checkbox"><span class="taunt-player-chip-label">${p.displayName || p.name || 'Player'}</span>`;
-        playerList.appendChild(chip);
+        chip.innerHTML = `<input type="checkbox"><span class="${labelClass}">${p.displayName || p.name || 'Player'}</span>`;
+        container.appendChild(chip);
     });
-
-    playerList.querySelectorAll('.taunt-player-chip').forEach(chip => {
+    // Pre-select a specific player if requested
+    if (preTargetKey) {
+        const target = container.querySelector(`[data-key="${preTargetKey}"]`);
+        if (target) { target.querySelector('input').checked = true; target.classList.add('selected'); }
+    }
+    container.querySelectorAll(`.${chipClass}`).forEach(chip => {
         chip.addEventListener('click', () => {
             const cb = chip.querySelector('input[type=checkbox]');
             if (chip.dataset.key === 'all') {
                 const nowChecked = !cb.checked;
-                playerList.querySelectorAll('.taunt-player-chip').forEach(c => {
+                container.querySelectorAll(`.${chipClass}`).forEach(c => {
                     const cCb = c.querySelector('input[type=checkbox]');
                     if (c.dataset.key === 'all') { cCb.checked = nowChecked; c.classList.toggle('selected', nowChecked); }
                     else { cCb.checked = false; c.classList.remove('selected'); }
                 });
             } else {
-                const allChipEl = playerList.querySelector('[data-key="all"]');
+                const allChipEl = container.querySelector('[data-key="all"]');
                 if (allChipEl) { allChipEl.querySelector('input').checked = false; allChipEl.classList.remove('selected'); }
                 cb.checked = !cb.checked;
                 chip.classList.toggle('selected', cb.checked);
             }
-            updateTauntSendBtn();
+            onUpdate();
         });
     });
+}
 
+function openTauntModal(preTargetKey) {
+    if (!currentPlayer || !playersData) return;
+    const modal = document.getElementById('tauntModal');
+    if (!modal) return;
+    _buildPlayerChipList(
+        document.getElementById('tauntPlayerList'),
+        'taunt-player-chip', 'taunt-all-chip', 'taunt-player-chip-label',
+        updateTauntSendBtn, preTargetKey
+    );
     const msgList = document.getElementById('tauntMessageList');
     msgList.innerHTML = '';
     TAUNT_LIST.forEach((taunt, i) => {
@@ -2617,13 +2660,42 @@ function openTauntModal() {
         });
         msgList.appendChild(btn);
     });
-
     updateTauntSendBtn();
+    modal.classList.add('visible');
+}
+
+function openPraiseModal(preTargetKey) {
+    if (!currentPlayer || !playersData) return;
+    const modal = document.getElementById('praiseModal');
+    if (!modal) return;
+    _buildPlayerChipList(
+        document.getElementById('praisePlayerList'),
+        'praise-player-chip', 'praise-all-chip', 'praise-player-chip-label',
+        updatePraiseSendBtn, preTargetKey
+    );
+    const msgList = document.getElementById('praiseMessageList');
+    msgList.innerHTML = '';
+    PRAISE_LIST.forEach((praise, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'praise-msg-btn';
+        btn.textContent = praise.replace(/\[name\]/g, '…');
+        btn.dataset.index = i;
+        btn.addEventListener('click', () => {
+            msgList.querySelectorAll('.praise-msg-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            updatePraiseSendBtn();
+        });
+        msgList.appendChild(btn);
+    });
+    updatePraiseSendBtn();
     modal.classList.add('visible');
 }
 
 function closeTauntModal() {
     document.getElementById('tauntModal')?.classList.remove('visible');
+}
+function closePraiseModal() {
+    document.getElementById('praiseModal')?.classList.remove('visible');
 }
 
 function updateTauntSendBtn() {
@@ -2631,6 +2703,13 @@ function updateTauntSendBtn() {
     if (!btn) return;
     const hasTarget = !!document.querySelector('#tauntPlayerList .taunt-player-chip.selected');
     const hasMsg = !!document.querySelector('#tauntMessageList .taunt-msg-btn.selected');
+    btn.disabled = !(hasTarget && hasMsg);
+}
+function updatePraiseSendBtn() {
+    const btn = document.getElementById('sendPraiseBtn');
+    if (!btn) return;
+    const hasTarget = !!document.querySelector('#praisePlayerList .praise-player-chip.selected');
+    const hasMsg = !!document.querySelector('#praiseMessageList .praise-msg-btn.selected');
     btn.disabled = !(hasTarget && hasMsg);
 }
 
@@ -2664,6 +2743,37 @@ async function sendTaunt() {
     }
 }
 
+async function sendPraise() {
+    if (!currentGameRef || !currentPlayer) return;
+    const sendBtn = document.getElementById('sendPraiseBtn');
+    const selectedChips = [...document.querySelectorAll('#praisePlayerList .praise-player-chip.selected')];
+    const isAll = selectedChips.some(c => c.dataset.key === 'all');
+    const targetKeys = isAll ? ['all'] : selectedChips.map(c => c.dataset.key);
+    const targetNames = isAll ? [] : selectedChips.map(c => c.querySelector('.praise-player-chip-label')?.textContent || '?');
+    const selectedMsg = document.querySelector('#praiseMessageList .praise-msg-btn.selected');
+    if (!selectedMsg || !targetKeys.length) return;
+    const nameLabel = isAll ? null : targetNames.join(' & ');
+    const resolvedMsg = resolveTauntText(PRAISE_LIST[parseInt(selectedMsg.dataset.index)], nameLabel);
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+    try {
+        await currentGameRef.child('taunts').push({
+            type: 'praise',
+            senderKey: currentPlayer.playerKey,
+            senderName: currentPlayer.displayName,
+            targetKeys,
+            targetNames,
+            message: resolvedMsg,
+            sentAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        closePraiseModal();
+        showToast('Praise sent! 👏', 'success');
+    } catch (e) {
+        showToast('Failed to send praise.', 'error');
+    } finally {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '👏 Send Praise'; }
+    }
+}
+
 function detectNewTaunts() {
     if (!gameData) return;
     const taunts = gameData.taunts || {};
@@ -2685,10 +2795,16 @@ function showTauntNotification(taunt) {
     if (!isAll && !isTargeted && !isSender) return;
     const container = document.getElementById('toastContainer');
     if (!container) return;
+    const isPraise = taunt.type === 'praise';
     const toast = document.createElement('div');
-    toast.className = 'toast taunt';
-    toast.innerHTML = `<div class="taunt-toast-from">😈 ${taunt.senderName || '?'}</div><div class="taunt-toast-msg">${taunt.message || ''}</div><button class="taunt-toast-dismiss">✕</button>`;
-    toast.querySelector('.taunt-toast-dismiss').addEventListener('click', () => toast.remove());
+    if (isPraise) {
+        toast.className = 'toast praise';
+        toast.innerHTML = `<div class="praise-toast-from">👏 ${taunt.senderName || '?'}</div><div class="praise-toast-msg">${taunt.message || ''}</div><button class="praise-toast-dismiss">✕</button>`;
+    } else {
+        toast.className = 'toast taunt';
+        toast.innerHTML = `<div class="taunt-toast-from">😈 ${taunt.senderName || '?'}</div><div class="taunt-toast-msg">${taunt.message || ''}</div><button class="taunt-toast-dismiss">✕</button>`;
+    }
+    toast.querySelector(isPraise ? '.praise-toast-dismiss' : '.taunt-toast-dismiss').addEventListener('click', () => toast.remove());
     container.appendChild(toast);
     setTimeout(() => {
         if (toast.parentNode) { toast.style.animation = 'slideInToast 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }
