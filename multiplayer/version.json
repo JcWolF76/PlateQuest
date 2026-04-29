@@ -1,5 +1,5 @@
 {
-  "version": "20260429m",
+  "version": "20260429n",
   "changelog": {
     "20260429c": ["📣 Announcements and taunts now reliably reach all players — previously a race condition could cause other pack members to miss them entirely"],
     "20260429d": ["📱 Swiping on plates no longer causes the screen to bounce horizontally — left swipes and swipes on already-spotted plates are now fully absorbed by the card instead of the page"],
@@ -11,6 +11,7 @@
     "20260429j": ["🔔 Update notes now always fetch fresh from the server — no more \"Performance improvements\" placeholder regardless of how old your cached version is"],
     "20260429k": ["🌍 South American plates are now worth 200 pts (Global tier) and Central American plates 150 pts (International tier) — the rarest finds in the game", "🇲🇽 Mexico is now worth 70 pts (Gold Elite), matching Canadian territories", "🌺 Hawaii and Puerto Rico both bumped to 100 pts (Ultra tier)"],
     "20260429l": ["📍 Mexico rarity is now distance-based — playing in San Diego or Texas puts it at 20 pts (Rare), scaling up to 70 pts (Gold Elite) the further you are from the border"],
-    "20260429m": ["🍀 Lucky Plate and 🎯 Secret Targets now only draw from U.S. states — territorial and international plates are excluded from secret assignments"]
+    "20260429m": ["🍀 Lucky Plate and 🎯 Secret Targets now only draw from U.S. states — territorial and international plates are excluded from secret assignments"],
+    "20260429n": ["🛢️ Oil Slick — blacks out other players' screens completely for 3 minutes with a countdown they can't dismiss", "🌁 Haze — blankets other players' screens in thick fog for 3 minutes", "🎰 Russian Roulette — instantly removes one random spotted plate from every player including yourself", "👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (find it in the new Boosts section)", "🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes", "🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes"]
   }
 }
