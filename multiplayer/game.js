@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429c';
+const APP_VERSION = '20260429d';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -222,6 +222,9 @@ const CHANGELOG = {
     ],
     '20260429c': [
         '📣 Announcements and taunts now reliably reach all players — previously a race condition could cause other pack members to miss them entirely',
+    ],
+    '20260429d': [
+        '📱 Swiping on plates no longer causes the screen to bounce horizontally — left swipes and swipes on already-spotted plates are now fully absorbed by the card instead of the page',
     ],
 };
 
@@ -2093,7 +2096,7 @@ function addSwipeToSelect(card, stateName, foundByMe) {
         if (!swiping && Math.abs(dy) > Math.abs(dx)) return;
         if (Math.abs(dx) > 6) {
             swiping = true;
-            if (dx > 0 && !foundByMe) e.preventDefault();
+            e.preventDefault(); // prevent horizontal page bounce for all horizontal swipes
         }
         if (swiping && dx > 0 && !foundByMe) {
             card.style.transform = `translateX(${Math.min(dx * 0.65, 90)}px)`;
