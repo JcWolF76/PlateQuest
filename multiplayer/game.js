@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429k';
+const APP_VERSION = '20260429l';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -266,6 +266,9 @@ const CHANGELOG = {
         '🌍 South American plates are now worth 200 pts (Global tier) and Central American plates 150 pts (International tier) — the rarest finds in the game',
         '🇲🇽 Mexico is now worth 70 pts (Gold Elite), matching Canadian territories',
         '🌺 Hawaii and Puerto Rico both bumped to 100 pts (Ultra tier)',
+    ],
+    '20260429l': [
+        '📍 Mexico rarity is now distance-based — playing in San Diego or Texas puts it at 20 pts (Rare), scaling up to 70 pts (Gold Elite) the further you are from the border',
     ],
 };
 
@@ -568,18 +571,47 @@ function formatFoundAt(ts) {
 }
 
 // Returns the rarity tier for a plate given the pack's travel corridor.
-// BFS hop-distance from the corridor determines tier for contiguous US and Canadian provinces.
-// Special fixed tiers: AK/HI not in corridor → silver-elite; Canadian territories → gold-elite; US territories → ultra.
-// No corridor set → flat occasional for all states (AK/HI still silver-elite).
+// BFS hop-distance from the corridor determines tier for contiguous US, Canadian provinces, and Mexico.
+// Mexico uses border-state BFS: CA/AZ/NM/TX in corridor → rare (20 pts), scaling to gold-elite (70 pts) 6+ hops away.
+// Special fixed tiers: Hawaii/US territories → ultra; Canadian territories → gold-elite; Central/South America → fixed.
+// No corridor set → flat occasional for all states (AK still silver-elite, HI ultra).
 function computeRarityForState(stateName, corridorStates) {
-    // Fixed tiers — not corridor-dependent
+    // Fixed tiers — always the same regardless of corridor
     if (SOUTH_AMERICA_NAMES.has(stateName))   return 'global';        // 200 pts
     if (CENTRAL_AMERICA_NAMES.has(stateName)) return 'international'; // 150 pts
-    if (stateName === 'Mexico')               return 'gold-elite';    //  70 pts
     if (TERRITORY_NAMES.has(stateName))       return 'ultra';         // 100 pts
     if (CANADIAN_TERRITORIES.has(stateName))  return 'gold-elite';    //  70 pts
 
     const corridorSet = new Set(corridorStates || []);
+
+    // Mexico: distance-based — border states (CA/AZ/NM/TX) in corridor reduce rarity
+    if (stateName === 'Mexico') {
+        if (corridorSet.size === 0) return 'gold-elite';
+        const MEXICO_BORDERS = new Set(['California', 'Arizona', 'New Mexico', 'Texas']);
+        if ([...MEXICO_BORDERS].some(bs => corridorSet.has(bs))) return 'rare'; // 1 hop: 20 pts
+        // BFS to find nearest Mexico-border state; each hop past that adds rarity
+        const visited = new Set(corridorSet);
+        let frontier = new Set(corridorSet);
+        for (let hop = 1; hop <= 6; hop++) {
+            const next = new Set();
+            for (const state of frontier) {
+                for (const neighbor of (STATE_NEIGHBORS[state] || [])) {
+                    if (MEXICO_BORDERS.has(neighbor)) {
+                        const totalHop = hop + 1; // +1 because Mexico is one more step past the border state
+                        if (totalHop <= 2) return 'mega-rare';   // 30 pts
+                        if (totalHop === 3) return 'epic';       // 40 pts
+                        if (totalHop === 4) return 'legendary';  // 50 pts
+                        if (totalHop === 5) return 'silver-elite'; // 60 pts
+                        return 'gold-elite';                     // 70 pts
+                    }
+                    if (!visited.has(neighbor)) { visited.add(neighbor); next.add(neighbor); }
+                }
+            }
+            frontier = next;
+            if (!frontier.size) break;
+        }
+        return 'gold-elite'; // Far from any border state
+    }
 
     if (corridorSet.size === 0) {
         if (stateName === 'Hawaii') return 'ultra';                            // 100 pts
