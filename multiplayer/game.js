@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429j';
+const APP_VERSION = '20260429k';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -262,6 +262,11 @@ const CHANGELOG = {
     '20260429j': [
         '🔔 Update notes now always fetch fresh from the server — no more "Performance improvements" placeholder regardless of how old your cached version is',
     ],
+    '20260429k': [
+        '🌍 South American plates are now worth 200 pts (Global tier) and Central American plates 150 pts (International tier) — the rarest finds in the game',
+        '🇲🇽 Mexico is now worth 70 pts (Gold Elite), matching Canadian territories',
+        '🌺 Hawaii and Puerto Rico both bumped to 100 pts (Ultra tier)',
+    ],
 };
 
 const firebaseConfig = {
@@ -505,6 +510,8 @@ const STATE_NEIGHBORS = {
 const TERRITORY_NAMES    = new Set(['Puerto Rico','US Virgin Islands','American Samoa','Guam','Northern Mariana Islands']);
 const CANADIAN_TERRITORIES = new Set(['Yukon','Northwest Territories','Nunavut']);
 const NON_CONTIGUOUS     = new Set(['Alaska','Hawaii']);
+const CENTRAL_AMERICA_NAMES = new Set(['Belize','Costa Rica','El Salvador','Guatemala','Honduras','Nicaragua','Panama']);
+const SOUTH_AMERICA_NAMES   = new Set(['Argentina','Bolivia','Brazil','Chile','Colombia','Ecuador','Guyana','Paraguay','Peru','Suriname','Uruguay','Venezuela']);
 
 // Approximate geographic centroids for GPS-based rarity (lat, lng).
 const STATE_CENTROIDS = {
@@ -565,17 +572,23 @@ function formatFoundAt(ts) {
 // Special fixed tiers: AK/HI not in corridor → silver-elite; Canadian territories → gold-elite; US territories → ultra.
 // No corridor set → flat occasional for all states (AK/HI still silver-elite).
 function computeRarityForState(stateName, corridorStates) {
-    if (TERRITORY_NAMES.has(stateName))    return 'ultra';
-    if (CANADIAN_TERRITORIES.has(stateName)) return 'gold-elite';
+    // Fixed tiers — not corridor-dependent
+    if (SOUTH_AMERICA_NAMES.has(stateName))   return 'global';        // 200 pts
+    if (CENTRAL_AMERICA_NAMES.has(stateName)) return 'international'; // 150 pts
+    if (stateName === 'Mexico')               return 'gold-elite';    //  70 pts
+    if (TERRITORY_NAMES.has(stateName))       return 'ultra';         // 100 pts
+    if (CANADIAN_TERRITORIES.has(stateName))  return 'gold-elite';    //  70 pts
 
     const corridorSet = new Set(corridorStates || []);
 
     if (corridorSet.size === 0) {
-        return NON_CONTIGUOUS.has(stateName) ? 'silver-elite' : 'occasional';
+        if (stateName === 'Hawaii') return 'ultra';                            // 100 pts
+        return NON_CONTIGUOUS.has(stateName) ? 'silver-elite' : 'occasional'; // Alaska = silver-elite
     }
 
     if (corridorSet.has(stateName)) return 'common';
-    if (NON_CONTIGUOUS.has(stateName)) return 'silver-elite'; // AK/HI unreachable by road unless in corridor
+    if (stateName === 'Hawaii') return 'ultra';      // 100 pts — unreachable by road
+    if (NON_CONTIGUOUS.has(stateName)) return 'silver-elite'; // Alaska
 
     // BFS from corridor states outward — up to 7 hops across contiguous US + Canadian provinces
     const visited = new Set(corridorSet);
@@ -603,17 +616,19 @@ function computeRarityForState(stateName, corridorStates) {
 }
 
 const RARITY_CONFIG = {
-    'common':       { label: 'Common',       points: 2,   color: '#7f8c8d' },
-    'occasional':   { label: 'Occasional',   points: 4,   color: '#27ae60' },
-    'scarce':       { label: 'Scarce',       points: 6,   color: '#16a085' },
-    'semi-rare':    { label: 'Semi-Rare',    points: 10,  color: '#2980b9' },
-    'rare':         { label: 'Rare',         points: 20,  color: '#3498db' },
-    'mega-rare':    { label: 'Mega-Rare',    points: 30,  color: '#7d3c98' },
-    'epic':         { label: 'Epic',         points: 40,  color: '#9b59b6' },
-    'legendary':    { label: 'Legendary',    points: 50,  color: '#e67e22' },
-    'silver-elite': { label: 'Silver Elite', points: 60,  color: '#a0aec0' },
-    'gold-elite':   { label: 'Gold Elite',   points: 70,  color: '#d4ac0d' },
-    'ultra':        { label: 'Ultra',        points: 100, color: '#e74c3c' }
+    'common':        { label: 'Common',        points: 2,   color: '#7f8c8d' },
+    'occasional':    { label: 'Occasional',    points: 4,   color: '#27ae60' },
+    'scarce':        { label: 'Scarce',        points: 6,   color: '#16a085' },
+    'semi-rare':     { label: 'Semi-Rare',     points: 10,  color: '#2980b9' },
+    'rare':          { label: 'Rare',          points: 20,  color: '#3498db' },
+    'mega-rare':     { label: 'Mega-Rare',     points: 30,  color: '#7d3c98' },
+    'epic':          { label: 'Epic',          points: 40,  color: '#9b59b6' },
+    'legendary':     { label: 'Legendary',     points: 50,  color: '#e67e22' },
+    'silver-elite':  { label: 'Silver Elite',  points: 60,  color: '#a0aec0' },
+    'gold-elite':    { label: 'Gold Elite',    points: 70,  color: '#d4ac0d' },
+    'ultra':         { label: 'Ultra',         points: 100, color: '#e74c3c' },
+    'international': { label: 'International', points: 150, color: '#e056fd' },
+    'global':        { label: 'Global',        points: 200, color: '#f9ca24' }
 };
 
 // ── Badge Definitions ─────────────────────────────────────────────────────────
@@ -3984,7 +3999,7 @@ function openPlayerDetail(playerKey) {
             byTier[tier].count++;
             byTier[tier].pts += isFirst ? pts : pts / 2;
         });
-        const tierOrder = ['ultra','gold-elite','silver-elite','legendary','epic','mega-rare','rare','semi-rare','scarce','occasional','common'];
+        const tierOrder = ['global','international','ultra','gold-elite','silver-elite','legendary','epic','mega-rare','rare','semi-rare','scarce','occasional','common'];
         const rows = tierOrder.filter(t => byTier[t]).map(t => {
             const cfg = RARITY_CONFIG[t];
             const d = byTier[t];
@@ -4023,7 +4038,7 @@ function openPlayerDetail(playerKey) {
     // Found plates chips sorted rarity-first
     const foundGrid = document.getElementById('detailFoundGrid');
     if (foundGrid) {
-        const tierRank = { ultra: 0, 'gold-elite': 1, 'silver-elite': 2, legendary: 3, epic: 4, 'mega-rare': 5, rare: 6, 'semi-rare': 7, scarce: 8, occasional: 9, common: 10 };
+        const tierRank = { global: 0, international: 1, ultra: 2, 'gold-elite': 3, 'silver-elite': 4, legendary: 5, epic: 6, 'mega-rare': 7, rare: 8, 'semi-rare': 9, scarce: 10, occasional: 11, common: 12 };
         const allPlates = [...US_PLATES, ...TERRITORY_PLATES, ...CANADA_PLATES, ...LATAM_PLATES];
         const sorted = Array.from(stats.foundSet).sort((a, b) => {
             const sdA = player.states?.[a]; const sdB = player.states?.[b];
