@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429b';
+const APP_VERSION = '20260429c';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -219,6 +219,9 @@ const CHANGELOG = {
     ],
     '20260429b': [
         '🔄 Update notifications fixed — the banner no longer reappears after you update, and if you missed several updates you\'ll see all of them listed together in one go',
+    ],
+    '20260429c': [
+        '📣 Announcements and taunts now reliably reach all players — previously a race condition could cause other pack members to miss them entirely',
     ],
 };
 
@@ -631,6 +634,8 @@ let playersData = {};
 let prevPlayerStates = null;    // null = not yet initialized; reset on game exit
 let prevAnnouncementKeys = null; // null = not yet initialized; reset on game exit
 let prevTauntKeys = null;        // null = not yet initialized; reset on game exit
+let announcementsChildRef = null;
+let tauntsChildRef = null;
 let prevClearRequestKeys = null; // null = not yet initialized; reset on game exit
 let prevRegionClearRequestKeys = null; // same, for region completion disputes
 let prevPlateDisputeKeys = null;         // same, for individual plate first-finder disputes
@@ -1683,6 +1688,8 @@ async function connectToGame(code, options = {}) {
 function teardownCurrentRoomListeners() {
     if (currentGameRef && gameListenerAttached) currentGameRef.off();
     gameListenerAttached = false;
+    if (announcementsChildRef) { announcementsChildRef.off(); announcementsChildRef = null; }
+    if (tauntsChildRef) { tauntsChildRef.off(); tauntsChildRef = null; }
     if (presenceCleanup) { presenceCleanup(); presenceCleanup = null; }
     if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
 }
@@ -1690,6 +1697,8 @@ function teardownCurrentRoomListeners() {
 function setupGameListeners() {
     if (!currentGameRef) return;
     if (gameListenerAttached) { currentGameRef.off(); gameListenerAttached = false; }
+    if (announcementsChildRef) { announcementsChildRef.off(); announcementsChildRef = null; }
+    if (tauntsChildRef) { tauntsChildRef.off(); tauntsChildRef = null; }
     currentGameRef.on('value', (snapshot) => {
         if (!snapshot.exists()) { showToast('Pack no longer exists.', 'error'); returnToSetup(true); return; }
         gameData = snapshot.val();
@@ -1704,6 +1713,30 @@ function setupGameListeners() {
         updateGameUI();
     });
     gameListenerAttached = true;
+
+    // Dedicated child_added listeners for announcements and taunts.
+    // child_added fires for ALL existing children first, then new ones.
+    // We use a readiness flag (set after the initial batch via once('value'))
+    // so only genuinely new items trigger notifications.
+    let annReady = false;
+    announcementsChildRef = currentGameRef.child('announcements');
+    announcementsChildRef.on('child_added', snap => {
+        if (!annReady || !currentPlayer) return;
+        const ann = snap.val();
+        if (!ann) return;
+        showToast(`📣 ${ann.sentBy}: ${ann.text}`, 'announcement');
+        playAnnouncementChime();
+    });
+    // once('value') fires AFTER all initial child_added callbacks — mark ready here
+    currentGameRef.child('announcements').once('value', () => { annReady = true; });
+
+    let tauntReady = false;
+    tauntsChildRef = currentGameRef.child('taunts');
+    tauntsChildRef.on('child_added', snap => {
+        if (!tauntReady || !currentPlayer) return;
+        showTauntNotification(snap.val());
+    });
+    currentGameRef.child('taunts').once('value', () => { tauntReady = true; });
 }
 
 function setupPresence() {
@@ -1759,8 +1792,6 @@ function updateGameUI() {
     }
     lastKnownRound = currentRound;
     detectNewFinds();
-    detectNewAnnouncements();
-    detectNewTaunts();
     detectClearRequests();
     detectRegionClearRequests();
     detectPlateDisputeRequests();
