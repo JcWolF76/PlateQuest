@@ -1411,6 +1411,7 @@ async function buyShopItem(itemId) {
             [`players/${currentPlayer.playerKey}/states/${pick}`]: stateRecord,
         });
         showToast(`🪄 Copycat! Swiped ${pick} from ${leader.displayName || 'the leader'}!`, 'success');
+        writeRegionCompletions();
         closeShopModal();
         return;
     }
