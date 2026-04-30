@@ -52,7 +52,7 @@ const SHOP_ITEMS = [
       category: 'trick',   desc: 'Forces a 30-second cooldown between plate spots for all other players for 3 minutes.' },
     { id: 'roulette',  name: 'Russian Roulette',  icon: '🎰', cost: 80, effectKey: null,         duration: null,
       category: 'trick',   desc: 'Instantly removes one random spotted plate from every player — including yourself. Pure chaos.' },
-    { id: 'copycat',     name: 'Copycat',      icon: '🪄', cost: 55, effectKey: null,           duration: null,
+    { id: 'copycat',     name: 'Copycat',      icon: '🪄', cost: 200, effectKey: null,           duration: null,
       category: 'trick',   desc: "Steals a copy of one random spotted plate from the leader's collection." },
     { id: 'thiefInTheNight', name: 'Thief in the Night', icon: '🌙', cost: 350, effectKey: null, duration: null,
       category: 'trick',   desc: 'Pick any opponent — steals their single highest-value plate. They lose it permanently.' },
