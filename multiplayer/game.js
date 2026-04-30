@@ -54,7 +54,7 @@ const SHOP_ITEMS = [
       category: 'trick',   desc: 'Instantly removes one random spotted plate from every player — including yourself. Pure chaos.' },
     { id: 'copycat',     name: 'Copycat',      icon: '🪄', cost: 55, effectKey: null,           duration: null,
       category: 'trick',   desc: "Steals a copy of one random spotted plate from the leader's collection." },
-    { id: 'thiefInTheNight', name: 'Thief in the Night', icon: '🌙', cost: 75, effectKey: null, duration: null,
+    { id: 'thiefInTheNight', name: 'Thief in the Night', icon: '🌙', cost: 350, effectKey: null, duration: null,
       category: 'trick',   desc: 'Pick any opponent — steals their single highest-value plate. They lose it permanently.' },
     { id: 'deadBattery', name: 'Dead Battery', icon: '🔋', cost: 40, effectKey: 'deadBattery', duration: 3*60*1000,
       category: 'trick',   desc: 'Kills chat for all other players for 3 minutes.' },
@@ -64,7 +64,7 @@ const SHOP_ITEMS = [
       category: 'boost',   desc: 'Hides your score and plate count from all other players for 5 minutes. Play in stealth.' },
     { id: 'decoy',     name: 'Decoy',             icon: '🎭', cost: 50, effectKey: 'decoy',     duration: 5*60*1000,
       category: 'boost',   desc: 'All other players see your score inflated by 50% for 5 minutes. Make them sweat.' },
-    { id: 'shield',    name: 'Shield',            icon: '🛡️', cost: 35, effectKey: 'shield',    duration: null,
+    { id: 'shield',    name: 'Shield',            icon: '🛡️', cost: 250, effectKey: 'shield',    duration: null,
       category: 'defense', desc: 'Blocks the next trick used against you. One use only.' },
 ];
 
