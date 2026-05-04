@@ -1,6 +1,7 @@
 {
-  "version": "20260429p",
+  "version": "20260429q",
   "changelog": {
+    "20260429q": ["📊 Leaderboard cards are now compact — same info (score, plates, FF, coins, achievements, badges, reactions) in a tighter layout"],
     "20260429p": ["🌙 Thief in the Night — pick any opponent and steal their single highest-value plate; they lose it permanently (75🪙)"],
     "20260429c": ["📣 Announcements and taunts now reliably reach all players — previously a race condition could cause other pack members to miss them entirely"],
     "20260429d": ["📱 Swiping on plates no longer causes the screen to bounce horizontally — left swipes and swipes on already-spotted plates are now fully absorbed by the card instead of the page"],

@@ -116,10 +116,10 @@
         .creator-game-code { font-family: 'Courier New', monospace; letter-spacing: 2px; font-weight: 800; color: #5dade2; }
         .creator-game-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .creator-empty { font-size: 13px; color: #95a5a6; }
-        .live-scores { background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; padding: 25px; margin: 20px 0; border-radius: 15px; position: relative; }
-        .live-scores h3 { text-align: center; margin-bottom: 20px; font-size: 24px; }
-        .scores-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
-        .score-card { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 20px; text-align: center; backdrop-filter: blur(10px); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.3); position: relative; touch-action: manipulation; cursor: pointer; user-select: none; -webkit-user-select: none; }
+        .live-scores { background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; padding: 16px; margin: 20px 0; border-radius: 15px; position: relative; }
+        .live-scores h3 { text-align: center; margin-bottom: 12px; font-size: 20px; }
+        .scores-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+        .score-card { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(10px); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.3); position: relative; touch-action: manipulation; cursor: pointer; user-select: none; -webkit-user-select: none; }
 
         /* ── Long Press Pulse ── */
         @keyframes longPressPulse {
@@ -129,8 +129,8 @@
         }
         .state-card.long-press-active { background: rgba(231,76,60,0.22) !important; border-color: rgba(231,76,60,0.85) !important; animation: longPressPulse 0.6s ease-out infinite; }
         .score-card.leader { background: rgba(241, 196, 15, 0.3); border: 2px solid #f1c40f; box-shadow: 0 0 20px rgba(241, 196, 15, 0.4); }
-        .score-card-header { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
-        .score-player-icon { font-size: 30px; line-height: 1; flex-shrink: 0; }
+        .score-card-top { display:flex; align-items:center; gap:7px; margin-bottom:3px; }
+        .score-player-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
         .icon-picker-wrap { margin-top: 14px; }
         .icon-picker-label { font-size: 13px; color: #bdc3c7; margin-bottom: 8px; }
         .icon-picker-row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -236,7 +236,7 @@
         @keyframes sdPulse { 0%,100%{box-shadow:0 0 0 rgba(231,76,60,0)} 50%{box-shadow:0 0 16px rgba(231,76,60,0.4)} }
         #suddenDeathBannerPlate { color: #e74c3c; font-size: 18px; }
         /* Rivalry */
-        .rival-badge { background: linear-gradient(135deg,#3d0f3d,#7d1a7d); color: #f0a0f0; font-size: 10px; font-weight: 800; border-radius: 8px; padding: 2px 7px; white-space: nowrap; }
+        .rival-badge { background: linear-gradient(135deg,#3d0f3d,#7d1a7d); color: #f0a0f0; font-size: 10px; font-weight: 800; border-radius: 8px; padding: 2px 6px; white-space: nowrap; flex-shrink:0; }
         .score-card.rival { border-color: rgba(192,57,219,0.45); box-shadow: 0 0 12px rgba(192,57,219,0.15); }
         .challenge-btn { background: rgba(155,89,182,0.15); border: 1px solid rgba(155,89,182,0.3); border-radius: 20px; padding: 4px 9px; font-size: 12px; font-weight: 700; color: #d7bfff; cursor: pointer; touch-action: manipulation; transition: background 0.15s; white-space: nowrap; }
         .challenge-btn:active { background: rgba(155,89,182,0.35); }
@@ -613,21 +613,20 @@
         .clear-toast-deny { background:rgba(255,255,255,0.2); color:#fff; }
 
         /* ── Score cards ── */
-        .score-player-name { font-size:15px; font-weight:700; word-break:break-word; }
-        .score-pts { font-size:30px; font-weight:900; color:#f1c40f; line-height:1.1; margin:4px 0 2px; }
-        .score-pts-label { font-size:14px; font-weight:600; opacity:0.75; }
-        .score-meta { font-size:12px; opacity:0.8; margin-bottom:4px; }
-        .score-coins { font-size:12px; color:#f1c40f; font-weight:700; opacity:0.85; margin-bottom:4px; }
-        .badge-row { display:flex; gap:3px; flex-wrap:wrap; justify-content:center; margin-top:5px; pointer-events:none; }
-        .streak-badge { background:linear-gradient(135deg,#e74c3c,#f39c12); color:#fff; font-size:11px; font-weight:900; border-radius:10px; padding:2px 7px; letter-spacing:0.3px; white-space:nowrap; pointer-events:none; }
-        .reaction-row { display:flex; gap:5px; justify-content:center; margin-top:8px; }
-        .reaction-btn { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:4px 8px; font-size:16px; cursor:pointer; transition:background 0.15s, transform 0.1s; touch-action:manipulation; }
+        .score-player-name { font-size:13px; font-weight:700; word-break:break-word; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .score-pts-inline { margin-left:auto; font-size:20px; font-weight:900; color:#f1c40f; line-height:1; white-space:nowrap; flex-shrink:0; }
+        .score-pts-label-inline { font-size:10px; font-weight:600; opacity:0.75; }
+        .score-card-stats { font-size:11px; opacity:0.8; margin-bottom:2px; }
+        .badge-row { display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-start; margin-top:3px; pointer-events:none; }
+        .streak-badge { background:linear-gradient(135deg,#e74c3c,#f39c12); color:#fff; font-size:10px; font-weight:900; border-radius:10px; padding:2px 5px; letter-spacing:0.3px; white-space:nowrap; pointer-events:none; flex-shrink:0; }
+        .reaction-row { display:flex; gap:4px; justify-content:flex-start; margin-top:5px; flex-wrap:wrap; }
+        .reaction-btn { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:3px 6px; font-size:14px; cursor:pointer; transition:background 0.15s, transform 0.1s; touch-action:manipulation; }
         .reaction-btn:active { background:rgba(255,255,255,0.25); transform:scale(1.25); }
         .reaction-pop { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:36px; pointer-events:none; animation:reactionFloat 1.2s ease-out forwards; z-index:10; }
         @keyframes reactionFloat { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 60%{opacity:1;transform:translate(-50%,-120%) scale(1.3)} 100%{opacity:0;transform:translate(-50%,-180%) scale(0.9)} }
         .coin-wallet { display:inline-flex; align-items:center; gap:6px; background:rgba(241,196,15,0.12); border:1px solid rgba(241,196,15,0.3); border-radius:20px; padding:4px 12px; font-size:13px; font-weight:800; color:#f1c40f; letter-spacing:0.3px; }
         .coin-wallet-label { font-size:10px; font-weight:600; opacity:0.7; letter-spacing:1px; text-transform:uppercase; }
-        .badge-mini { font-size:16px; line-height:1; pointer-events:none; }
+        .badge-mini { font-size:13px; line-height:1; pointer-events:none; }
         .score-ach-count { font-size:11px; color:#f1c40f; font-weight:700; margin-bottom:4px; opacity:0.9; }
         /* ── Achievements grid ── */
         .achievement-grid { display:flex; flex-wrap:wrap; gap:8px; }
@@ -1543,7 +1542,7 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260429p"></script>
+    <script src="game.js?v=20260429q"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
