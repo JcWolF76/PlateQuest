@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429p';
+const APP_VERSION = '20260429q';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -302,6 +302,9 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429q': [
+        '📊 Leaderboard cards are now compact — same info (score, plates, FF, coins, achievements, badges, reactions) in a tighter layout',
     ],
     '20260429p': [
         '🌙 Thief in the Night — pick any opponent and steal their single highest-value plate; they lose it permanently (75🪙)',
@@ -2221,15 +2224,13 @@ function updateScores() {
         scoreCard.setAttribute('role', 'button');
         scoreCard.setAttribute('tabindex', '0');
         scoreCard.innerHTML = `
-            <div class="score-card-header">
+            <div class="score-card-top">
                 <span class="score-player-icon">${playerIcon}</span>
-                <div class="score-player-name">${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}${offlineMark}</div>
+                <span class="score-player-name">${isMe ? 'YOU' : player.displayName}${isLeader ? ' 🏆' : ''}${offlineMark}</span>
                 ${streakBadge}${rivalBadge}
+                <span class="score-pts-inline">${fogged ? '🌫️' : displayScore}${fogged ? '' : '<span class="score-pts-label-inline"> pts</span>'}</span>
             </div>
-            <div class="score-pts">${fogged ? '🌫️' : displayScore}<span class="score-pts-label">${fogged ? '' : ' pts'}</span></div>
-            <div class="score-meta">${fogged ? '— hidden in fog —' : `${player.foundCount} plates&nbsp;&nbsp;·&nbsp;&nbsp;${player.firstCount} first finds`}</div>
-            <div class="score-coins">${fogged ? '' : `🪙 ${coins.toLocaleString()} coins`}</div>
-            ${fogged ? '' : achLine}
+            <div class="score-card-stats">${fogged ? '— hidden in fog —' : `${player.foundCount} plates · ${player.firstCount} FF · 🪙 ${coins.toLocaleString()}${achCount > 0 ? ` · 🏆 ${achCount}` : ''}`}</div>
             ${badgeRow}
             ${reactionRow}
         `;
