@@ -1033,7 +1033,7 @@ async function rejoinGame(code) {
 }
 
 function resolvePlayerIcon(player) {
-    if (player?.tag === 'JcWolF') return '🐺';
+    if (player?.tag?.toLowerCase() === 'jcwolf') return '🐺';
     return player?.icon || '🐾';
 }
 
@@ -1790,7 +1790,7 @@ function startGame() { splash.style.display = 'none'; game.style.display = 'bloc
 function setPlayerName() {
     const player = buildPlayerFromInputs();
     if (!player) return;
-    if (player.tag === 'JcWolF') {
+    if (player.tag?.toLowerCase() === 'jcwolf') {
         pendingJcWolFPlayer = player;
         wolfPinEntry = '';
         updateWolfPinDots();
@@ -1880,7 +1880,7 @@ function saveEditIdentity() {
     const playerKey = `${slugify(name)}__${slugify(tag)}`;
     const player = { playerKey, deviceId: getOrCreateDeviceId(), name, tag, icon, displayName: `${name} (${tag})`, colorSeed: slugify(`${name}_${tag}`), updatedAtLocal: Date.now() };
     closeEditIdentityModal();
-    if (tag === 'JcWolF') {
+    if (tag?.toLowerCase() === 'jcwolf') {
         pendingJcWolFPlayer = player;
         wolfPinEntry = '';
         updateWolfPinDots();
