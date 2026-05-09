@@ -1033,7 +1033,7 @@ async function rejoinGame(code) {
 }
 
 function resolvePlayerIcon(player) {
-    if (player?.tag?.toLowerCase() === 'jcwolf') return '🐺';
+    if (player?.tag === 'JcWolF') return '🐺';
     return player?.icon || '🐾';
 }
 
@@ -1790,7 +1790,7 @@ function startGame() { splash.style.display = 'none'; game.style.display = 'bloc
 function setPlayerName() {
     const player = buildPlayerFromInputs();
     if (!player) return;
-    if (player.tag?.toLowerCase() === 'jcwolf') {
+    if (player.tag === 'JcWolF') {
         pendingJcWolFPlayer = player;
         wolfPinEntry = '';
         updateWolfPinDots();
@@ -1880,7 +1880,7 @@ function saveEditIdentity() {
     const playerKey = `${slugify(name)}__${slugify(tag)}`;
     const player = { playerKey, deviceId: getOrCreateDeviceId(), name, tag, icon, displayName: `${name} (${tag})`, colorSeed: slugify(`${name}_${tag}`), updatedAtLocal: Date.now() };
     closeEditIdentityModal();
-    if (tag?.toLowerCase() === 'jcwolf') {
+    if (tag === 'JcWolF') {
         pendingJcWolFPlayer = player;
         wolfPinEntry = '';
         updateWolfPinDots();
@@ -2147,7 +2147,7 @@ function updateGameUI() {
     if (viewResultsBtn) viewResultsBtn.style.display = isEnded ? '' : 'none';
     // Wolf admin button (JcWolF only)
     const wolfAdminBtn = document.getElementById('wolfAdminBtn');
-    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag?.toLowerCase() === 'jcwolf' ? '' : 'none';
+    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag === 'JcWolF' ? '' : 'none';
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
     const signature = buildStateSignature();
