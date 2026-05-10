@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnimalQuest — Wildlife Spotting Adventure</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1f3d2b 0%, #2c5e3f 50%, #1f3d2b 100%);
+            min-height: 100vh;
+            color: #ecf0f1;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(126,176,86,0.25) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(241,196,15,0.18) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(46,204,113,0.18) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        body.dark { background: linear-gradient(135deg, #0f1d14 0%, #1a2d20 50%, #0f1d14 100%); }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; z-index: 2; }
+
+        #splash {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; min-height: 100vh; text-align: center; padding: 20px;
+        }
+
+        .logo-mark {
+            font-size: 6em;
+            filter: drop-shadow(0 0 25px rgba(126,176,86,0.6));
+            animation: bob 4s ease-in-out infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes bob {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50%      { transform: translateY(-8px) rotate(2deg); }
+        }
+
+        .welcome-text {
+            background: linear-gradient(145deg, rgba(31,61,43,0.9), rgba(44,94,63,0.9));
+            padding: 40px;
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3),
+                inset 0 1px 0 rgba(255,255,255,0.08);
+            backdrop-filter: blur(15px);
+            margin-bottom: 30px;
+            max-width: 720px;
+            border: 1px solid rgba(126,176,86,0.25);
+        }
+        .welcome-text h1 {
+            font-size: 3em;
+            margin-bottom: 16px;
+            background: linear-gradient(45deg, #7eb056, #f1c40f, #e67e22);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(126,176,86,0.5);
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+        .welcome-text p { font-size: 1.05em; line-height: 1.6; color: #d8e6d4; }
+
+        .version-info { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+        .badge {
+            background: linear-gradient(45deg, #2c5e3f, #1f3d2b);
+            color: #d6e9c6;
+            padding: 7px 14px;
+            border-radius: 25px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid rgba(126,176,86,0.4);
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #e67e22, #d35400);
+            color: white;
+            border: none;
+            padding: 18px 44px;
+            font-size: 21px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all .3s ease;
+            box-shadow: 0 10px 30px rgba(230,126,34,0.45);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .start-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(230,126,34,0.6); }
+
+        .version-links { margin-top: 26px; }
+        .version-link {
+            color: #d6e9c6;
+            text-decoration: none;
+            padding: 10px 22px;
+            background: linear-gradient(145deg, rgba(44,94,63,0.6), rgba(31,61,43,0.6));
+            border-radius: 25px;
+            transition: all .3s ease;
+            margin: 0 8px;
+            border: 1px solid rgba(126,176,86,0.3);
+            display: inline-block;
+        }
+        .version-link:hover { background: linear-gradient(145deg, rgba(126,176,86,0.25), rgba(46,204,113,0.2)); transform: translateY(-2px); }
+
+        #game {
+            display: none;
+            background: linear-gradient(145deg, rgba(31,61,43,0.95), rgba(44,94,63,0.95));
+            border-radius: 25px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            padding: 30px;
+            margin-top: 20px;
+            border: 1px solid rgba(126,176,86,0.2);
+        }
+
+        .game-header { text-align: center; margin-bottom: 24px; }
+        .game-title {
+            font-size: 2.4em;
+            background: linear-gradient(45deg, #7eb056, #f1c40f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+        .game-subtitle { color: #d6e9c6; opacity: .85; }
+
+        .controls-section {
+            background: rgba(0,0,0,0.18);
+            padding: 22px;
+            border-radius: 18px;
+            margin-bottom: 22px;
+            border: 1px solid rgba(126,176,86,0.18);
+        }
+
+        .control-group { margin-bottom: 18px; }
+        .control-group:last-child { margin-bottom: 0; }
+        .control-group > label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #d6e9c6;
+            font-size: 15px;
+        }
+
+        .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .input-row select, .input-row input {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(126,176,86,0.35);
+            background: rgba(0,0,0,0.25);
+            color: #ecf0f1;
+            font-size: 14px;
+        }
+        .input-row select:focus, .input-row input:focus {
+            outline: none; border-color: #7eb056; box-shadow: 0 0 0 3px rgba(126,176,86,0.2);
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all .2s ease;
+        }
+        .btn-primary { background: linear-gradient(45deg, #7eb056, #5d8e3a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(126,176,86,0.4); }
+        .btn-secondary { background: linear-gradient(45deg, #34495e, #2c3e50); color: #ecf0f1; }
+        .btn-secondary:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(0,0,0,0.3); }
+        .btn-danger { background: linear-gradient(45deg, #c0392b, #922b21); color: white; }
+        .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(192,57,43,0.4); }
+
+        .mode-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+        .mode-option { position: relative; }
+        .mode-option input[type=radio] { position: absolute; opacity: 0; pointer-events: none; }
+        .mode-label {
+            display: block;
+            cursor: pointer;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 2px solid rgba(126,176,86,0.25);
+            background: rgba(0,0,0,0.18);
+            text-align: center;
+            font-weight: bold;
+            transition: all .2s ease;
+        }
+        .mode-option input[type=radio]:checked + .mode-label {
+            background: linear-gradient(45deg, rgba(126,176,86,0.35), rgba(46,204,113,0.25));
+            border-color: #7eb056;
+            box-shadow: 0 0 0 3px rgba(126,176,86,0.18);
+        }
+
+        .score-section {
+            background: rgba(0,0,0,0.22);
+            padding: 18px;
+            border-radius: 16px;
+            margin-bottom: 22px;
+            border: 1px solid rgba(126,176,86,0.18);
+        }
+        .score-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .score-display { font-size: 22px; font-weight: bold; color: #f1c40f; }
+        .score-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: #d6e9c6; }
+        .score-stats span { background: rgba(0,0,0,0.25); padding: 6px 12px; border-radius: 20px; }
+        .progress-bar { background: rgba(0,0,0,0.3); height: 12px; border-radius: 8px; overflow: hidden; margin-top: 14px; }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #7eb056, #f1c40f, #e67e22);
+            transition: width .4s ease;
+            width: 0%;
+        }
+
+        .filter-bar {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .filter-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(126,176,86,0.25);
+            color: #d6e9c6;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all .15s ease;
+        }
+        .filter-chip:hover { background: rgba(126,176,86,0.2); }
+        .filter-chip.active { background: linear-gradient(45deg, #7eb056, #5d8e3a); border-color: #7eb056; color: white; }
+
+        .rarity-section { margin-bottom: 22px; }
+        .rarity-header {
+            display: flex; align-items: baseline; gap: 10px;
+            font-size: 18px; font-weight: bold; margin-bottom: 12px;
+            color: #f1c40f;
+        }
+        .rarity-header .pts { font-size: 13px; color: #d6e9c6; opacity: 0.75; font-weight: 500; }
+
+        .animals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .animal-card {
+            background: linear-gradient(145deg, rgba(0,0,0,0.25), rgba(0,0,0,0.15));
+            padding: 14px;
+            border-radius: 14px;
+            border: 2px solid rgba(126,176,86,0.18);
+            transition: all .2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .animal-card.spotted-live { border-color: #7eb056; box-shadow: 0 0 18px rgba(126,176,86,0.35); }
+        .animal-card.spotted-roadkill { border-color: #e74c3c; box-shadow: 0 0 12px rgba(231,76,60,0.3); }
+        .animal-card.spotted-both { border-color: #f1c40f; box-shadow: 0 0 18px rgba(241,196,15,0.4); }
+        .animal-card.out-of-region { border-style: dashed; opacity: 0.92; }
+        .animal-card.out-of-region::after {
+            content: 'OOR +50%';
+            position: absolute; top: 6px; right: 8px;
+            font-size: 10px; font-weight: bold; color: #e67e22;
+            background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px;
+        }
+        .animal-emoji { font-size: 2.4em; line-height: 1; margin-bottom: 6px; }
+        .animal-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+        .animal-meta { display: flex; gap: 6px; font-size: 11px; color: #d6e9c6; opacity: 0.8; margin-bottom: 10px; flex-wrap: wrap; }
+        .animal-meta .pts-tag { background: rgba(241,196,15,0.2); color: #f1c40f; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .animal-actions { display: flex; gap: 6px; }
+        .spot-btn {
+            flex: 1; padding: 7px 8px; font-size: 12px; font-weight: bold;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+            background: rgba(0,0,0,0.25); color: #ecf0f1; cursor: pointer;
+            transition: all .15s ease;
+        }
+        .spot-btn:hover { background: rgba(126,176,86,0.25); }
+        .spot-btn.live.active { background: linear-gradient(45deg, #7eb056, #5d8e3a); border-color: #7eb056; }
+        .spot-btn.roadkill.active { background: linear-gradient(45deg, #c0392b, #922b21); border-color: #c0392b; }
+        .spot-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .finder-tag {
+            display: block;
+            font-size: 11px;
+            color: #f1c40f;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .groups-section {
+            background: rgba(0,0,0,0.22);
+            padding: 18px;
+            border-radius: 16px;
+            margin-bottom: 22px;
+            border: 1px solid rgba(126,176,86,0.18);
+        }
+        .groups-section h3 { color: #f1c40f; margin-bottom: 14px; font-size: 18px; }
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+        }
+        .group-card {
+            background: rgba(0,0,0,0.25);
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(126,176,86,0.2);
+            transition: all .2s ease;
+        }
+        .group-card.complete {
+            background: linear-gradient(145deg, rgba(241,196,15,0.25), rgba(230,126,34,0.18));
+            border-color: #f1c40f;
+            box-shadow: 0 0 18px rgba(241,196,15,0.3);
+        }
+        .group-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .group-name { font-weight: bold; font-size: 14px; }
+        .group-bonus { color: #f1c40f; font-weight: bold; font-size: 13px; }
+        .group-desc { font-size: 12px; color: #d6e9c6; opacity: 0.75; margin-bottom: 8px; }
+        .group-progress {
+            font-size: 12px; color: #d6e9c6;
+            display: flex; gap: 4px; flex-wrap: wrap;
+        }
+        .group-member {
+            padding: 2px 6px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            opacity: 0.5;
+        }
+        .group-member.found { opacity: 1; background: rgba(126,176,86,0.35); color: white; }
+
+        .actions-section {
+            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+            margin-top: 24px;
+        }
+
+        .share-section {
+            margin-top: 20px;
+            padding: 22px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 16px;
+            border: 1px solid rgba(126,176,86,0.2);
+        }
+        .share-section h3 { color: #f1c40f; margin-bottom: 12px; }
+        .export-box {
+            width: 100%;
+            min-height: 110px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(126,176,86,0.3);
+            background: rgba(0,0,0,0.3);
+            color: #ecf0f1;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(45deg, #2c5e3f, #1f3d2b);
+            color: white; padding: 12px 22px; border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            border: 1px solid rgba(126,176,86,0.5);
+            font-weight: bold; z-index: 9999;
+            animation: toast-in .3s ease;
+        }
+        .toast.gold { background: linear-gradient(45deg, #f1c40f, #e67e22); color: #1f3d2b; }
+        @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+        .challenge-timer {
+            background: linear-gradient(45deg, #c0392b, #922b21);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        @media (max-width: 600px) {
+            .game-title { font-size: 1.8em; }
+            .welcome-text h1 { font-size: 2em; }
+            .input-row { flex-direction: column; }
+            .input-row select, .input-row input { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ────────── SPLASH ────────── -->
+        <div id="splash">
+            <div class="logo-mark">🦌🐻🦅</div>
+            <div class="welcome-text">
+                <h1>AnimalQuest</h1>
+                <p><strong>SINGLE PLAYER EDITION</strong></p>
+                <p>The wildlife spotting road-trip game. Pick a region, hit the road, and collect every critter you can find. Live or roadkill — every spot counts.</p>
+                <div class="version-info">
+                    <span class="badge">🚗 Solo Adventure</span>
+                    <span class="badge">👨‍👩‍👧‍👦 Family Mode</span>
+                    <span class="badge">🏆 Challenge Mode</span>
+                    <span class="badge">🦴 Roadkill Bingo</span>
+                    <span class="badge">📱 Mobile Optimized</span>
+                    <span class="badge">💾 Auto Save</span>
+                </div>
+            </div>
+            <button class="start-btn" id="startBtn">Start Your Quest! 🎯</button>
+            <div class="version-links">
+                <a href="multiplayer/index.html" class="version-link">👥 Try Multiplayer Version</a>
+                <a href="../index.html" class="version-link">🚗 Back to PlateQuest</a>
+            </div>
+            <p style="margin-top: 30px; opacity: 0.7; font-style: italic;">Created by JcWoLF76</p>
+        </div>
+
+        <!-- ────────── GAME ────────── -->
+        <div id="game">
+            <div class="game-header">
+                <div class="game-title">🦌 AnimalQuest Adventure</div>
+                <div class="game-subtitle">Spot wildlife. Earn points. Become a legend.</div>
+            </div>
+
+            <div class="controls-section">
+                <div class="control-group">
+                    <label>👤 Player Profile</label>
+                    <div class="input-row">
+                        <select id="profileSelect" style="flex: 1; min-width: 200px;">
+                            <option value="">Select Profile...</option>
+                        </select>
+                        <input type="text" id="newProfileInput" placeholder="Create new profile..." style="flex: 1; min-width: 200px;">
+                        <button class="btn btn-primary" id="createProfileBtn">Create</button>
+                        <button class="btn btn-secondary" id="deleteProfileBtn">Delete</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>🗺️ Trip Adventure</label>
+                    <div class="input-row">
+                        <select id="tripSelect" style="flex: 1; min-width: 200px;">
+                            <option value="">Select Trip...</option>
+                        </select>
+                        <input type="text" id="newTripInput" placeholder="Name your adventure..." style="flex: 1; min-width: 200px;">
+                        <button class="btn btn-primary" id="createTripBtn">Create</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>📍 Region</label>
+                    <div class="input-row">
+                        <select id="regionSelect" style="flex: 1; min-width: 220px;">
+                            <!-- populated -->
+                        </select>
+                        <button class="btn btn-secondary" id="detectRegionBtn">📡 Detect (GPS)</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>🎮 Game Mode</label>
+                    <div class="mode-selection">
+                        <div class="mode-option">
+                            <input type="radio" name="mode" value="solo" id="soloMode" checked>
+                            <label for="soloMode" class="mode-label">
+                                🚗 Solo Adventure
+                                <div style="font-size: 12px; margin-top: 6px; opacity: 0.8;">Just you and the wildlife</div>
+                            </label>
+                        </div>
+                        <div class="mode-option">
+                            <input type="radio" name="mode" value="collab" id="collabMode">
+                            <label for="collabMode" class="mode-label">
+                                👥 Family Mode
+                                <div style="font-size: 12px; margin-top: 6px; opacity: 0.8;">One phone, everyone spots</div>
+                            </label>
+                        </div>
+                        <div class="mode-option">
+                            <input type="radio" name="mode" value="versus" id="versusMode">
+                            <label for="versusMode" class="mode-label">
+                                🏆 Challenge Mode
+                                <div style="font-size: 12px; margin-top: 6px; opacity: 0.8;">Race against the clock</div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="score-section">
+                <div class="score-row">
+                    <div class="score-display" id="scoreDisplay">0 pts</div>
+                    <div class="score-stats">
+                        <span id="liveStat">🌿 0 live</span>
+                        <span id="roadkillStat">🦴 0 roadkill</span>
+                        <span id="bonusStat">⭐ 0 bonus</span>
+                        <span id="challengeTimerWrap" style="display:none;"><span class="challenge-timer" id="challengeTimer">00:00</span></span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div style="margin-top: 8px; font-size: 13px; color: #d6e9c6;" id="progressText">Found 0 of 0 species</div>
+            </div>
+
+            <div class="groups-section" id="groupsSection">
+                <h3>⭐ Special Bonus Groups</h3>
+                <div class="groups-grid" id="groupsGrid"></div>
+            </div>
+
+            <div class="filter-bar" id="filterBar"></div>
+
+            <div id="animalsContainer"></div>
+
+            <div class="actions-section">
+                <button class="btn btn-secondary" id="resetBtn">🔄 Reset Trip</button>
+                <button class="btn btn-primary" id="shareBtn">📤 Share Trip</button>
+                <button class="btn btn-secondary" id="importBtn">📥 Load Shared Trip</button>
+                <button class="btn btn-secondary" id="exportBtn">📋 Export Backup</button>
+                <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
+            </div>
+
+            <div class="share-section" id="shareSection" style="display: none;">
+                <h3>📤 Trip Code</h3>
+                <p style="color: #d6e9c6; margin-bottom: 10px;">Copy this to share or back up your progress.</p>
+                <textarea class="export-box" id="exportBox" readonly></textarea>
+                <div style="margin-top: 14px;">
+                    <button class="btn btn-primary" id="copyExportBtn">📋 Copy</button>
+                    <button class="btn btn-secondary" id="hideShareBtn">❌ Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+    (function () {
+        'use strict';
+        const D = window.AnimalQuestData;
+
+        const STORAGE_KEYS = {
+            profiles: 'animalquest_profiles_v1',
+            trips: 'animalquest_trips_v1',
+            darkMode: 'animalquest_dark_mode',
+            currentProfile: 'animalquest_current_profile'
+        };
+
+        const GAME_MODES = {
+            solo:   { name: 'Solo Adventure', allowMultipleContributors: false, trackBestTimes: false },
+            collab: { name: 'Family Mode',    allowMultipleContributors: true,  trackBestTimes: false },
+            versus: { name: 'Challenge Mode', allowMultipleContributors: false, trackBestTimes: true  }
+        };
+
+        let currentProfileId = null;
+        let currentTripId = null;
+        let currentTripData = null;
+        let challengeTimerHandle = null;
+        let activeFilter = 'all'; // 'all' | rarity id | 'roadkill' | 'live'
+
+        const $ = (id) => document.getElementById(id);
+
+        // ── Storage ─────────────────────────────────────────────────────────
+        function readJSON(key, fallback) {
+            try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+            catch (e) { return fallback; }
+        }
+        function writeJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+        const getProfiles = () => readJSON(STORAGE_KEYS.profiles, []);
+        const saveProfiles = (p) => writeJSON(STORAGE_KEYS.profiles, p);
+        const getTrips = () => readJSON(STORAGE_KEYS.trips, {});
+        const saveTrips = (t) => writeJSON(STORAGE_KEYS.trips, t);
+
+        function createId(prefix) {
+            return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        }
+        function getCurrentProfile() {
+            return getProfiles().find(p => p.id === currentProfileId) || null;
+        }
+        function getProfileTrips(profileId) {
+            return Object.values(getTrips())
+                .filter(t => t.profileId === profileId)
+                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        }
+
+        // ── Profile / Trip management ───────────────────────────────────────
+        function refreshProfileSelect() {
+            const profiles = getProfiles();
+            const sel = $('profileSelect');
+            sel.innerHTML = '<option value="">Select Profile...</option>' +
+                profiles.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+            if (currentProfileId) sel.value = currentProfileId;
+        }
+        function refreshTripSelect() {
+            const sel = $('tripSelect');
+            if (!currentProfileId) {
+                sel.innerHTML = '<option value="">Select a profile first</option>';
+                return;
+            }
+            const trips = getProfileTrips(currentProfileId);
+            sel.innerHTML = '<option value="">Select Trip...</option>' +
+                trips.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+            if (currentTripId) sel.value = currentTripId;
+        }
+        function refreshRegionSelect() {
+            const sel = $('regionSelect');
+            sel.innerHTML = Object.entries(D.REGIONS)
+                .map(([id, r]) => `<option value="${id}">${r.emoji} ${escapeHtml(r.label)}</option>`)
+                .join('');
+            if (currentTripData?.region) sel.value = currentTripData.region;
+        }
+
+        function loadCurrentTrip() {
+            const trips = getTrips();
+            currentTripData = currentTripId ? (trips[currentTripId] || null) : null;
+            if (currentTripData) {
+                if (!currentTripData.spots) currentTripData.spots = {};
+                if (!currentTripData.region) currentTripData.region = 'national';
+                if (!currentTripData.contributors) currentTripData.contributors = [];
+            }
+            renderAll();
+        }
+
+        function saveCurrentTrip() {
+            if (!currentTripData) return;
+            currentTripData.updatedAt = Date.now();
+            const trips = getTrips();
+            trips[currentTripData.id] = currentTripData;
+            saveTrips(trips);
+        }
+
+        // ── Rendering ───────────────────────────────────────────────────────
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        function activeContributor() {
+            const trip = currentTripData;
+            if (!trip) return 'Player';
+            if (trip.mode === 'collab' && trip.activeContributor) return trip.activeContributor;
+            const profile = getCurrentProfile();
+            return profile ? profile.name : 'Player';
+        }
+
+        function renderAll() {
+            renderScore();
+            renderGroups();
+            renderFilterBar();
+            renderAnimals();
+        }
+
+        function renderScore() {
+            if (!currentTripData) {
+                $('scoreDisplay').textContent = '0 pts';
+                $('progressFill').style.width = '0%';
+                $('progressText').textContent = 'Found 0 of 0 species';
+                $('liveStat').textContent = '🌿 0 live';
+                $('roadkillStat').textContent = '🦴 0 roadkill';
+                $('bonusStat').textContent = '⭐ 0 bonus';
+                return;
+            }
+            const region = currentTripData.region || 'national';
+            const visible = D.animalsForRegion(region);
+            const spots = currentTripData.spots || {};
+            const total = D.tripTotal(spots, region);
+            const earned = D.earnedGroups(spots);
+            let bonus = 0;
+            earned.forEach(gid => bonus += D.GROUPS[gid].bonus || 0);
+
+            const liveCount = Object.values(spots).filter(s => s && s.live).length;
+            const rkCount = Object.values(spots).filter(s => s && s.roadkill).length;
+            const speciesFound = Object.values(spots).filter(s => s && (s.live || s.roadkill)).length;
+            const speciesTotal = visible.length;
+            const pct = speciesTotal ? Math.round(speciesFound / speciesTotal * 100) : 0;
+
+            $('scoreDisplay').textContent = `${total} pts`;
+            $('progressFill').style.width = pct + '%';
+            $('progressText').textContent = `Found ${speciesFound} of ${speciesTotal} species (${pct}%)`;
+            $('liveStat').textContent = `🌿 ${liveCount} live`;
+            $('roadkillStat').textContent = `🦴 ${rkCount} roadkill`;
+            $('bonusStat').textContent = `⭐ ${bonus} bonus`;
+        }
+
+        function renderGroups() {
+            const grid = $('groupsGrid');
+            if (!currentTripData) { grid.innerHTML = ''; return; }
+            const spots = currentTripData.spots || {};
+            const earned = new Set(D.earnedGroups(spots));
+
+            grid.innerHTML = Object.entries(D.GROUPS).map(([gid, g]) => {
+                const isComplete = earned.has(gid);
+                let progressHtml;
+                if (g.special === 'anyRoadkill') {
+                    const rkCount = Object.values(spots).filter(s => s && s.roadkill).length;
+                    const cap = g.threshold || 5;
+                    progressHtml = `<div class="group-progress"><span class="group-member ${rkCount>=cap?'found':''}">${Math.min(rkCount, cap)}/${cap} roadkill</span></div>`;
+                } else {
+                    progressHtml = `<div class="group-progress">${g.members.map(mid => {
+                        const a = D.getAnimalById(mid);
+                        const s = spots[mid];
+                        const found = !!(s && (s.live || s.roadkill));
+                        return `<span class="group-member ${found?'found':''}" title="${escapeHtml(a?.name||mid)}">${a?.emoji||'❓'} ${escapeHtml(a?.name||mid)}</span>`;
+                    }).join('')}</div>`;
+                }
+                return `<div class="group-card ${isComplete?'complete':''}">
+                    <div class="group-card-head">
+                        <div class="group-name">${g.emoji} ${escapeHtml(g.label)}</div>
+                        <div class="group-bonus">+${g.bonus}</div>
+                    </div>
+                    <div class="group-desc">${escapeHtml(g.desc||'')}</div>
+                    ${progressHtml}
+                </div>`;
+            }).join('');
+        }
+
+        function renderFilterBar() {
+            const bar = $('filterBar');
+            const filters = [
+                { id: 'all',       label: 'All' },
+                { id: 'common',    label: 'Common' },
+                { id: 'uncommon',  label: 'Uncommon' },
+                { id: 'rare',      label: 'Rare' },
+                { id: 'epic',      label: 'Epic' },
+                { id: 'legendary', label: 'Legendary' },
+                { id: 'mythic',    label: 'Mythic' },
+                { id: 'live',      label: '🌿 Spotted Live' },
+                { id: 'roadkill',  label: '🦴 Roadkill' },
+                { id: 'unspotted', label: 'Unspotted' }
+            ];
+            bar.innerHTML = filters.map(f =>
+                `<div class="filter-chip ${activeFilter===f.id?'active':''}" data-filter="${f.id}">${escapeHtml(f.label)}</div>`
+            ).join('');
+            bar.querySelectorAll('.filter-chip').forEach(el => {
+                el.addEventListener('click', () => {
+                    activeFilter = el.dataset.filter;
+                    renderFilterBar();
+                    renderAnimals();
+                });
+            });
+        }
+
+        function renderAnimals() {
+            const container = $('animalsContainer');
+            if (!currentTripData) { container.innerHTML = '<p style="text-align:center;opacity:0.7;">Create or select a trip to start spotting.</p>'; return; }
+            const region = currentTripData.region || 'national';
+            const spots = currentTripData.spots || {};
+            const visible = D.animalsForRegion(region).filter(a => filterMatches(a, spots));
+
+            // Group by rarity
+            const byRarity = { common: [], uncommon: [], rare: [], epic: [], legendary: [], mythic: [] };
+            visible.forEach(a => byRarity[a.rarity]?.push(a));
+
+            const sections = ['common','uncommon','rare','epic','legendary','mythic'].map(rid => {
+                const list = byRarity[rid];
+                if (!list || !list.length) return '';
+                const r = D.RARITY[rid];
+                return `<div class="rarity-section">
+                    <div class="rarity-header" style="color: ${r.color}">
+                        <span>${escapeHtml(r.label)}</span>
+                        <span class="pts">base ${r.points} pts ${rid==='mythic'?'· good luck':''}</span>
+                    </div>
+                    <div class="animals-grid">
+                        ${list.map(a => animalCardHtml(a, spots, region)).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+
+            container.innerHTML = sections || '<p style="text-align:center;opacity:0.7;padding:40px;">No animals match this filter.</p>';
+
+            container.querySelectorAll('.spot-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.id;
+                    const kind = btn.dataset.kind;
+                    toggleSpot(id, kind);
+                });
+            });
+        }
+
+        function filterMatches(animal, spots) {
+            const s = spots[animal.id];
+            switch (activeFilter) {
+                case 'all': return true;
+                case 'live': return !!(s && s.live);
+                case 'roadkill': return !!(s && s.roadkill);
+                case 'unspotted': return !(s && (s.live || s.roadkill));
+                case 'common': case 'uncommon': case 'rare': case 'epic':
+                case 'legendary': case 'mythic':
+                    return animal.rarity === activeFilter;
+                default: return true;
+            }
+        }
+
+        function animalCardHtml(animal, spots, region) {
+            const s = spots[animal.id] || {};
+            const cls = ['animal-card'];
+            if (s.live && s.roadkill) cls.push('spotted-both');
+            else if (s.live) cls.push('spotted-live');
+            else if (s.roadkill) cls.push('spotted-roadkill');
+            if (D.isOutOfRegion(animal, region)) cls.push('out-of-region');
+
+            const livePts = D.pointsForSpot(animal, 'live', region);
+            const rkPts = D.pointsForSpot(animal, 'roadkill', region);
+            const finder = (s.liveBy || s.roadkillBy)
+                ? `<span class="finder-tag">${s.liveBy ? '🌿 ' + escapeHtml(s.liveBy) : ''}${s.liveBy && s.roadkillBy ? ' · ' : ''}${s.roadkillBy ? '🦴 ' + escapeHtml(s.roadkillBy) : ''}</span>`
+                : '';
+
+            return `<div class="${cls.join(' ')}" data-id="${animal.id}">
+                <div class="animal-emoji">${animal.emoji}</div>
+                <div class="animal-name">${escapeHtml(animal.name)}</div>
+                <div class="animal-meta">
+                    <span class="pts-tag">${livePts}</span>
+                    <span>${escapeHtml(D.RARITY[animal.rarity].label)}</span>
+                </div>
+                <div class="animal-actions">
+                    <button class="spot-btn live ${s.live?'active':''}" data-id="${animal.id}" data-kind="live" title="Spotted alive (+${livePts})">🌿 Live</button>
+                    <button class="spot-btn roadkill ${s.roadkill?'active':''}" data-id="${animal.id}" data-kind="roadkill" ${animal.roadkillable===false?'disabled title="Not realistically roadkill"':`title="Roadkill (+${rkPts})"`}>🦴 RK</button>
+                </div>
+                ${finder}
+            </div>`;
+        }
+
+        function toggleSpot(animalId, kind) {
+            if (!currentTripData) { toast('Create or select a trip first', false); return; }
+            const animal = D.getAnimalById(animalId);
+            if (!animal) return;
+            if (kind === 'roadkill' && animal.roadkillable === false) return;
+
+            const region = currentTripData.region || 'national';
+            const spots = currentTripData.spots = currentTripData.spots || {};
+            const s = spots[animalId] = spots[animalId] || {};
+            const key = kind === 'live' ? 'live' : 'roadkill';
+            const byKey = kind === 'live' ? 'liveBy' : 'roadkillBy';
+            const atKey = kind === 'live' ? 'liveAt' : 'roadkillAt';
+
+            const prevEarned = new Set(D.earnedGroups(spots));
+
+            if (s[key]) {
+                delete s[key]; delete s[byKey]; delete s[atKey];
+            } else {
+                s[key] = true;
+                s[byKey] = activeContributor();
+                s[atKey] = new Date().toISOString();
+                const pts = D.pointsForSpot(animal, kind, region);
+                toast(`${animal.emoji} ${kind === 'live' ? 'Live' : 'Roadkill'}! +${pts} pts`, false);
+            }
+            // If both empty, drop
+            if (!s.live && !s.roadkill) delete spots[animalId];
+
+            // Track contributor in collab mode
+            if (currentTripData.mode === 'collab') {
+                const c = activeContributor();
+                if (c && !currentTripData.contributors.includes(c)) currentTripData.contributors.push(c);
+            }
+
+            // Group bonus toast
+            const newEarned = D.earnedGroups(spots);
+            newEarned.forEach(gid => {
+                if (!prevEarned.has(gid)) {
+                    const g = D.GROUPS[gid];
+                    toast(`${g.emoji} ${g.label} complete! +${g.bonus} bonus`, true);
+                }
+            });
+
+            saveCurrentTrip();
+            renderAll();
+        }
+
+        function toast(msg, gold) {
+            const t = document.createElement('div');
+            t.className = 'toast' + (gold ? ' gold' : '');
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), gold ? 3500 : 1800);
+        }
+
+        // ── Challenge timer ─────────────────────────────────────────────────
+        function startChallengeTimerIfNeeded() {
+            stopChallengeTimer();
+            if (!currentTripData || currentTripData.mode !== 'versus') {
+                $('challengeTimerWrap').style.display = 'none';
+                return;
+            }
+            if (!currentTripData.challengeStartTime) currentTripData.challengeStartTime = Date.now();
+            $('challengeTimerWrap').style.display = '';
+            const tick = () => {
+                const elapsed = Math.floor((Date.now() - currentTripData.challengeStartTime) / 1000);
+                const h = Math.floor(elapsed / 3600);
+                const m = Math.floor((elapsed % 3600) / 60);
+                const s = elapsed % 60;
+                $('challengeTimer').textContent = (h ? `${h}h ` : '') + `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            };
+            tick();
+            challengeTimerHandle = setInterval(tick, 1000);
+        }
+        function stopChallengeTimer() {
+            if (challengeTimerHandle) clearInterval(challengeTimerHandle);
+            challengeTimerHandle = null;
+        }
+
+        // ── Event handlers ──────────────────────────────────────────────────
+        $('startBtn').addEventListener('click', () => {
+            $('splash').style.display = 'none';
+            $('game').style.display = 'block';
+            initGame();
+        });
+
+        $('createProfileBtn').addEventListener('click', () => {
+            const name = $('newProfileInput').value.trim();
+            if (!name) { toast('Enter a profile name', false); return; }
+            const profiles = getProfiles();
+            if (profiles.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                toast('Profile already exists', false); return;
+            }
+            const p = { id: createId('prof'), name, createdAt: Date.now() };
+            profiles.push(p);
+            saveProfiles(profiles);
+            currentProfileId = p.id;
+            localStorage.setItem(STORAGE_KEYS.currentProfile, p.id);
+            $('newProfileInput').value = '';
+            refreshProfileSelect();
+            refreshTripSelect();
+            toast(`👤 Profile "${p.name}" created`);
+        });
+
+        $('deleteProfileBtn').addEventListener('click', () => {
+            if (!currentProfileId) return;
+            const profile = getCurrentProfile();
+            if (!profile) return;
+            if (!confirm(`Delete profile "${profile.name}" and all its trips?`)) return;
+            const profiles = getProfiles().filter(p => p.id !== currentProfileId);
+            saveProfiles(profiles);
+            const trips = getTrips();
+            Object.keys(trips).forEach(tid => {
+                if (trips[tid].profileId === currentProfileId) delete trips[tid];
+            });
+            saveTrips(trips);
+            currentProfileId = null;
+            currentTripId = null;
+            currentTripData = null;
+            localStorage.removeItem(STORAGE_KEYS.currentProfile);
+            refreshProfileSelect();
+            refreshTripSelect();
+            renderAll();
+        });
+
+        $('profileSelect').addEventListener('change', (e) => {
+            currentProfileId = e.target.value || null;
+            currentTripId = null;
+            currentTripData = null;
+            localStorage.setItem(STORAGE_KEYS.currentProfile, currentProfileId || '');
+            refreshTripSelect();
+            renderAll();
+        });
+
+        $('createTripBtn').addEventListener('click', () => {
+            if (!currentProfileId) { toast('Pick a profile first', false); return; }
+            const name = $('newTripInput').value.trim();
+            if (!name) { toast('Name your adventure', false); return; }
+            const profile = getCurrentProfile();
+            const mode = document.querySelector('input[name=mode]:checked').value;
+            const region = $('regionSelect').value || 'national';
+            const trip = {
+                id: createId('trip'),
+                profileId: currentProfileId,
+                name,
+                mode,
+                region,
+                contributors: [profile.name],
+                activeContributor: profile.name,
+                spots: {},
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                challengeStartTime: mode === 'versus' ? Date.now() : null
+            };
+            const trips = getTrips();
+            trips[trip.id] = trip;
+            saveTrips(trips);
+            currentTripId = trip.id;
+            $('newTripInput').value = '';
+            refreshTripSelect();
+            loadCurrentTrip();
+            startChallengeTimerIfNeeded();
+            toast(`🗺️ Trip "${name}" started`);
+        });
+
+        $('tripSelect').addEventListener('change', (e) => {
+            currentTripId = e.target.value || null;
+            loadCurrentTrip();
+            if (currentTripData) {
+                document.querySelector(`input[name=mode][value="${currentTripData.mode}"]`).checked = true;
+                $('regionSelect').value = currentTripData.region || 'national';
+            }
+            startChallengeTimerIfNeeded();
+        });
+
+        $('regionSelect').addEventListener('change', (e) => {
+            if (!currentTripData) return;
+            currentTripData.region = e.target.value;
+            saveCurrentTrip();
+            renderAll();
+        });
+
+        document.querySelectorAll('input[name=mode]').forEach(r => {
+            r.addEventListener('change', () => {
+                if (!currentTripData) return;
+                currentTripData.mode = r.value;
+                if (r.value === 'versus' && !currentTripData.challengeStartTime) {
+                    currentTripData.challengeStartTime = Date.now();
+                }
+                saveCurrentTrip();
+                startChallengeTimerIfNeeded();
+                renderAll();
+            });
+        });
+
+        $('detectRegionBtn').addEventListener('click', () => {
+            if (!navigator.geolocation) { toast('Geolocation not supported', false); return; }
+            $('detectRegionBtn').textContent = '📡 Detecting...';
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const region = guessRegionFromLatLng(pos.coords.latitude, pos.coords.longitude);
+                $('regionSelect').value = region;
+                if (currentTripData) {
+                    currentTripData.region = region;
+                    saveCurrentTrip();
+                    renderAll();
+                }
+                $('detectRegionBtn').textContent = '📡 Detect (GPS)';
+                toast(`📍 ${D.REGIONS[region].label}`, false);
+            }, () => {
+                $('detectRegionBtn').textContent = '📡 Detect (GPS)';
+                toast('Location denied — pick a region manually', false);
+            }, { timeout: 10000 });
+        });
+
+        function guessRegionFromLatLng(lat, lng) {
+            // Very rough US regional bucketing.
+            if (lat > 55) return 'alaska';
+            if (lng < -120) return 'pacific-northwest';
+            if (lng < -104 && lat > 36) return 'mountain-west';
+            if (lng < -100 && lat <= 36) return 'southwest';
+            if (lng < -86 && lat > 36) return 'midwest';
+            if (lat <= 36) return 'southeast';
+            return 'northeast';
+        }
+
+        $('resetBtn').addEventListener('click', () => {
+            if (!currentTripData) return;
+            if (!confirm('Reset all spots on this trip?')) return;
+            currentTripData.spots = {};
+            currentTripData.challengeStartTime = currentTripData.mode === 'versus' ? Date.now() : null;
+            saveCurrentTrip();
+            startChallengeTimerIfNeeded();
+            renderAll();
+            toast('🔄 Trip reset');
+        });
+
+        $('shareBtn').addEventListener('click', () => {
+            if (!currentTripData) { toast('No trip to share', false); return; }
+            const code = btoa(encodeURIComponent(JSON.stringify(currentTripData)));
+            $('exportBox').value = 'AQ::' + code;
+            $('shareSection').style.display = '';
+        });
+
+        $('exportBtn').addEventListener('click', () => {
+            const data = { profiles: getProfiles(), trips: getTrips() };
+            $('exportBox').value = 'AQBACKUP::' + btoa(encodeURIComponent(JSON.stringify(data)));
+            $('shareSection').style.display = '';
+        });
+
+        $('hideShareBtn').addEventListener('click', () => {
+            $('shareSection').style.display = 'none';
+        });
+
+        $('copyExportBtn').addEventListener('click', () => {
+            const ta = $('exportBox');
+            ta.select();
+            try { document.execCommand('copy'); toast('📋 Copied to clipboard'); } catch (e) {}
+        });
+
+        $('importBtn').addEventListener('click', () => {
+            const code = prompt('Paste a trip code or backup:');
+            if (!code) return;
+            try {
+                if (code.startsWith('AQBACKUP::')) {
+                    const data = JSON.parse(decodeURIComponent(atob(code.slice(10))));
+                    if (data.profiles) saveProfiles(data.profiles);
+                    if (data.trips) saveTrips(data.trips);
+                    toast('📥 Backup restored');
+                } else if (code.startsWith('AQ::')) {
+                    const trip = JSON.parse(decodeURIComponent(atob(code.slice(4))));
+                    trip.id = createId('trip');
+                    if (currentProfileId) trip.profileId = currentProfileId;
+                    const trips = getTrips();
+                    trips[trip.id] = trip;
+                    saveTrips(trips);
+                    currentTripId = trip.id;
+                    toast('📥 Trip imported');
+                } else {
+                    toast('Unrecognized code', false); return;
+                }
+                refreshProfileSelect();
+                refreshTripSelect();
+                loadCurrentTrip();
+            } catch (e) {
+                toast('Could not parse code', false);
+            }
+        });
+
+        $('darkModeBtn').addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem(STORAGE_KEYS.darkMode, document.body.classList.contains('dark') ? '1' : '0');
+        });
+
+        // ── Init ────────────────────────────────────────────────────────────
+        function initGame() {
+            if (localStorage.getItem(STORAGE_KEYS.darkMode) === '1') document.body.classList.add('dark');
+            currentProfileId = localStorage.getItem(STORAGE_KEYS.currentProfile) || null;
+            if (currentProfileId && !getProfiles().some(p => p.id === currentProfileId)) {
+                currentProfileId = null;
+            }
+            refreshProfileSelect();
+            refreshRegionSelect();
+            if (currentProfileId) {
+                const trips = getProfileTrips(currentProfileId);
+                if (trips.length) currentTripId = trips[0].id;
+            }
+            refreshTripSelect();
+            loadCurrentTrip();
+            if (currentTripData) {
+                document.querySelector(`input[name=mode][value="${currentTripData.mode}"]`).checked = true;
+                $('regionSelect').value = currentTripData.region || 'national';
+            }
+            startChallengeTimerIfNeeded();
+        }
+
+        // Auto-show game if a profile already exists (returning user)
+        document.addEventListener('DOMContentLoaded', () => {
+            if (getProfiles().length) {
+                $('splash').style.display = 'none';
+                $('game').style.display = 'block';
+                initGame();
+            }
+        });
+    })();
+    </script>
+</body>
+</html>
