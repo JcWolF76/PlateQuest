@@ -1,6 +1,7 @@
 {
-  "version": "20260429t",
+  "version": "20260429u",
   "changelog": {
+    "20260429u": ["📱 Mobile plate layout overhauled — name sits on the top edge across the full width, flag is centered, the ✕ button sits on the same line as the flag (right side), and the first-finder tag now lives in the bottom-right next to the point value"],
     "20260429t": ["📱 Plate names now sit at the top of every card and wrap to a second line if too wide (e.g. New / Hampshire) — no more cut-off names like \"Pennsylv...\" or \"South Car...\""],
     "20260429s": ["📱 Mobile plate cards now keep proper plate proportions (1.7:1) — and first-finder tag no longer overlaps the state name"],
     "20260429r": ["📱 Plate grid is now 3 columns on mobile — cards are shorter, narrower, and the redundant \"LICENSE PLATE\" header is hidden since section labels already identify the type"],
