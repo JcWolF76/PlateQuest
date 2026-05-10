@@ -1,6 +1,7 @@
 {
-  "version": "20260429r",
+  "version": "20260429s",
   "changelog": {
+    "20260429s": ["📱 Mobile plate cards now keep proper plate proportions (1.7:1) — and first-finder tag no longer overlaps the state name"],
     "20260429r": ["📱 Plate grid is now 3 columns on mobile — cards are shorter, narrower, and the redundant \"LICENSE PLATE\" header is hidden since section labels already identify the type"],
     "20260429q": ["📊 Leaderboard cards are now compact — same info (score, plates, FF, coins, achievements, badges, reactions) in a tighter layout"],
     "20260429p": ["🌙 Thief in the Night — pick any opponent and steal their single highest-value plate; they lose it permanently (75🪙)"],
