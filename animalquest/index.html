@@ -385,6 +385,114 @@
             display: inline-block;
         }
 
+        .animal-sci {
+            font-size: 11px; font-style: italic; opacity: 0.7;
+            margin-top: -2px; margin-bottom: 6px;
+            color: #d6e9c6;
+        }
+        .species-badge {
+            display: inline-block;
+            font-size: 10px; font-weight: bold;
+            padding: 2px 6px; margin-left: 6px;
+            background: linear-gradient(45deg, #f1c40f, #e67e22);
+            color: #1f3d2b; border-radius: 4px;
+            vertical-align: middle;
+        }
+
+        /* Species quiz modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9000; padding: 20px;
+            animation: fade-in .2s ease;
+        }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-card {
+            background: linear-gradient(145deg, #1f3d2b, #2c5e3f);
+            border: 1px solid rgba(241,196,15,0.35);
+            border-radius: 20px;
+            padding: 26px;
+            max-width: 520px; width: 100%;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+            animation: pop-in .25s ease;
+        }
+        @keyframes pop-in { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .modal-head {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .modal-emoji { font-size: 4em; line-height: 1; }
+        .modal-name { font-size: 1.4em; font-weight: bold; margin-top: 6px; color: #f1c40f; }
+        .modal-prompt {
+            text-align: center;
+            font-size: 14px;
+            color: #d6e9c6;
+            margin-bottom: 18px;
+            line-height: 1.45;
+        }
+        .modal-prompt .bonus { color: #f1c40f; font-weight: bold; }
+        .modal-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+        .quiz-option {
+            display: block; width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid rgba(126,176,86,0.3);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.25);
+            color: #ecf0f1;
+            font-style: italic;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            transition: all .15s ease;
+        }
+        .quiz-option:hover:not(:disabled) {
+            background: rgba(126,176,86,0.18);
+            border-color: #7eb056;
+            transform: translateX(2px);
+        }
+        .quiz-option.correct {
+            background: linear-gradient(45deg, #5d8e3a, #7eb056) !important;
+            border-color: #f1c40f !important;
+            color: white !important;
+            font-weight: bold;
+        }
+        .quiz-option.wrong {
+            background: linear-gradient(45deg, #922b21, #c0392b) !important;
+            border-color: #e74c3c !important;
+            color: white !important;
+        }
+        .quiz-option:disabled { cursor: default; }
+
+        .modal-foot {
+            display: flex; gap: 10px; justify-content: space-between; align-items: center;
+            margin-top: 6px; flex-wrap: wrap;
+        }
+        .modal-foot .skip-btn {
+            background: transparent;
+            color: #d6e9c6;
+            border: 1px solid rgba(126,176,86,0.3);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .modal-foot .skip-btn:hover { background: rgba(0,0,0,0.25); }
+        .modal-foot .modal-status { font-size: 13px; color: #d6e9c6; flex: 1; text-align: right; }
+
+        .edu-toggle {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.25);
+            padding: 8px 14px; border-radius: 22px;
+            border: 1px solid rgba(126,176,86,0.25);
+            cursor: pointer; user-select: none;
+            font-size: 13px; color: #d6e9c6;
+        }
+        .edu-toggle input { width: 14px; height: 14px; accent-color: #7eb056; }
+        .edu-toggle.on { border-color: #f1c40f; color: #f1c40f; }
+
         @media (max-width: 600px) {
             .game-title { font-size: 1.8em; }
             .welcome-text h1 { font-size: 2em; }
@@ -494,6 +602,7 @@
                     <div class="score-stats">
                         <span id="liveStat">🌿 0 live</span>
                         <span id="roadkillStat">🦴 0 roadkill</span>
+                        <span id="speciesStat">🎓 0 species</span>
                         <span id="bonusStat">⭐ 0 bonus</span>
                         <span id="challengeTimerWrap" style="display:none;"><span class="challenge-timer" id="challengeTimer">00:00</span></span>
                     </div>
@@ -502,6 +611,10 @@
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
                 <div style="margin-top: 8px; font-size: 13px; color: #d6e9c6;" id="progressText">Found 0 of 0 species</div>
+                <label class="edu-toggle" id="eduToggleWrap" style="margin-top: 10px;">
+                    <input type="checkbox" id="eduToggle" checked>
+                    🎓 Educational mode <span style="opacity:0.7;">— pop a species quiz on first spot</span>
+                </label>
             </div>
 
             <div class="groups-section" id="groupsSection">
@@ -519,6 +632,25 @@
                 <button class="btn btn-secondary" id="importBtn">📥 Load Shared Trip</button>
                 <button class="btn btn-secondary" id="exportBtn">📋 Export Backup</button>
                 <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
+            </div>
+
+            <!-- Species quiz modal (hidden until a fresh spot fires it) -->
+            <div class="modal-overlay" id="quizModal" style="display:none;">
+                <div class="modal-card">
+                    <div class="modal-head">
+                        <div class="modal-emoji" id="quizEmoji">🦌</div>
+                        <div class="modal-name" id="quizName">—</div>
+                        <div id="quizSubName" style="font-size:13px; opacity:0.75; margin-top:4px;">—</div>
+                    </div>
+                    <p class="modal-prompt" id="quizPrompt">
+                        Spotted! What's the scientific name? Get it right for a <span class="bonus" id="quizBonus">+0</span> species bonus.
+                    </p>
+                    <div class="modal-options" id="quizOptions"></div>
+                    <div class="modal-foot">
+                        <button class="skip-btn" id="quizSkip">Skip — record spot, no bonus</button>
+                        <span class="modal-status" id="quizStatus"></span>
+                    </div>
+                </div>
             </div>
 
             <div class="share-section" id="shareSection" style="display: none;">
@@ -543,7 +675,8 @@
             profiles: 'animalquest_profiles_v1',
             trips: 'animalquest_trips_v1',
             darkMode: 'animalquest_dark_mode',
-            currentProfile: 'animalquest_current_profile'
+            currentProfile: 'animalquest_current_profile',
+            educational: 'animalquest_educational'
         };
 
         const GAME_MODES = {
@@ -557,6 +690,7 @@
         let currentTripData = null;
         let challengeTimerHandle = null;
         let activeFilter = 'all'; // 'all' | rarity id | 'roadkill' | 'live'
+        let pendingQuiz = null;   // { animalId, kind } awaiting a quiz answer
 
         const $ = (id) => document.getElementById(id);
 
@@ -672,6 +806,14 @@
             const liveCount = Object.values(spots).filter(s => s && s.live).length;
             const rkCount = Object.values(spots).filter(s => s && s.roadkill).length;
             const speciesFound = Object.values(spots).filter(s => s && (s.live || s.roadkill)).length;
+            const speciesCorrect = Object.values(spots).filter(s => s && s.species).length;
+            let speciesBonus = 0;
+            Object.entries(spots).forEach(([id, s]) => {
+                if (s && s.species) {
+                    const a = D.getAnimalById(id);
+                    if (a) speciesBonus += D.speciesBonusPoints(a);
+                }
+            });
             const speciesTotal = visible.length;
             const pct = speciesTotal ? Math.round(speciesFound / speciesTotal * 100) : 0;
 
@@ -680,7 +822,8 @@
             $('progressText').textContent = `Found ${speciesFound} of ${speciesTotal} species (${pct}%)`;
             $('liveStat').textContent = `🌿 ${liveCount} live`;
             $('roadkillStat').textContent = `🦴 ${rkCount} roadkill`;
-            $('bonusStat').textContent = `⭐ ${bonus} bonus`;
+            $('speciesStat').textContent = `🎓 ${speciesCorrect} species (+${speciesBonus})`;
+            $('bonusStat').textContent = `⭐ ${bonus} group bonus`;
         }
 
         function renderGroups() {
@@ -806,9 +949,12 @@
                 ? `<span class="finder-tag">${s.liveBy ? '🌿 ' + escapeHtml(s.liveBy) : ''}${s.liveBy && s.roadkillBy ? ' · ' : ''}${s.roadkillBy ? '🦴 ' + escapeHtml(s.roadkillBy) : ''}</span>`
                 : '';
 
+            const speciesBadge = s.species ? `<span class="species-badge" title="Identified by scientific name">🎓 ID</span>` : '';
+
             return `<div class="${cls.join(' ')}" data-id="${animal.id}">
                 <div class="animal-emoji">${animal.emoji}</div>
-                <div class="animal-name">${escapeHtml(animal.name)}</div>
+                <div class="animal-name">${escapeHtml(animal.name)}${speciesBadge}</div>
+                <div class="animal-sci">${escapeHtml(animal.scientific || '')}</div>
                 <div class="animal-meta">
                     <span class="pts-tag">${livePts}</span>
                     <span>${escapeHtml(D.RARITY[animal.rarity].label)}</span>
@@ -821,12 +967,35 @@
             </div>`;
         }
 
+        function isEducationalMode() {
+            const v = localStorage.getItem(STORAGE_KEYS.educational);
+            return v === null ? true : v === '1';
+        }
+
         function toggleSpot(animalId, kind) {
             if (!currentTripData) { toast('Create or select a trip first', false); return; }
             const animal = D.getAnimalById(animalId);
             if (!animal) return;
             if (kind === 'roadkill' && animal.roadkillable === false) return;
 
+            const spots = currentTripData.spots = currentTripData.spots || {};
+            const s = spots[animalId] || {};
+            const isAdding = !s[kind === 'live' ? 'live' : 'roadkill'];
+
+            // First spot for this animal + educational mode on + quiz not yet taken
+            // → fire the species quiz before recording the spot.
+            if (isAdding && isEducationalMode() && !s.speciesQuizTaken && animal.scientific) {
+                pendingQuiz = { animalId, kind };
+                openQuizModal(animal);
+                return;
+            }
+            applySpot(animalId, kind, null);
+        }
+
+        // quizResult: null | true (correct) | false (wrong/skip)
+        function applySpot(animalId, kind, quizResult) {
+            const animal = D.getAnimalById(animalId);
+            if (!animal) return;
             const region = currentTripData.region || 'national';
             const spots = currentTripData.spots = currentTripData.spots || {};
             const s = spots[animalId] = spots[animalId] || {};
@@ -842,19 +1011,26 @@
                 s[key] = true;
                 s[byKey] = activeContributor();
                 s[atKey] = new Date().toISOString();
-                const pts = D.pointsForSpot(animal, kind, region);
-                toast(`${animal.emoji} ${kind === 'live' ? 'Live' : 'Roadkill'}! +${pts} pts`, false);
+                const spotPts = D.pointsForSpot(animal, kind, region);
+                let bonusMsg = '';
+                if (quizResult === true) {
+                    s.species = true;
+                    s.speciesQuizTaken = true;
+                    s.speciesBy = activeContributor();
+                    bonusMsg = ` (+${D.speciesBonusPoints(animal)} 🎓 species)`;
+                } else if (quizResult === false) {
+                    s.species = false;
+                    s.speciesQuizTaken = true;
+                }
+                toast(`${animal.emoji} ${kind === 'live' ? 'Live' : 'Roadkill'}! +${spotPts}${bonusMsg}`, !!quizResult);
             }
-            // If both empty, drop
-            if (!s.live && !s.roadkill) delete spots[animalId];
+            if (!s.live && !s.roadkill && !s.species) delete spots[animalId];
 
-            // Track contributor in collab mode
             if (currentTripData.mode === 'collab') {
                 const c = activeContributor();
                 if (c && !currentTripData.contributors.includes(c)) currentTripData.contributors.push(c);
             }
 
-            // Group bonus toast
             const newEarned = D.earnedGroups(spots);
             newEarned.forEach(gid => {
                 if (!prevEarned.has(gid)) {
@@ -866,6 +1042,81 @@
             saveCurrentTrip();
             renderAll();
         }
+
+        // ── Species quiz modal ──────────────────────────────────────────────
+        function openQuizModal(animal) {
+            const modal = $('quizModal');
+            $('quizEmoji').textContent = animal.emoji;
+            $('quizName').textContent = animal.name;
+            $('quizSubName').textContent = D.RARITY[animal.rarity].label + ' · ' + (D.REGIONS[(currentTripData?.region) || 'national']?.label || '');
+            $('quizBonus').textContent = '+' + D.speciesBonusPoints(animal);
+            $('quizPrompt').innerHTML = `Spotted! What's the scientific name?<br>Get it right for a <span class="bonus">+${D.speciesBonusPoints(animal)}</span> species bonus.`;
+            $('quizStatus').textContent = '';
+
+            const opts = D.quizOptions(animal);
+            const optsEl = $('quizOptions');
+            optsEl.innerHTML = opts.map(opt =>
+                `<button class="quiz-option" data-opt="${escapeHtml(opt)}">${escapeHtml(opt)}</button>`
+            ).join('');
+            optsEl.querySelectorAll('.quiz-option').forEach(b => {
+                b.addEventListener('click', () => answerQuiz(animal, b));
+            });
+            modal.style.display = 'flex';
+        }
+
+        function answerQuiz(animal, btn) {
+            const picked = btn.dataset.opt;
+            const correct = picked === animal.scientific;
+            // freeze options & highlight outcome
+            const optsEl = $('quizOptions');
+            optsEl.querySelectorAll('.quiz-option').forEach(b => {
+                b.disabled = true;
+                if (b.dataset.opt === animal.scientific) b.classList.add('correct');
+                else if (b === btn && !correct) b.classList.add('wrong');
+            });
+            $('quizStatus').textContent = correct
+                ? `Nice! +${D.speciesBonusPoints(animal)} bonus 🎓`
+                : `Almost! It's ${animal.scientific}.`;
+            // pause briefly so the user sees the answer, then close + apply spot
+            setTimeout(() => {
+                closeQuizModal();
+                if (pendingQuiz) {
+                    const { animalId, kind } = pendingQuiz;
+                    pendingQuiz = null;
+                    applySpot(animalId, kind, correct);
+                }
+            }, correct ? 900 : 1500);
+        }
+
+        function closeQuizModal() {
+            $('quizModal').style.display = 'none';
+        }
+
+        // Skip = record spot, no species bonus, mark quiz taken so it
+        // doesn't fire again for this animal.
+        $('quizSkip')?.addEventListener('click', () => {
+            closeQuizModal();
+            if (pendingQuiz) {
+                const { animalId, kind } = pendingQuiz;
+                pendingQuiz = null;
+                applySpot(animalId, kind, false);
+            }
+        });
+
+        // Educational toggle wiring (the input is created in HTML).
+        function syncEduToggle() {
+            const cb = $('eduToggle');
+            const wrap = $('eduToggleWrap');
+            if (!cb) return;
+            cb.checked = isEducationalMode();
+            wrap.classList.toggle('on', cb.checked);
+        }
+        document.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'eduToggle') {
+                localStorage.setItem(STORAGE_KEYS.educational, e.target.checked ? '1' : '0');
+                syncEduToggle();
+            }
+        });
 
         function toast(msg, gold) {
             const t = document.createElement('div');
@@ -1133,6 +1384,7 @@
                 $('regionSelect').value = currentTripData.region || 'national';
             }
             startChallengeTimerIfNeeded();
+            syncEduToggle();
         }
 
         // Auto-show game if a profile already exists (returning user)
