@@ -214,6 +214,76 @@
         }
         .toast.gold { background: linear-gradient(45deg, #f1c40f, #e67e22); color: #1f3d2b; }
 
+        .animal-sci { font-size: 11px; font-style: italic; opacity: 0.7; margin-top: -2px; margin-bottom: 6px; color: #d6e9c6; }
+        .species-badge {
+            display: inline-block; font-size: 10px; font-weight: bold;
+            padding: 2px 6px; margin-left: 6px;
+            background: linear-gradient(45deg, #f1c40f, #e67e22);
+            color: #1f3d2b; border-radius: 4px; vertical-align: middle;
+        }
+
+        /* Species quiz modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9000; padding: 20px;
+        }
+        .modal-card {
+            background: linear-gradient(145deg, #1f3d2b, #2c5e3f);
+            border: 1px solid rgba(241,196,15,0.35);
+            border-radius: 20px;
+            padding: 26px;
+            max-width: 520px; width: 100%;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+        }
+        .modal-head { text-align: center; margin-bottom: 16px; }
+        .modal-emoji { font-size: 4em; line-height: 1; }
+        .modal-name { font-size: 1.3em; font-weight: bold; margin-top: 6px; color: #f1c40f; }
+        .modal-prompt {
+            text-align: center; font-size: 14px; color: #d6e9c6;
+            margin-bottom: 16px; line-height: 1.45;
+        }
+        .modal-prompt .bonus { color: #f1c40f; font-weight: bold; }
+        .modal-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+        .quiz-option {
+            display: block; width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid rgba(126,176,86,0.3);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.25);
+            color: #ecf0f1;
+            font-style: italic; font-size: 14px;
+            cursor: pointer; text-align: left;
+            transition: all .15s ease;
+        }
+        .quiz-option:hover:not(:disabled) {
+            background: rgba(126,176,86,0.18);
+            border-color: #7eb056;
+            transform: translateX(2px);
+        }
+        .quiz-option.correct {
+            background: linear-gradient(45deg, #5d8e3a, #7eb056) !important;
+            border-color: #f1c40f !important; color: white !important; font-weight: bold;
+        }
+        .quiz-option.wrong {
+            background: linear-gradient(45deg, #922b21, #c0392b) !important;
+            border-color: #e74c3c !important; color: white !important;
+        }
+        .quiz-option:disabled { cursor: default; }
+
+        .modal-foot {
+            display: flex; gap: 10px; justify-content: space-between; align-items: center;
+            margin-top: 6px; flex-wrap: wrap;
+        }
+        .modal-foot .skip-btn {
+            background: transparent; color: #d6e9c6;
+            border: 1px solid rgba(126,176,86,0.3);
+            padding: 8px 16px; border-radius: 10px;
+            cursor: pointer; font-size: 13px;
+        }
+        .modal-foot .modal-status { font-size: 13px; color: #d6e9c6; flex: 1; text-align: right; }
+
         .help-row {
             margin-top: 14px; text-align: center;
             font-size: 13px; color: #d6e9c6; opacity: 0.75;
@@ -307,6 +377,25 @@
 
             <div class="actions-section">
                 <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
+            </div>
+        </div>
+
+        <!-- Species quiz modal — fires when you successfully first-find an animal. -->
+        <div class="modal-overlay" id="quizModal" style="display:none;">
+            <div class="modal-card">
+                <div class="modal-head">
+                    <div class="modal-emoji" id="quizEmoji">🦌</div>
+                    <div class="modal-name" id="quizName">—</div>
+                    <div id="quizSubName" style="font-size:13px; opacity:0.75; margin-top:4px;">—</div>
+                </div>
+                <p class="modal-prompt" id="quizPrompt">
+                    First-finder! What's the scientific name? Get it right for a <span class="bonus" id="quizBonus">+0</span> species bonus.
+                </p>
+                <div class="modal-options" id="quizOptions"></div>
+                <div class="modal-foot">
+                    <button class="skip-btn" id="quizSkip">Skip — keep the spot, no bonus</button>
+                    <span class="modal-status" id="quizStatus"></span>
+                </div>
             </div>
         </div>
     </div>
@@ -549,8 +638,6 @@
             });
             const earned = D.earnedGroups(spotsAsSimpleMap(spots));
             const earnedBonus = earned.reduce((sum, gid) => sum + (D.GROUPS[gid].bonus || 0), 0);
-            // Award group bonus to first-finder of the closing animal? Simpler: split equally among contributors to group.
-            // For now: pack-wide bonus, shown on top of personal scores too.
             Object.entries(spots).forEach(([animalId, s]) => {
                 const a = D.getAnimalById(animalId);
                 if (!a) return;
@@ -570,15 +657,29 @@
                         playerStat.found[animalId] = true;
                     }
                 });
+                // Species bonus goes to whoever IDed it correctly.
+                const sp = s && s.species;
+                if (sp && sp.byId && sp.correct) {
+                    const playerStat = stats[sp.byId];
+                    if (playerStat) {
+                        playerStat.score += D.speciesBonusPoints(a);
+                        playerStat.species = (playerStat.species || 0) + 1;
+                    }
+                }
             });
             return { stats, earned, earnedBonus };
         }
 
         function spotsAsSimpleMap(spots) {
-            // Flatten { animalId: { live:{...}, roadkill:{...} } } into { id: { live:bool, roadkill:bool } }
+            // Flatten the multiplayer spot shape into { id: { live, roadkill, species } }
+            // so it can feed earnedGroups and the data-layer helpers.
             const out = {};
             Object.entries(spots || {}).forEach(([id, s]) => {
-                out[id] = { live: !!s?.live, roadkill: !!s?.roadkill };
+                out[id] = {
+                    live: !!s?.live,
+                    roadkill: !!s?.roadkill,
+                    species: !!(s?.species && s.species.correct)
+                };
             });
             return out;
         }
@@ -608,7 +709,7 @@
             $('myScoreDisplay').textContent = `${me.score} pts`;
             $('liveStat').textContent = `🌿 ${me.live} live`;
             $('rkStat').textContent = `🦴 ${me.roadkill} roadkill`;
-            $('firstStat').textContent = `🥇 ${me.firsts} firsts`;
+            $('firstStat').textContent = `🥇 ${me.firsts} firsts · 🎓 ${me.species||0} species`;
             $('bonusStat').textContent = `⭐ ${earnedBonus} pack bonus`;
         }
 
@@ -721,9 +822,13 @@
                 ${s.roadkill ? `<span class="first-finder-badge">1ST</span> 🦴 ${escapeHtml(s.roadkill.by)}` : ''}
             </span>` : '';
 
+            const sp = s.species;
+            const speciesBadge = (sp && sp.correct) ? `<span class="species-badge" title="Identified by ${escapeHtml(sp.by||'')}">🎓 ID</span>` : '';
+
             return `<div class="${cls.join(' ')}" data-id="${animal.id}">
                 <div class="animal-emoji">${animal.emoji}</div>
-                <div class="animal-name">${escapeHtml(animal.name)}</div>
+                <div class="animal-name">${escapeHtml(animal.name)}${speciesBadge}</div>
+                <div class="animal-sci">${escapeHtml(animal.scientific || '')}</div>
                 <div class="animal-meta">
                     <span class="pts-tag">${livePts}</span>
                     <span>${escapeHtml(D.RARITY[animal.rarity].label)}</span>
@@ -746,12 +851,10 @@
             const spotRef = packsRef(currentPackCode).child(`spots/${animalId}/${kind}`);
             spotRef.transaction((current) => {
                 if (current && current.byId === currentPlayerId) {
-                    // unspot only your own
-                    return null;
+                    return null; // unspot your own
                 }
                 if (current) {
-                    // someone else already claimed first — block
-                    return; // abort transaction
+                    return; // someone else holds first — abort
                 }
                 return {
                     by: currentPlayerName,
@@ -769,16 +872,93 @@
                     return;
                 }
                 const after = snapshot && snapshot.val();
+                packsRef(currentPackCode).child('updatedAt').set(firebase.database.ServerValue.TIMESTAMP);
                 if (!after) {
                     toast(`${animal.emoji} Unspotted`, false);
-                } else {
-                    const pts = D.pointsForSpot(animal, kind, currentPack.region) + D.FIRST_FINDER_BONUS;
-                    toast(`${animal.emoji} ${kind === 'live' ? 'Live spot' : 'Roadkill'}! +${pts} pts (1st 🥇)`, true);
+                    return;
                 }
-                // Mark pack updated
-                packsRef(currentPackCode).child('updatedAt').set(firebase.database.ServerValue.TIMESTAMP);
+                const basePts = D.pointsForSpot(animal, kind, currentPack.region) + D.FIRST_FINDER_BONUS;
+                toast(`${animal.emoji} ${kind === 'live' ? 'Live spot' : 'Roadkill'}! +${basePts} pts (1st 🥇)`, true);
+
+                // First-finder gets a chance at the species quiz — but only if
+                // nobody has answered it yet for this animal in the pack.
+                const existingSpecies = (currentPack.spots && currentPack.spots[animalId] && currentPack.spots[animalId].species);
+                if (animal.scientific && !(existingSpecies && existingSpecies.byId)) {
+                    openQuizModal(animal, animalId);
+                }
             });
         }
+
+        // ── Species quiz modal ──────────────────────────────────────────────
+        let pendingQuizAnimalId = null;
+
+        function openQuizModal(animal, animalId) {
+            pendingQuizAnimalId = animalId;
+            $('quizEmoji').textContent = animal.emoji;
+            $('quizName').textContent = animal.name;
+            $('quizSubName').textContent = D.RARITY[animal.rarity].label;
+            $('quizBonus').textContent = '+' + D.speciesBonusPoints(animal);
+            $('quizPrompt').innerHTML = `First-finder bonus round — name the species!<br>Get it right for a <span class="bonus">+${D.speciesBonusPoints(animal)}</span> bonus.`;
+            $('quizStatus').textContent = '';
+            const opts = D.quizOptions(animal);
+            const optsEl = $('quizOptions');
+            optsEl.innerHTML = opts.map(opt =>
+                `<button class="quiz-option" data-opt="${escapeHtml(opt)}">${escapeHtml(opt)}</button>`
+            ).join('');
+            optsEl.querySelectorAll('.quiz-option').forEach(b => {
+                b.addEventListener('click', () => answerQuiz(animal, b));
+            });
+            $('quizModal').style.display = 'flex';
+        }
+
+        function answerQuiz(animal, btn) {
+            const picked = btn.dataset.opt;
+            const correct = picked === animal.scientific;
+            const optsEl = $('quizOptions');
+            optsEl.querySelectorAll('.quiz-option').forEach(b => {
+                b.disabled = true;
+                if (b.dataset.opt === animal.scientific) b.classList.add('correct');
+                else if (b === btn && !correct) b.classList.add('wrong');
+            });
+            $('quizStatus').textContent = correct
+                ? `Nice! +${D.speciesBonusPoints(animal)} bonus 🎓`
+                : `Almost! It's ${animal.scientific}.`;
+
+            // Persist the result on the pack so leaderboards reflect it.
+            // Use a transaction so two simultaneous first-finders don't race.
+            const ref = packsRef(currentPackCode).child(`spots/${pendingQuizAnimalId}/species`);
+            ref.transaction((current) => {
+                if (current && current.byId) return; // already answered
+                return {
+                    by: currentPlayerName,
+                    byId: currentPlayerId,
+                    correct,
+                    at: firebase.database.ServerValue.TIMESTAMP
+                };
+            });
+
+            setTimeout(() => {
+                $('quizModal').style.display = 'none';
+                pendingQuizAnimalId = null;
+            }, correct ? 900 : 1500);
+        }
+
+        $('quizSkip').addEventListener('click', () => {
+            // Skipped: still record taken-but-no-bonus so the modal won't fire again.
+            const ref = packsRef(currentPackCode).child(`spots/${pendingQuizAnimalId}/species`);
+            ref.transaction((current) => {
+                if (current && current.byId) return;
+                return {
+                    by: currentPlayerName,
+                    byId: currentPlayerId,
+                    correct: false,
+                    skipped: true,
+                    at: firebase.database.ServerValue.TIMESTAMP
+                };
+            });
+            $('quizModal').style.display = 'none';
+            pendingQuizAnimalId = null;
+        });
 
         // ── Resume session ──────────────────────────────────────────────────
         async function resumeIfPossible() {
