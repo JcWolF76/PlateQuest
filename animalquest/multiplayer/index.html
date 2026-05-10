@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnimalQuest Multiplayer — Wildlife Spotting Pack</title>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1f3d2b 0%, #2c5e3f 50%, #1f3d2b 100%);
+            min-height: 100vh; color: #ecf0f1;
+            position: relative; overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background:
+                radial-gradient(circle at 15% 75%, rgba(126,176,86,0.25) 0%, transparent 50%),
+                radial-gradient(circle at 80% 25%, rgba(241,196,15,0.18) 0%, transparent 50%);
+            pointer-events: none; z-index: 1;
+        }
+        body.dark { background: linear-gradient(135deg, #0f1d14 0%, #1a2d20 50%, #0f1d14 100%); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; z-index: 2; }
+
+        #setup { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+        #setup .card {
+            background: linear-gradient(145deg, rgba(31,61,43,0.92), rgba(44,94,63,0.92));
+            border-radius: 22px;
+            padding: 32px;
+            max-width: 540px;
+            width: 100%;
+            border: 1px solid rgba(126,176,86,0.25);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            margin-bottom: 18px;
+        }
+        h1.title {
+            font-size: 2.6em;
+            background: linear-gradient(45deg, #7eb056, #f1c40f, #e67e22);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: 6px; text-align: center; letter-spacing: 2px;
+        }
+        .subtitle { text-align: center; opacity: 0.85; margin-bottom: 22px; color: #d6e9c6; }
+
+        .tab-row { display: flex; gap: 8px; margin-bottom: 18px; }
+        .tab {
+            flex: 1; padding: 11px; text-align: center; cursor: pointer;
+            border-radius: 10px; background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(126,176,86,0.2);
+            font-weight: 600;
+        }
+        .tab.active { background: linear-gradient(45deg, #7eb056, #5d8e3a); color: white; border-color: #7eb056; }
+
+        label.field-label {
+            display: block; font-size: 13px; color: #d6e9c6;
+            margin-bottom: 6px; font-weight: bold;
+        }
+        input.field, select.field, textarea.field {
+            width: 100%; padding: 11px 14px; border-radius: 10px;
+            border: 1px solid rgba(126,176,86,0.35);
+            background: rgba(0,0,0,0.25); color: #ecf0f1; font-size: 14px;
+            margin-bottom: 14px;
+        }
+        input.field:focus, select.field:focus { outline:none; border-color:#7eb056; }
+        .code-input { letter-spacing: 0.4em; text-transform: uppercase; font-weight: bold; text-align: center; font-size: 18px; }
+
+        .btn {
+            padding: 12px 22px; border: none; border-radius: 12px; cursor: pointer;
+            font-weight: 700; font-size: 15px; transition: all .2s ease;
+        }
+        .btn-primary { background: linear-gradient(45deg, #7eb056, #5d8e3a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(126,176,86,0.4); }
+        .btn-secondary { background: linear-gradient(45deg, #34495e, #2c3e50); color: #ecf0f1; }
+        .btn-danger { background: linear-gradient(45deg, #c0392b, #922b21); color: white; }
+        .btn-block { width: 100%; }
+
+        .pack-info {
+            background: rgba(0,0,0,0.25);
+            padding: 14px; border-radius: 12px; margin-bottom: 18px;
+            border: 1px solid rgba(126,176,86,0.2);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .pack-info .pack-name { font-weight: bold; font-size: 18px; color: #f1c40f; }
+        .pack-info .pack-code { font-family: ui-monospace, monospace; letter-spacing: 0.3em; padding: 6px 10px; background: rgba(0,0,0,0.4); border-radius: 8px; font-weight: bold; }
+
+        #game {
+            display: none;
+            background: linear-gradient(145deg, rgba(31,61,43,0.95), rgba(44,94,63,0.95));
+            border-radius: 22px; padding: 26px; margin-top: 20px;
+            border: 1px solid rgba(126,176,86,0.2);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .leaderboard {
+            background: rgba(0,0,0,0.22); padding: 16px; border-radius: 14px;
+            margin-bottom: 20px; border: 1px solid rgba(126,176,86,0.2);
+        }
+        .leaderboard h3 { color: #f1c40f; margin-bottom: 10px; font-size: 17px; }
+        .lb-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
+            background: rgba(0,0,0,0.2);
+        }
+        .lb-row.me { background: linear-gradient(45deg, rgba(126,176,86,0.3), rgba(46,204,113,0.2)); border: 1px solid rgba(126,176,86,0.5); }
+        .lb-row .rank { font-weight: bold; min-width: 28px; }
+        .lb-row .name { flex: 1; font-weight: 600; }
+        .lb-row .pts { font-weight: bold; color: #f1c40f; }
+
+        .score-section {
+            background: rgba(0,0,0,0.22); padding: 16px; border-radius: 14px;
+            margin-bottom: 20px; border: 1px solid rgba(126,176,86,0.2);
+        }
+        .score-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .score-display { font-size: 22px; font-weight: bold; color: #f1c40f; }
+        .score-stats { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; color: #d6e9c6; }
+        .score-stats span { background: rgba(0,0,0,0.25); padding: 5px 10px; border-radius: 18px; }
+
+        .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+        .filter-chip {
+            padding: 6px 14px; border-radius: 20px;
+            background: rgba(0,0,0,0.25); border: 1px solid rgba(126,176,86,0.25);
+            color: #d6e9c6; font-size: 13px; cursor: pointer;
+        }
+        .filter-chip.active { background: linear-gradient(45deg, #7eb056, #5d8e3a); border-color: #7eb056; color: white; }
+
+        .rarity-section { margin-bottom: 22px; }
+        .rarity-header { font-size: 17px; font-weight: bold; color: #f1c40f; margin-bottom: 10px; }
+        .animals-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+        }
+        .animal-card {
+            background: linear-gradient(145deg, rgba(0,0,0,0.25), rgba(0,0,0,0.15));
+            padding: 12px; border-radius: 12px;
+            border: 2px solid rgba(126,176,86,0.18);
+            position: relative; overflow: hidden;
+        }
+        .animal-card.spotted-live { border-color: #7eb056; box-shadow: 0 0 18px rgba(126,176,86,0.35); }
+        .animal-card.spotted-roadkill { border-color: #e74c3c; box-shadow: 0 0 12px rgba(231,76,60,0.3); }
+        .animal-card.spotted-both { border-color: #f1c40f; box-shadow: 0 0 18px rgba(241,196,15,0.4); }
+        .animal-card.out-of-region { border-style: dashed; }
+        .animal-card.out-of-region::after {
+            content: 'OOR +50%'; position: absolute; top: 6px; right: 8px;
+            font-size: 10px; color: #e67e22; background: rgba(0,0,0,0.4);
+            padding: 2px 6px; border-radius: 4px; font-weight: bold;
+        }
+        .animal-emoji { font-size: 2.2em; line-height: 1; margin-bottom: 6px; }
+        .animal-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+        .animal-meta {
+            display: flex; gap: 6px; font-size: 11px; color: #d6e9c6;
+            opacity: 0.8; margin-bottom: 10px; flex-wrap: wrap;
+        }
+        .animal-meta .pts-tag { background: rgba(241,196,15,0.2); color: #f1c40f; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .animal-actions { display: flex; gap: 6px; }
+        .spot-btn {
+            flex: 1; padding: 7px; font-size: 12px; font-weight: bold;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+            background: rgba(0,0,0,0.25); color: #ecf0f1; cursor: pointer;
+        }
+        .spot-btn.live.active { background: linear-gradient(45deg, #7eb056, #5d8e3a); border-color: #7eb056; }
+        .spot-btn.roadkill.active { background: linear-gradient(45deg, #c0392b, #922b21); border-color: #c0392b; }
+        .spot-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .first-finder {
+            display: block; font-size: 11px; color: #f1c40f;
+            margin-top: 6px; padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .first-finder-badge {
+            display: inline-block; font-size: 10px; padding: 2px 6px;
+            background: linear-gradient(45deg, #f1c40f, #e67e22);
+            color: #1f3d2b; border-radius: 4px; font-weight: bold;
+            margin-right: 4px;
+        }
+
+        .groups-section {
+            background: rgba(0,0,0,0.22); padding: 16px; border-radius: 14px;
+            margin-bottom: 20px; border: 1px solid rgba(126,176,86,0.2);
+        }
+        .groups-section h3 { color: #f1c40f; margin-bottom: 12px; font-size: 17px; }
+        .groups-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;
+        }
+        .group-card {
+            background: rgba(0,0,0,0.25); padding: 11px; border-radius: 10px;
+            border: 1px solid rgba(126,176,86,0.18);
+        }
+        .group-card.complete {
+            background: linear-gradient(145deg, rgba(241,196,15,0.25), rgba(230,126,34,0.18));
+            border-color: #f1c40f;
+        }
+        .group-card-head { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .group-name { font-weight: bold; font-size: 13px; }
+        .group-bonus { color: #f1c40f; font-weight: bold; font-size: 12px; }
+        .group-progress { font-size: 11px; color: #d6e9c6; display: flex; gap: 4px; flex-wrap: wrap; }
+        .group-member {
+            padding: 2px 5px; background: rgba(0,0,0,0.3); border-radius: 4px; opacity: 0.5;
+        }
+        .group-member.found { opacity: 1; background: rgba(126,176,86,0.35); color: white; }
+
+        .actions-section { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 22px; }
+
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(45deg, #2c5e3f, #1f3d2b);
+            color: white; padding: 12px 22px; border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            border: 1px solid rgba(126,176,86,0.5);
+            font-weight: bold; z-index: 9999;
+        }
+        .toast.gold { background: linear-gradient(45deg, #f1c40f, #e67e22); color: #1f3d2b; }
+
+        .animal-sci { font-size: 11px; font-style: italic; opacity: 0.7; margin-top: -2px; margin-bottom: 6px; color: #d6e9c6; }
+        .species-badge {
+            display: inline-block; font-size: 10px; font-weight: bold;
+            padding: 2px 6px; margin-left: 6px;
+            background: linear-gradient(45deg, #f1c40f, #e67e22);
+            color: #1f3d2b; border-radius: 4px; vertical-align: middle;
+        }
+
+        /* Species quiz modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9000; padding: 20px;
+        }
+        .modal-card {
+            background: linear-gradient(145deg, #1f3d2b, #2c5e3f);
+            border: 1px solid rgba(241,196,15,0.35);
+            border-radius: 20px;
+            padding: 26px;
+            max-width: 520px; width: 100%;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+        }
+        .modal-head { text-align: center; margin-bottom: 16px; }
+        .modal-emoji { font-size: 4em; line-height: 1; }
+        .modal-name { font-size: 1.3em; font-weight: bold; margin-top: 6px; color: #f1c40f; }
+        .modal-prompt {
+            text-align: center; font-size: 14px; color: #d6e9c6;
+            margin-bottom: 16px; line-height: 1.45;
+        }
+        .modal-prompt .bonus { color: #f1c40f; font-weight: bold; }
+        .modal-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+        .quiz-option {
+            display: block; width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid rgba(126,176,86,0.3);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.25);
+            color: #ecf0f1;
+            font-style: italic; font-size: 14px;
+            cursor: pointer; text-align: left;
+            transition: all .15s ease;
+        }
+        .quiz-option:hover:not(:disabled) {
+            background: rgba(126,176,86,0.18);
+            border-color: #7eb056;
+            transform: translateX(2px);
+        }
+        .quiz-option.correct {
+            background: linear-gradient(45deg, #5d8e3a, #7eb056) !important;
+            border-color: #f1c40f !important; color: white !important; font-weight: bold;
+        }
+        .quiz-option.wrong {
+            background: linear-gradient(45deg, #922b21, #c0392b) !important;
+            border-color: #e74c3c !important; color: white !important;
+        }
+        .quiz-option:disabled { cursor: default; }
+
+        .modal-foot {
+            display: flex; gap: 10px; justify-content: space-between; align-items: center;
+            margin-top: 6px; flex-wrap: wrap;
+        }
+        .modal-foot .skip-btn {
+            background: transparent; color: #d6e9c6;
+            border: 1px solid rgba(126,176,86,0.3);
+            padding: 8px 16px; border-radius: 10px;
+            cursor: pointer; font-size: 13px;
+        }
+        .modal-foot .modal-status { font-size: 13px; color: #d6e9c6; flex: 1; text-align: right; }
+
+        .help-row {
+            margin-top: 14px; text-align: center;
+            font-size: 13px; color: #d6e9c6; opacity: 0.75;
+        }
+        .help-row a { color: #d6e9c6; }
+
+        @media (max-width: 600px) {
+            h1.title { font-size: 1.9em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ────────── SETUP / LOBBY ────────── -->
+        <div id="setup">
+            <h1 class="title">AnimalQuest Multiplayer</h1>
+            <p class="subtitle">Pack up. Share a code. Spot together.</p>
+
+            <div class="card">
+                <div class="tab-row">
+                    <div class="tab active" data-tab="join">🔑 Join Pack</div>
+                    <div class="tab" data-tab="create">➕ Create Pack</div>
+                </div>
+
+                <!-- Join -->
+                <div class="tab-panel" id="panel-join">
+                    <label class="field-label">Your Player Tag</label>
+                    <input class="field" id="joinName" placeholder="e.g. JcWoLF76" maxlength="20">
+                    <label class="field-label">Pack Code</label>
+                    <input class="field code-input" id="joinCode" placeholder="ABC123" maxlength="6">
+                    <button class="btn btn-primary btn-block" id="joinBtn">Join Pack</button>
+                </div>
+
+                <!-- Create -->
+                <div class="tab-panel" id="panel-create" style="display:none;">
+                    <label class="field-label">Your Player Tag (Host)</label>
+                    <input class="field" id="hostName" placeholder="e.g. JcWoLF76" maxlength="20">
+                    <label class="field-label">Pack Name</label>
+                    <input class="field" id="packName" placeholder="Yellowstone 2026" maxlength="40">
+                    <label class="field-label">Region</label>
+                    <select class="field" id="packRegion"></select>
+                    <button class="btn btn-primary btn-block" id="createBtn">Create Pack</button>
+                </div>
+            </div>
+
+            <div class="help-row">
+                <a href="../index.html">🚗 Back to AnimalQuest</a> ·
+                <a href="../../index.html">🪪 PlateQuest</a>
+            </div>
+            <p style="margin-top: 24px; opacity: 0.7; font-style: italic;">Created by JcWoLF76</p>
+        </div>
+
+        <!-- ────────── GAME ────────── -->
+        <div id="game">
+            <div class="pack-info">
+                <div>
+                    <div class="pack-name" id="packNameLabel">—</div>
+                    <div style="font-size: 12px; color: #d6e9c6; opacity: 0.85;" id="packMeta">—</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <span class="pack-code" id="packCodeLabel">——————</span>
+                    <button class="btn btn-secondary" id="copyCodeBtn" style="padding:8px 14px;font-size:13px;">📋 Copy</button>
+                    <button class="btn btn-secondary" id="leaveBtn" style="padding:8px 14px;font-size:13px;">🚪 Leave</button>
+                </div>
+            </div>
+
+            <div class="leaderboard">
+                <h3>🏆 Live Leaderboard</h3>
+                <div id="leaderboardList"></div>
+            </div>
+
+            <div class="score-section">
+                <div class="score-row">
+                    <div class="score-display" id="myScoreDisplay">0 pts</div>
+                    <div class="score-stats">
+                        <span id="liveStat">🌿 0 live</span>
+                        <span id="rkStat">🦴 0 roadkill</span>
+                        <span id="firstStat">🥇 0 firsts</span>
+                        <span id="bonusStat">⭐ 0 bonus</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="groups-section">
+                <h3>⭐ Pack Bonus Groups</h3>
+                <div class="groups-grid" id="groupsGrid"></div>
+            </div>
+
+            <div class="filter-bar" id="filterBar"></div>
+            <div id="animalsContainer"></div>
+
+            <div class="actions-section">
+                <button class="btn btn-secondary" id="darkModeBtn">🌙 Dark Mode</button>
+            </div>
+        </div>
+
+        <!-- Species quiz modal — fires when you successfully first-find an animal. -->
+        <div class="modal-overlay" id="quizModal" style="display:none;">
+            <div class="modal-card">
+                <div class="modal-head">
+                    <div class="modal-emoji" id="quizEmoji">🦌</div>
+                    <div class="modal-name" id="quizName">—</div>
+                    <div id="quizSubName" style="font-size:13px; opacity:0.75; margin-top:4px;">—</div>
+                </div>
+                <p class="modal-prompt" id="quizPrompt">
+                    First-finder! What's the scientific name? Get it right for a <span class="bonus" id="quizBonus">+0</span> species bonus.
+                </p>
+                <div class="modal-options" id="quizOptions"></div>
+                <div class="modal-foot">
+                    <button class="skip-btn" id="quizSkip">Skip — keep the spot, no bonus</button>
+                    <span class="modal-status" id="quizStatus"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../data.js"></script>
+    <script>
+    (function () {
+        'use strict';
+        const D = window.AnimalQuestData;
+
+        const STORAGE = {
+            session: 'animalquest_mp_session_v1',
+            darkMode: 'animalquest_dark_mode'
+        };
+
+        let firebaseApp = null;
+        let database = null;
+        let currentPack = null;          // pack data from firebase
+        let currentPackCode = null;
+        let currentPlayerId = null;
+        let currentPlayerName = null;
+        let packListener = null;
+        let activeFilter = 'all';
+
+        const $ = id => document.getElementById(id);
+
+        // ── Firebase init ───────────────────────────────────────────────────
+        function initFirebase() {
+            if (firebaseApp) return;
+            firebaseApp = firebase.initializeApp(D.FIREBASE_CONFIG);
+            database = firebase.database();
+        }
+
+        function packsRef(code) {
+            return database.ref(`animalquest/packs/${code}`);
+        }
+
+        // ── Helpers ─────────────────────────────────────────────────────────
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+        function makeCode() {
+            const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no easily-confused chars
+            let s = '';
+            for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+            return s;
+        }
+        function playerId() {
+            let id = localStorage.getItem('animalquest_player_id');
+            if (!id) {
+                id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                localStorage.setItem('animalquest_player_id', id);
+            }
+            return id;
+        }
+        function toast(msg, gold) {
+            const t = document.createElement('div');
+            t.className = 'toast' + (gold ? ' gold' : '');
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), gold ? 3500 : 1800);
+        }
+        function saveSession() {
+            localStorage.setItem(STORAGE.session, JSON.stringify({
+                code: currentPackCode,
+                playerId: currentPlayerId,
+                playerName: currentPlayerName
+            }));
+        }
+        function loadSession() {
+            try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); }
+            catch (e) { return null; }
+        }
+        function clearSession() { localStorage.removeItem(STORAGE.session); }
+
+        // ── Setup tabs ──────────────────────────────────────────────────────
+        document.querySelectorAll('.tab').forEach(t => {
+            t.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+                t.classList.add('active');
+                document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+                $('panel-' + t.dataset.tab).style.display = '';
+            });
+        });
+
+        // Region dropdown
+        $('packRegion').innerHTML = Object.entries(D.REGIONS)
+            .map(([id, r]) => `<option value="${id}">${r.emoji} ${escapeHtml(r.label)}</option>`)
+            .join('');
+        $('packRegion').value = 'national';
+
+        // URL ?code= prefill
+        const urlCode = new URLSearchParams(location.search).get('code');
+        if (urlCode) $('joinCode').value = urlCode.toUpperCase();
+
+        // ── Create pack ─────────────────────────────────────────────────────
+        $('createBtn').addEventListener('click', async () => {
+            const name = $('hostName').value.trim();
+            const packName = $('packName').value.trim();
+            const region = $('packRegion').value || 'national';
+            if (!name) { toast('Enter your player tag', false); return; }
+            if (!packName) { toast('Name the pack', false); return; }
+            initFirebase();
+
+            // Find an unused code (best effort — collisions are rare with 6 chars)
+            let code = makeCode();
+            for (let i = 0; i < 5; i++) {
+                const snap = await packsRef(code).get();
+                if (!snap.exists()) break;
+                code = makeCode();
+            }
+
+            currentPlayerId = playerId();
+            currentPlayerName = name;
+            currentPackCode = code;
+
+            const pack = {
+                code,
+                name: packName,
+                region,
+                hostId: currentPlayerId,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                players: {
+                    [currentPlayerId]: {
+                        id: currentPlayerId,
+                        name,
+                        joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                        isHost: true
+                    }
+                },
+                spots: {} // animalId -> { live: { by, byId, at }, roadkill: { by, byId, at } }
+            };
+            await packsRef(code).set(pack);
+            saveSession();
+            enterGame(code);
+            toast(`📡 Pack "${packName}" created — code ${code}`, true);
+        });
+
+        // ── Join pack ───────────────────────────────────────────────────────
+        $('joinBtn').addEventListener('click', async () => {
+            const name = $('joinName').value.trim();
+            const code = $('joinCode').value.trim().toUpperCase();
+            if (!name) { toast('Enter your player tag', false); return; }
+            if (!code || code.length !== 6) { toast('Enter a 6-character code', false); return; }
+            initFirebase();
+            const snap = await packsRef(code).get();
+            if (!snap.exists()) { toast('Pack not found', false); return; }
+
+            currentPlayerId = playerId();
+            currentPlayerName = name;
+            currentPackCode = code;
+
+            await packsRef(code).child(`players/${currentPlayerId}`).set({
+                id: currentPlayerId,
+                name,
+                joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                isHost: false
+            });
+            saveSession();
+            enterGame(code);
+            toast(`🐾 Joined pack ${code}`);
+        });
+
+        // ── Enter game ──────────────────────────────────────────────────────
+        function enterGame(code) {
+            $('setup').style.display = 'none';
+            $('game').style.display = 'block';
+            currentPackCode = code;
+            if (packListener) packsRef(code).off('value', packListener);
+            packListener = packsRef(code).on('value', snap => {
+                const data = snap.val();
+                if (!data) {
+                    toast('Pack was deleted', false);
+                    leaveGame();
+                    return;
+                }
+                currentPack = data;
+                renderAll();
+            });
+        }
+
+        function leaveGame() {
+            if (packListener && currentPackCode) packsRef(currentPackCode).off('value', packListener);
+            packListener = null;
+            clearSession();
+            currentPack = null;
+            currentPackCode = null;
+            $('game').style.display = 'none';
+            $('setup').style.display = '';
+        }
+
+        $('leaveBtn').addEventListener('click', () => {
+            if (confirm('Leave this pack? Your spots stay with the pack.')) {
+                leaveGame();
+            }
+        });
+
+        $('copyCodeBtn').addEventListener('click', () => {
+            if (!currentPackCode) return;
+            const url = location.origin + location.pathname + '?code=' + currentPackCode;
+            navigator.clipboard?.writeText(url).then(() => {
+                toast('📋 Pack link copied');
+            }, () => {
+                const ta = document.createElement('textarea');
+                ta.value = url;
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); toast('📋 Pack link copied'); }
+                finally { ta.remove(); }
+            });
+        });
+
+        $('darkModeBtn').addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem(STORAGE.darkMode, document.body.classList.contains('dark') ? '1' : '0');
+        });
+
+        // ── Render ──────────────────────────────────────────────────────────
+        function renderAll() {
+            if (!currentPack) return;
+            $('packNameLabel').textContent = currentPack.name || '(unnamed)';
+            $('packCodeLabel').textContent = currentPack.code || currentPackCode;
+            $('packMeta').textContent = `${D.REGIONS[currentPack.region]?.emoji || ''} ${D.REGIONS[currentPack.region]?.label || 'National'} · ${Object.keys(currentPack.players || {}).length} player(s)`;
+            renderLeaderboard();
+            renderMyScore();
+            renderGroups();
+            renderFilterBar();
+            renderAnimals();
+        }
+
+        function perPlayerStats() {
+            const players = currentPack.players || {};
+            const spots = currentPack.spots || {};
+            const region = currentPack.region || 'national';
+            const stats = {};
+            Object.values(players).forEach(p => {
+                stats[p.id] = { id: p.id, name: p.name, isHost: p.isHost, score: 0, live: 0, roadkill: 0, firsts: 0, bonus: 0, found: {} };
+            });
+            const earned = D.earnedGroups(spotsAsSimpleMap(spots));
+            const earnedBonus = earned.reduce((sum, gid) => sum + (D.GROUPS[gid].bonus || 0), 0);
+            Object.entries(spots).forEach(([animalId, s]) => {
+                const a = D.getAnimalById(animalId);
+                if (!a) return;
+                ['live','roadkill'].forEach(kind => {
+                    const entry = s && s[kind];
+                    if (!entry) return;
+                    const pts = D.pointsForSpot(a, kind, region);
+                    const playerStat = stats[entry.byId];
+                    if (playerStat) {
+                        playerStat.score += pts;
+                        if (kind === 'live') playerStat.live += 1;
+                        else playerStat.roadkill += 1;
+                        if (entry.first) {
+                            playerStat.score += D.FIRST_FINDER_BONUS;
+                            playerStat.firsts += 1;
+                        }
+                        playerStat.found[animalId] = true;
+                    }
+                });
+                // Species bonus goes to whoever IDed it correctly.
+                const sp = s && s.species;
+                if (sp && sp.byId && sp.correct) {
+                    const playerStat = stats[sp.byId];
+                    if (playerStat) {
+                        playerStat.score += D.speciesBonusPoints(a);
+                        playerStat.species = (playerStat.species || 0) + 1;
+                    }
+                }
+            });
+            return { stats, earned, earnedBonus };
+        }
+
+        function spotsAsSimpleMap(spots) {
+            // Flatten the multiplayer spot shape into { id: { live, roadkill, species } }
+            // so it can feed earnedGroups and the data-layer helpers.
+            const out = {};
+            Object.entries(spots || {}).forEach(([id, s]) => {
+                out[id] = {
+                    live: !!s?.live,
+                    roadkill: !!s?.roadkill,
+                    species: !!(s?.species && s.species.correct)
+                };
+            });
+            return out;
+        }
+
+        function renderLeaderboard() {
+            const { stats, earnedBonus } = perPlayerStats();
+            const list = Object.values(stats).sort((a, b) => b.score - a.score);
+            $('leaderboardList').innerHTML = list.map((p, i) => `
+                <div class="lb-row ${p.id === currentPlayerId ? 'me' : ''}">
+                    <span class="rank">#${i+1}</span>
+                    <span class="name">${escapeHtml(p.name)} ${p.isHost ? '👑' : ''}</span>
+                    <span style="font-size:12px; opacity:0.75; margin-right:10px;">🥇 ${p.firsts} · 🌿 ${p.live} · 🦴 ${p.roadkill}</span>
+                    <span class="pts">${p.score} pts</span>
+                </div>
+            `).join('') + (earnedBonus > 0 ? `
+                <div class="lb-row" style="background:rgba(241,196,15,0.15);border:1px dashed rgba(241,196,15,0.4);">
+                    <span class="rank">⭐</span>
+                    <span class="name">Pack Bonus (groups)</span>
+                    <span class="pts">+${earnedBonus} pts</span>
+                </div>` : '');
+        }
+
+        function renderMyScore() {
+            const { stats, earnedBonus } = perPlayerStats();
+            const me = stats[currentPlayerId];
+            if (!me) return;
+            $('myScoreDisplay').textContent = `${me.score} pts`;
+            $('liveStat').textContent = `🌿 ${me.live} live`;
+            $('rkStat').textContent = `🦴 ${me.roadkill} roadkill`;
+            $('firstStat').textContent = `🥇 ${me.firsts} firsts · 🎓 ${me.species||0} species`;
+            $('bonusStat').textContent = `⭐ ${earnedBonus} pack bonus`;
+        }
+
+        function renderGroups() {
+            const grid = $('groupsGrid');
+            const spots = spotsAsSimpleMap(currentPack.spots || {});
+            const earned = new Set(D.earnedGroups(spots));
+            grid.innerHTML = Object.entries(D.GROUPS).map(([gid, g]) => {
+                const isComplete = earned.has(gid);
+                let progressHtml;
+                if (g.special === 'anyRoadkill') {
+                    const rkCount = Object.values(spots).filter(s => s && s.roadkill).length;
+                    const cap = g.threshold || 5;
+                    progressHtml = `<div class="group-progress"><span class="group-member ${rkCount>=cap?'found':''}">${Math.min(rkCount, cap)}/${cap} roadkill</span></div>`;
+                } else {
+                    progressHtml = `<div class="group-progress">${g.members.map(mid => {
+                        const a = D.getAnimalById(mid);
+                        const s = spots[mid];
+                        const found = !!(s && (s.live || s.roadkill));
+                        return `<span class="group-member ${found?'found':''}" title="${escapeHtml(a?.name||mid)}">${a?.emoji||'❓'}</span>`;
+                    }).join('')}</div>`;
+                }
+                return `<div class="group-card ${isComplete?'complete':''}">
+                    <div class="group-card-head">
+                        <div class="group-name">${g.emoji} ${escapeHtml(g.label)}</div>
+                        <div class="group-bonus">+${g.bonus}</div>
+                    </div>
+                    ${progressHtml}
+                </div>`;
+            }).join('');
+        }
+
+        function renderFilterBar() {
+            const filters = [
+                { id: 'all', label: 'All' },
+                { id: 'common', label: 'Common' },
+                { id: 'uncommon', label: 'Uncommon' },
+                { id: 'rare', label: 'Rare' },
+                { id: 'epic', label: 'Epic' },
+                { id: 'legendary', label: 'Legendary' },
+                { id: 'mythic', label: 'Mythic' },
+                { id: 'mine', label: 'My Spots' },
+                { id: 'unspotted', label: 'Unspotted' }
+            ];
+            $('filterBar').innerHTML = filters.map(f =>
+                `<div class="filter-chip ${activeFilter===f.id?'active':''}" data-filter="${f.id}">${escapeHtml(f.label)}</div>`
+            ).join('');
+            $('filterBar').querySelectorAll('.filter-chip').forEach(el => {
+                el.addEventListener('click', () => {
+                    activeFilter = el.dataset.filter;
+                    renderFilterBar();
+                    renderAnimals();
+                });
+            });
+        }
+
+        function renderAnimals() {
+            const region = currentPack.region || 'national';
+            const spots = currentPack.spots || {};
+            const animals = D.animalsForRegion(region).filter(a => filterMatches(a, spots));
+            const byRarity = { common: [], uncommon: [], rare: [], epic: [], legendary: [], mythic: [] };
+            animals.forEach(a => byRarity[a.rarity]?.push(a));
+
+            const sections = ['common','uncommon','rare','epic','legendary','mythic'].map(rid => {
+                const list = byRarity[rid];
+                if (!list || !list.length) return '';
+                const r = D.RARITY[rid];
+                return `<div class="rarity-section">
+                    <div class="rarity-header" style="color:${r.color}">${escapeHtml(r.label)} <span style="font-size:12px;opacity:0.7;">· base ${r.points} pts</span></div>
+                    <div class="animals-grid">${list.map(a => animalCardHtml(a, spots, region)).join('')}</div>
+                </div>`;
+            }).join('');
+
+            $('animalsContainer').innerHTML = sections || '<p style="text-align:center;opacity:0.7;padding:40px;">No animals match this filter.</p>';
+            $('animalsContainer').querySelectorAll('.spot-btn').forEach(b => {
+                b.addEventListener('click', () => toggleSpot(b.dataset.id, b.dataset.kind));
+            });
+        }
+
+        function filterMatches(animal, spots) {
+            const s = spots[animal.id];
+            switch (activeFilter) {
+                case 'all': return true;
+                case 'mine':
+                    return !!(s && ((s.live && s.live.byId === currentPlayerId) || (s.roadkill && s.roadkill.byId === currentPlayerId)));
+                case 'unspotted': return !(s && (s.live || s.roadkill));
+                case 'common': case 'uncommon': case 'rare': case 'epic':
+                case 'legendary': case 'mythic':
+                    return animal.rarity === activeFilter;
+                default: return true;
+            }
+        }
+
+        function animalCardHtml(animal, spots, region) {
+            const s = spots[animal.id] || {};
+            const cls = ['animal-card'];
+            if (s.live && s.roadkill) cls.push('spotted-both');
+            else if (s.live) cls.push('spotted-live');
+            else if (s.roadkill) cls.push('spotted-roadkill');
+            if (D.isOutOfRegion(animal, region)) cls.push('out-of-region');
+            const livePts = D.pointsForSpot(animal, 'live', region);
+            const rkPts = D.pointsForSpot(animal, 'roadkill', region);
+
+            const liveActive = !!s.live;
+            const rkActive = !!s.roadkill;
+
+            const finder = (s.live || s.roadkill) ? `<span class="first-finder">
+                ${s.live ? `<span class="first-finder-badge" title="First-finder of the live spot">1ST</span> 🌿 ${escapeHtml(s.live.by)}` : ''}
+                ${s.live && s.roadkill ? '<br>' : ''}
+                ${s.roadkill ? `<span class="first-finder-badge">1ST</span> 🦴 ${escapeHtml(s.roadkill.by)}` : ''}
+            </span>` : '';
+
+            const sp = s.species;
+            const speciesBadge = (sp && sp.correct) ? `<span class="species-badge" title="Identified by ${escapeHtml(sp.by||'')}">🎓 ID</span>` : '';
+
+            return `<div class="${cls.join(' ')}" data-id="${animal.id}">
+                <div class="animal-emoji">${animal.emoji}</div>
+                <div class="animal-name">${escapeHtml(animal.name)}${speciesBadge}</div>
+                <div class="animal-sci">${escapeHtml(animal.scientific || '')}</div>
+                <div class="animal-meta">
+                    <span class="pts-tag">${livePts}</span>
+                    <span>${escapeHtml(D.RARITY[animal.rarity].label)}</span>
+                </div>
+                <div class="animal-actions">
+                    <button class="spot-btn live ${liveActive?'active':''}" data-id="${animal.id}" data-kind="live" title="${liveActive ? 'First found by '+escapeHtml(s.live.by) : 'Spot live (+'+livePts+')'}">🌿 Live</button>
+                    <button class="spot-btn roadkill ${rkActive?'active':''}" data-id="${animal.id}" data-kind="roadkill" ${animal.roadkillable===false?'disabled':''} title="${rkActive ? 'First found by '+escapeHtml(s.roadkill.by) : (animal.roadkillable===false?'Not realistically roadkill':'Roadkill (+'+rkPts+')')}">🦴 RK</button>
+                </div>
+                ${finder}
+            </div>`;
+        }
+
+        // ── Toggle spot (transactional) ─────────────────────────────────────
+        function toggleSpot(animalId, kind) {
+            if (!currentPack || !currentPackCode) return;
+            const animal = D.getAnimalById(animalId);
+            if (!animal) return;
+            if (kind === 'roadkill' && animal.roadkillable === false) return;
+
+            const spotRef = packsRef(currentPackCode).child(`spots/${animalId}/${kind}`);
+            spotRef.transaction((current) => {
+                if (current && current.byId === currentPlayerId) {
+                    return null; // unspot your own
+                }
+                if (current) {
+                    return; // someone else holds first — abort
+                }
+                return {
+                    by: currentPlayerName,
+                    byId: currentPlayerId,
+                    at: firebase.database.ServerValue.TIMESTAMP,
+                    first: true
+                };
+            }, (error, committed, snapshot) => {
+                if (error) { toast('Sync error — try again', false); return; }
+                if (!committed) {
+                    const after = snapshot && snapshot.val();
+                    if (after && after.byId !== currentPlayerId) {
+                        toast(`Already claimed by ${after.by}`, false);
+                    }
+                    return;
+                }
+                const after = snapshot && snapshot.val();
+                packsRef(currentPackCode).child('updatedAt').set(firebase.database.ServerValue.TIMESTAMP);
+                if (!after) {
+                    toast(`${animal.emoji} Unspotted`, false);
+                    return;
+                }
+                const basePts = D.pointsForSpot(animal, kind, currentPack.region) + D.FIRST_FINDER_BONUS;
+                toast(`${animal.emoji} ${kind === 'live' ? 'Live spot' : 'Roadkill'}! +${basePts} pts (1st 🥇)`, true);
+
+                // First-finder gets a chance at the species quiz — but only if
+                // nobody has answered it yet for this animal in the pack.
+                const existingSpecies = (currentPack.spots && currentPack.spots[animalId] && currentPack.spots[animalId].species);
+                if (animal.scientific && !(existingSpecies && existingSpecies.byId)) {
+                    openQuizModal(animal, animalId);
+                }
+            });
+        }
+
+        // ── Species quiz modal ──────────────────────────────────────────────
+        let pendingQuizAnimalId = null;
+
+        function openQuizModal(animal, animalId) {
+            pendingQuizAnimalId = animalId;
+            $('quizEmoji').textContent = animal.emoji;
+            $('quizName').textContent = animal.name;
+            $('quizSubName').textContent = D.RARITY[animal.rarity].label;
+            $('quizBonus').textContent = '+' + D.speciesBonusPoints(animal);
+            $('quizPrompt').innerHTML = `First-finder bonus round — name the species!<br>Get it right for a <span class="bonus">+${D.speciesBonusPoints(animal)}</span> bonus.`;
+            $('quizStatus').textContent = '';
+            const opts = D.quizOptions(animal);
+            const optsEl = $('quizOptions');
+            optsEl.innerHTML = opts.map(opt =>
+                `<button class="quiz-option" data-opt="${escapeHtml(opt)}">${escapeHtml(opt)}</button>`
+            ).join('');
+            optsEl.querySelectorAll('.quiz-option').forEach(b => {
+                b.addEventListener('click', () => answerQuiz(animal, b));
+            });
+            $('quizModal').style.display = 'flex';
+        }
+
+        function answerQuiz(animal, btn) {
+            const picked = btn.dataset.opt;
+            const correct = picked === animal.scientific;
+            const optsEl = $('quizOptions');
+            optsEl.querySelectorAll('.quiz-option').forEach(b => {
+                b.disabled = true;
+                if (b.dataset.opt === animal.scientific) b.classList.add('correct');
+                else if (b === btn && !correct) b.classList.add('wrong');
+            });
+            $('quizStatus').textContent = correct
+                ? `Nice! +${D.speciesBonusPoints(animal)} bonus 🎓`
+                : `Almost! It's ${animal.scientific}.`;
+
+            // Persist the result on the pack so leaderboards reflect it.
+            // Use a transaction so two simultaneous first-finders don't race.
+            const ref = packsRef(currentPackCode).child(`spots/${pendingQuizAnimalId}/species`);
+            ref.transaction((current) => {
+                if (current && current.byId) return; // already answered
+                return {
+                    by: currentPlayerName,
+                    byId: currentPlayerId,
+                    correct,
+                    at: firebase.database.ServerValue.TIMESTAMP
+                };
+            });
+
+            setTimeout(() => {
+                $('quizModal').style.display = 'none';
+                pendingQuizAnimalId = null;
+            }, correct ? 900 : 1500);
+        }
+
+        $('quizSkip').addEventListener('click', () => {
+            // Skipped: still record taken-but-no-bonus so the modal won't fire again.
+            const ref = packsRef(currentPackCode).child(`spots/${pendingQuizAnimalId}/species`);
+            ref.transaction((current) => {
+                if (current && current.byId) return;
+                return {
+                    by: currentPlayerName,
+                    byId: currentPlayerId,
+                    correct: false,
+                    skipped: true,
+                    at: firebase.database.ServerValue.TIMESTAMP
+                };
+            });
+            $('quizModal').style.display = 'none';
+            pendingQuizAnimalId = null;
+        });
+
+        // ── Resume session ──────────────────────────────────────────────────
+        async function resumeIfPossible() {
+            const sess = loadSession();
+            if (!sess || !sess.code || !sess.playerId) return;
+            initFirebase();
+            const snap = await packsRef(sess.code).get();
+            if (!snap.exists()) { clearSession(); return; }
+            currentPlayerId = sess.playerId;
+            currentPlayerName = sess.playerName;
+            currentPackCode = sess.code;
+            // Refresh player record
+            await packsRef(sess.code).child(`players/${currentPlayerId}/lastSeen`).set(firebase.database.ServerValue.TIMESTAMP);
+            enterGame(sess.code);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem(STORAGE.darkMode) === '1') document.body.classList.add('dark');
+            resumeIfPossible();
+        });
+    })();
+    </script>
+</body>
+</html>
