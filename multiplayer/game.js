@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429q';
+const APP_VERSION = '20260429r';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -302,6 +302,9 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429r': [
+        '📱 Plate grid is now 3 columns on mobile — cards are shorter, narrower, and the redundant "LICENSE PLATE" header is hidden since section labels already identify the type',
     ],
     '20260429q': [
         '📊 Leaderboard cards are now compact — same info (score, plates, FF, coins, achievements, badges, reactions) in a tighter layout',
@@ -2147,7 +2150,7 @@ function updateGameUI() {
     if (viewResultsBtn) viewResultsBtn.style.display = isEnded ? '' : 'none';
     // Wolf admin button (JcWolF only)
     const wolfAdminBtn = document.getElementById('wolfAdminBtn');
-    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag?.toLowerCase() === 'jcwolf' ? '' : 'none';
+    if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag === 'JcWolF' ? '' : 'none';
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
     const signature = buildStateSignature();
