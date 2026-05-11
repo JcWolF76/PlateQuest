@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429w';
+const APP_VERSION = '20260429x';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -302,6 +302,9 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429x': [
+        '🔊 Fixed sounds not playing on iOS — audio is now unlocked on first tap so taunts, praises, chat blips, badge fanfares, and other-player plate finds actually make noise',
     ],
     '20260429w': [
         '🔊 New sound effects — chat messages get a soft blip, taunts get a cheeky descending sneer, praises get a bright ascending sparkle, and badge unlocks get a triumphant fanfare',
@@ -2745,9 +2748,30 @@ function toggleDarkMode() { document.body.classList.toggle('dark'); const isDark
 function updateConnectionStatus(status) { const statusDot = document.getElementById('statusDot'); const statusText = document.getElementById('statusText'); if (statusDot) statusDot.className = `status-dot ${status}`; if (statusText) { if (status === 'online') statusText.textContent = 'Connected'; if (status === 'offline') statusText.textContent = 'Disconnected'; if (status === 'connecting') statusText.textContent = 'Connecting...'; } }
 function showLoading(text = 'Loading...') { const loadingText = loadingOverlay.querySelector('.loading-text'); if (loadingText) loadingText.textContent = text; loadingOverlay.style.display = 'flex'; }
 function hideLoading() { loadingOverlay.style.display = 'none'; }
-function playChime(isFirstFind = false) {
+let _sharedAudioCtx = null;
+function getAudioCtx() {
+    if (_sharedAudioCtx) return _sharedAudioCtx;
+    try { _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
+    return _sharedAudioCtx;
+}
+function unlockAudio() {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    // Silent ping to satisfy iOS gesture requirement
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        gain.gain.value = 0; osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.01);
+    } catch(e) {}
+}
+document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('keydown', unlockAudio, { once: true });
+
+function playChime(isFirstFind = false) {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    try {
         // First find: bright 4-note arpeggio C5-E5-G5-C6; regular find: gentle 2-note E5-G5
         const notes = isFirstFind ? [523.25, 659.25, 783.99, 1046.5] : [659.25, 783.99];
         notes.forEach((freq, i) => {
@@ -2764,7 +2788,6 @@ function playChime(isFirstFind = false) {
             osc.start(t);
             osc.stop(t + 0.6);
         });
-        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 2000);
     } catch(e) { /* AudioContext unavailable — silent fail */ }
 }
 
@@ -2803,8 +2826,9 @@ function detectNewFinds() {
 }
 
 function playAnnouncementChime() {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         // Two-tone fanfare: G4 → D5 (ascending perfect fifth, triangle wave for richness)
         [[392, 0], [587.33, 0.22]].forEach(([freq, delay]) => {
             const osc = ctx.createOscillator();
@@ -2820,13 +2844,13 @@ function playAnnouncementChime() {
             osc.start(t);
             osc.stop(t + 0.8);
         });
-        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 2500);
     } catch(e) { /* AudioContext unavailable — silent fail */ }
 }
 
 function playChatBlip() {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
@@ -2837,13 +2861,13 @@ function playChatBlip() {
         gain.gain.linearRampToValueAtTime(0.15, t + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
         osc.start(t); osc.stop(t + 0.22);
-        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 500);
     } catch(e) { /* silent */ }
 }
 
 function playTauntChime() {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         // Descending playful sneer: D5 → B4 → G4
         [587.33, 493.88, 392].forEach((freq, i) => {
             const osc = ctx.createOscillator();
@@ -2857,13 +2881,13 @@ function playTauntChime() {
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
             osc.start(t); osc.stop(t + 0.45);
         });
-        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 1500);
     } catch(e) { /* silent */ }
 }
 
 function playPraiseChime() {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         // Bright ascending sparkle: C5 → E5 → G5 (triangle for warmth)
         [523.25, 659.25, 783.99].forEach((freq, i) => {
             const osc = ctx.createOscillator();
@@ -2877,13 +2901,13 @@ function playPraiseChime() {
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
             osc.start(t); osc.stop(t + 0.55);
         });
-        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 1500);
     } catch(e) { /* silent */ }
 }
 
 function playAchievementChime() {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         // Triumphant D-major arpeggio with sustained final note: D5 → F#5 → A5 → D6
         const notes = [587.33, 739.99, 880, 1174.66];
         notes.forEach((freq, i) => {
@@ -2899,7 +2923,6 @@ function playAchievementChime() {
             gain.gain.exponentialRampToValueAtTime(0.001, t + (isLast ? 0.95 : 0.5));
             osc.start(t); osc.stop(t + (isLast ? 1.05 : 0.55));
         });
-        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 2500);
     } catch(e) { /* silent */ }
 }
 
