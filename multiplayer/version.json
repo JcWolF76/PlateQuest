@@ -1,6 +1,7 @@
 {
-  "version": "20260429x",
+  "version": "20260429y",
   "changelog": {
+    "20260429y": ["📥 New persistent Pending Requests inbox for the host — plate-removal requests now live in their own sheet (Host Controls → 📥 Pending Requests) with a red badge showing the count, so they no longer disappear before you can approve or deny"],
     "20260429x": ["🔊 Fixed sounds not playing on iOS — audio is now unlocked on first tap so taunts, praises, chat blips, badge fanfares, and other-player plate finds actually make noise"],
     "20260429w": ["🔊 New sound effects — chat messages get a soft blip, taunts get a cheeky descending sneer, praises get a bright ascending sparkle, and badge unlocks get a triumphant fanfare"],
     "20260429v": ["🟢🟠 Restored found-state coloring on mobile — plates you found turn green, plates found by other players turn orange (previously only the hidden header was colored)"],

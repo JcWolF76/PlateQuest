@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429x';
+const APP_VERSION = '20260429y';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -302,6 +302,9 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429y': [
+        '📥 New persistent Pending Requests inbox for the host — plate-removal requests now live in their own sheet (Host Controls → 📥 Pending Requests) with a red badge showing the count, so they no longer disappear before you can approve or deny',
     ],
     '20260429x': [
         '🔊 Fixed sounds not playing on iOS — audio is now unlocked on first tap so taunts, praises, chat blips, badge fanfares, and other-player plate finds actually make noise',
@@ -1724,7 +1727,7 @@ function bindEventListeners() {
     });
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
-        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closePraiseModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closeEndGameScreen(); closeHowToPlay(); }
+        if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closePraiseModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closePendingRequestsSheet(); closeEndGameScreen(); closeHowToPlay(); }
     });
     // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds
     const liveScores = document.getElementById('liveScores');
@@ -1778,6 +1781,8 @@ function bindEventListeners() {
     document.getElementById('qrModal')?.addEventListener('click', e => { if (e.target === document.getElementById('qrModal')) closeQRModal(); });
     document.getElementById('activityBtn')?.addEventListener('click', toggleActivityFeed);
     document.getElementById('closeActivityBtn')?.addEventListener('click', closeActivityFeed);
+    document.getElementById('pendingRequestsBtn')?.addEventListener('click', openPendingRequestsSheet);
+    document.getElementById('closePendingRequestsBtn')?.addEventListener('click', closePendingRequestsSheet);
     document.getElementById('wolfAdminBtn')?.addEventListener('click', () => window.open('admin.html', '_blank'));
     // Wolf PIN modal — use delegation so clicks on inner <span> still resolve to the button
     document.getElementById('wolfPinCancelBtn')?.addEventListener('click', closeWolfPinModal);
@@ -2172,6 +2177,8 @@ function updateGameUI() {
     if (wolfAdminBtn) wolfAdminBtn.style.display = currentPlayer.tag === 'JcWolF' ? '' : 'none';
     if (isEnded && !endGameScreenShown) { endGameScreenShown = true; showEndGameScreen(); }
     if (document.getElementById('activitySheet')?.classList.contains('open')) renderActivityFeed();
+    updatePendingRequestsBadge();
+    if (document.getElementById('pendingRequestsSheet')?.classList.contains('open')) renderPendingRequests();
     const signature = buildStateSignature();
     if (signature === lastRenderedStateSignature) { updateScores(); updateActiveEffectsBar(); updateTrickOverlay(); updateConnectionBadgeText(); updateSetupSubtitle(); updateDiagnosticsPanel(); return; }
     lastRenderedStateSignature = signature;
@@ -2728,7 +2735,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closeChatSheet(); closeQRModal(); closeTauntModal(); closePraiseModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closePendingRequestsSheet(); closeChatSheet(); closeQRModal(); closeTauntModal(); closePraiseModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -5618,4 +5625,81 @@ function toggleActivityFeed() {
 
 function closeActivityFeed() {
     document.getElementById('activitySheet')?.classList.remove('open');
+}
+
+function formatTimeAgo(ts) {
+    if (!ts) return '';
+    const secs = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.round(secs / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.round(hrs / 24)}d ago`;
+}
+
+function getPendingRequestEntries() {
+    const requests = gameData?.clearRequests || {};
+    return Object.entries(requests)
+        .filter(([, req]) => req && req.stateName)
+        .sort((a, b) => (a[1].requestedAt || 0) - (b[1].requestedAt || 0));
+}
+
+function updatePendingRequestsBadge() {
+    const badge = document.getElementById('pendingRequestsBadge');
+    const btn = document.getElementById('pendingRequestsBtn');
+    if (!badge || !btn) return;
+    const isHost = gameData?.hostPlayerKey === currentPlayer?.playerKey;
+    if (!isHost) { badge.style.display = 'none'; return; }
+    const count = getPendingRequestEntries().length;
+    if (count > 0) {
+        badge.textContent = String(count);
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function renderPendingRequests() {
+    const body = document.getElementById('pendingRequestsBody');
+    if (!body) return;
+    const entries = getPendingRequestEntries();
+    if (entries.length === 0) {
+        body.innerHTML = '<div class="pending-empty">No pending requests. You\'re all caught up. 🐺</div>';
+        return;
+    }
+    body.innerHTML = entries.map(([stateName, req]) => `
+        <div class="pending-request-item" data-state="${escapeHtml(stateName)}">
+            <div class="pending-request-meta"><strong>${escapeHtml(req.displayName || '?')}</strong> wants to remove <strong>${escapeHtml(stateName)}</strong>. They'll lose all credit permanently.</div>
+            <div class="pending-request-time">${formatTimeAgo(req.requestedAt)}</div>
+            <div class="pending-request-actions">
+                <button class="pending-approve-btn">✓ Approve</button>
+                <button class="pending-deny-btn">✕ Deny</button>
+            </div>
+        </div>
+    `).join('');
+    body.querySelectorAll('.pending-request-item').forEach(el => {
+        const stateName = el.getAttribute('data-state');
+        const req = (gameData?.clearRequests || {})[stateName];
+        if (!req) return;
+        el.querySelector('.pending-approve-btn').addEventListener('click', async () => {
+            await approveClearRequest(stateName, req);
+            renderPendingRequests();
+        });
+        el.querySelector('.pending-deny-btn').addEventListener('click', async () => {
+            await denyClearRequest(stateName);
+            renderPendingRequests();
+        });
+    });
+}
+
+function openPendingRequestsSheet() {
+    const sheet = document.getElementById('pendingRequestsSheet');
+    if (!sheet) return;
+    sheet.classList.add('open');
+    renderPendingRequests();
+}
+
+function closePendingRequestsSheet() {
+    document.getElementById('pendingRequestsSheet')?.classList.remove('open');
 }
