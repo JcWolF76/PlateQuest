@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429u';
+const APP_VERSION = '20260429v';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -302,6 +302,9 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429v': [
+        '🟢🟠 Restored found-state coloring on mobile — plates you found turn green, plates found by other players turn orange (previously only the hidden header was colored)',
     ],
     '20260429u': [
         '📱 Mobile plate layout overhauled — name sits on the top edge across the full width, flag is centered, the ✕ button sits on the same line as the flag (right side), and the first-finder tag now lives in the bottom-right next to the point value',
