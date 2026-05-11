@@ -474,6 +474,17 @@
         .activity-hdr { display:flex; justify-content:space-between; align-items:center; padding:16px 20px 12px; border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
         .activity-hdr-title { font-size:16px; font-weight:800; color:#fff; }
         .activity-body { overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; padding:10px 16px 16px; display:flex; flex-direction:column; gap:7px; }
+        .btn-pending-requests { background:linear-gradient(145deg,#8e44ad,#9b59b6); color:#fff; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+        .pending-badge { background:#e74c3c; color:#fff; border-radius:999px; min-width:22px; height:20px; padding:0 7px; font-size:12px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(231,76,60,0.4); }
+        .pending-request-item { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+        .pending-request-meta { font-size:13px; color:#ecf0f1; line-height:1.4; }
+        .pending-request-meta strong { color:#fff; }
+        .pending-request-time { font-size:11px; color:#95a5a6; }
+        .pending-request-actions { display:flex; gap:8px; }
+        .pending-request-actions button { flex:1; padding:10px 12px; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:13px; touch-action:manipulation; }
+        .pending-approve-btn { background:linear-gradient(145deg,#27ae60,#2ecc71); color:#fff; }
+        .pending-deny-btn { background:linear-gradient(145deg,#e74c3c,#c0392b); color:#fff; }
+        .pending-empty { text-align:center; color:#95a5a6; padding:32px 16px; font-size:14px; }
         .activity-event { display:flex; align-items:flex-start; gap:9px; font-size:13px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
         .activity-event:last-child { border-bottom:none; }
         .activity-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
@@ -978,6 +989,7 @@
                     <div class="action-section" id="hostSection" style="display:none;">
                         <div class="action-section-label">Host Controls</div>
                         <div class="action-grid">
+                            <button class="btn btn-pending-requests action-span" id="pendingRequestsBtn">📥 Pending Requests <span class="pending-badge" id="pendingRequestsBadge" style="display:none;">0</span></button>
                             <button class="btn btn-announce" id="announceBtn">📣 Announce</button>
                             <div class="audit-btn-wrap">
                                 <button class="btn btn-audit" id="auditBtn">🔍 Audit Scores</button>
@@ -1474,6 +1486,14 @@
             <div class="activity-body" id="activityBody"></div>
         </div>
 
+        <div id="pendingRequestsSheet" class="activity-sheet">
+            <div class="activity-hdr">
+                <div class="activity-hdr-title">📥 Pending Requests</div>
+                <button class="btn btn-secondary btn-small" id="closePendingRequestsBtn">✕</button>
+            </div>
+            <div class="activity-body" id="pendingRequestsBody"></div>
+        </div>
+
         <!-- End Game Modal -->
         <!-- How to Play modal — shown on every game join -->
         <div id="howToPlayModal" class="htp-overlay" style="display:none;">
@@ -1542,7 +1562,7 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260429x"></script>
+    <script src="game.js?v=20260429y"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
