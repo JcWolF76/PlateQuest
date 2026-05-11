@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429v';
+const APP_VERSION = '20260429w';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -302,6 +302,9 @@ const CHANGELOG = {
         '👻 Ghost Mode — hides your score and plate count from opponents for 5 minutes (Boosts section)',
         '🔃 Wrong Way — reverses the plate grid for all other players for 3 minutes',
         '🚔 Speed Trap — forces a 30-second cooldown between plate spots for all other players for 3 minutes',
+    ],
+    '20260429w': [
+        '🔊 New sound effects — chat messages get a soft blip, taunts get a cheeky descending sneer, praises get a bright ascending sparkle, and badge unlocks get a triumphant fanfare',
     ],
     '20260429v': [
         '🟢🟠 Restored found-state coloring on mobile — plates you found turn green, plates found by other players turn orange (previously only the hidden header was colored)',
@@ -2074,6 +2077,7 @@ function setupGameListeners() {
             chatUnreadCount++;
             showToast(`💬 ${escapeHtml(msg.displayName || '?')}: ${escapeHtml((msg.message || '').slice(0, 60))}`, 'info');
             updateChatBadge();
+            playChatBlip();
         }
     });
     currentGameRef.child('chat').once('value', () => { chatReady = true; });
@@ -2820,6 +2824,85 @@ function playAnnouncementChime() {
     } catch(e) { /* AudioContext unavailable — silent fail */ }
 }
 
+function playChatBlip() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        const t = ctx.currentTime;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.15, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.start(t); osc.stop(t + 0.22);
+        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 500);
+    } catch(e) { /* silent */ }
+}
+
+function playTauntChime() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Descending playful sneer: D5 → B4 → G4
+        [587.33, 493.88, 392].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'square';
+            osc.frequency.value = freq;
+            const t = ctx.currentTime + i * 0.12;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+            osc.start(t); osc.stop(t + 0.45);
+        });
+        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 1500);
+    } catch(e) { /* silent */ }
+}
+
+function playPraiseChime() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Bright ascending sparkle: C5 → E5 → G5 (triangle for warmth)
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            const t = ctx.currentTime + i * 0.1;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.25, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+            osc.start(t); osc.stop(t + 0.55);
+        });
+        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 1500);
+    } catch(e) { /* silent */ }
+}
+
+function playAchievementChime() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Triumphant D-major arpeggio with sustained final note: D5 → F#5 → A5 → D6
+        const notes = [587.33, 739.99, 880, 1174.66];
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            const isLast = i === notes.length - 1;
+            const t = ctx.currentTime + i * 0.13;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.3, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + (isLast ? 0.95 : 0.5));
+            osc.start(t); osc.stop(t + (isLast ? 1.05 : 0.55));
+        });
+        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 2500);
+    } catch(e) { /* silent */ }
+}
+
 function detectNewAnnouncements() {
     if (!gameData || !currentPlayer) return;
     const announcements = gameData.announcements || {};
@@ -3102,6 +3185,7 @@ function showTauntNotification(taunt) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const isPraise = taunt.type === 'praise';
+    if (!isSender) { if (isPraise) playPraiseChime(); else playTauntChime(); }
     const toast = document.createElement('div');
     if (isPraise) {
         toast.className = 'toast praise';
@@ -4714,6 +4798,7 @@ async function checkAchievements(playerKey) {
     }
     if (Object.keys(updates).length === 0) return;
     await currentGameRef.update(updates);
+    if (playerKey === currentPlayer?.playerKey) playAchievementChime();
     newOnes.forEach(ach => showToast(`🏆 ${ach.icon} ${ach.name} unlocked!`, 'success'));
 }
 
@@ -4726,6 +4811,7 @@ function awardManualAchievement(achievementId) {
     pendingAchievements.add(achievementId);
     currentGameRef.update({ [`players/${currentPlayer.playerKey}/achievements/${achievementId}`]: Date.now() }).catch(() => {});
     showToast(`🏆 ${ach.icon} ${ach.name} unlocked!`, 'success');
+    playAchievementChime();
 }
 
 // ── Blackout ──────────────────────────────────────────────────────────────────
