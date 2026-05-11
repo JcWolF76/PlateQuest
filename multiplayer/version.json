@@ -1,6 +1,7 @@
 {
-  "version": "20260429u",
+  "version": "20260429v",
   "changelog": {
+    "20260429v": ["🟢🟠 Restored found-state coloring on mobile — plates you found turn green, plates found by other players turn orange (previously only the hidden header was colored)"],
     "20260429u": ["📱 Mobile plate layout overhauled — name sits on the top edge across the full width, flag is centered, the ✕ button sits on the same line as the flag (right side), and the first-finder tag now lives in the bottom-right next to the point value"],
     "20260429t": ["📱 Plate names now sit at the top of every card and wrap to a second line if too wide (e.g. New / Hampshire) — no more cut-off names like \"Pennsylv...\" or \"South Car...\""],
     "20260429s": ["📱 Mobile plate cards now keep proper plate proportions (1.7:1) — and first-finder tag no longer overlaps the state name"],
