@@ -1876,8 +1876,9 @@ function wolfPinConfirm() {
         updateWolfPinDots();
         return;
     }
+    const playerToSet = pendingJcWolFPlayer;
     closeWolfPinModal();
-    if (pendingJcWolFPlayer) { completeSetPlayerName(pendingJcWolFPlayer); pendingJcWolFPlayer = null; }
+    if (playerToSet) completeSetPlayerName(playerToSet);
 }
 
 function openEditIdentityModal() {
