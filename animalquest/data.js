@@ -2,7 +2,7 @@
  * Used by both single-player (animalquest/index.html) and multiplayer.
  * Created by JcWolF76.
  *
- * AnimalQuest © 2026 Jess Bliss (JcWolF76). All rights reserved.
+ * AnimalQuest © 2026 Jesse Bliss (JcWolF76). All rights reserved.
  * Proprietary software — see LICENSE at repo root. Unauthorized copying,
  * modification, redistribution, or commercial use is prohibited.
  */

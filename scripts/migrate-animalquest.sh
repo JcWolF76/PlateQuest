@@ -198,7 +198,7 @@ provinces. https://jcwolf76.github.io/PlateQuest/
 
 ## License
 
-**AnimalQuest is proprietary software — © 2026 Jess Bliss (JcWolF76).
+**AnimalQuest is proprietary software — © 2026 Jesse Bliss (JcWolF76).
 All rights reserved.**
 
 Source-available, not open source. You may not copy, modify, redistribute, or

@@ -47,7 +47,7 @@ live. If the user says "I don't see my change on the site," check
 
 ## 3. Project identity
 
-- **Owner:** Jess Bliss. GitHub handle is **`JcWolF76`** — capital `F`,
+- **Owner:** Jesse Bliss. GitHub handle is **`JcWolF76`** — capital `F`,
   lowercase everything else. Don't write `JcWolf76` or `JcWoLF76` in code,
   commits, or docs.
 - **Game:** PlateQuest — license plate spotting game.
@@ -64,7 +64,7 @@ PlateQuest is **proprietary**, not open source. See `LICENSE` for terms.
 When adding new source files, include the standard header:
 
 ```
-© 2026 Jess Bliss (JcWolF76). All rights reserved.
+© 2026 Jesse Bliss (JcWolF76). All rights reserved.
 Proprietary software — see LICENSE.
 ```
 
