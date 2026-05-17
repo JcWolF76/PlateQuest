@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517b';
+const APP_VERSION = '20260517c';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517c': [
+        '👏 Reactions reworked — leaderboard cards now show a single "👏 React" button instead of four bare emoji icons that read like badges. Tap it and a floating picker (Facebook/LinkedIn style) shows all four reactions in big circular buttons. Tap one to send. Tap anywhere else to dismiss. Same reactions, less clutter.',
+    ],
     '20260517b': [
         '🔍 New "Find My Packs" button on the setup screen — scans the server for every pack where your tag is a player and folds any missing ones into your My Packs list. Useful if you played from a different device or browser and your packs got dropped from local storage. My Packs capacity raised from 8 to 50.',
     ],
@@ -2313,7 +2316,7 @@ function updateScores() {
         const rivalBadge = isMyRival ? '<div class="rival-badge">⚔️ Rival</div>' : '';
         const challengeLabel = isMyRival ? '⚔️ Drop' : '⚔️ Challenge';
         const challengeBtn = !isMe ? `<button class="challenge-btn" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">${challengeLabel}</button>` : '';
-        const reactionRow = !isMe ? `<div class="reaction-row">${REACTION_EMOJIS.map(e => `<button class="reaction-btn" data-emoji="${e}" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">${e}</button>`).join('')}${challengeBtn}</div>` : '';
+        const reactionRow = !isMe ? `<div class="reaction-row"><button class="react-trigger-btn" type="button" data-tokey="${player.playerKey}" data-toname="${escapeHtml(player.displayName || player.name || '')}">👏 React</button>${challengeBtn}</div>` : '';
         const scoreCard = document.createElement('div');
         scoreCard.className = `score-card${isLeader ? ' leader' : ''}${isMyRival ? ' rival' : ''}`;
         scoreCard.dataset.playerkey = player.playerKey;
@@ -2340,16 +2343,16 @@ function updateScores() {
             if (dx < 12 && dy < 12) { _tfire = Date.now(); openPlayerDetail(_pk); }
         }, { passive: true });
         scoreCard.addEventListener('click', e => {
-            if (e.target.closest('.reaction-btn') || e.target.closest('.challenge-btn')) return;
+            if (e.target.closest('.react-trigger-btn') || e.target.closest('.challenge-btn') || e.target.closest('.reaction-popover')) return;
             if (Date.now() - _tfire > 350) openPlayerDetail(_pk);
         });
-        scoreCard.querySelectorAll('.reaction-btn').forEach(btn => {
-            btn.addEventListener('click', e => {
+        const reactTrigger = scoreCard.querySelector('.react-trigger-btn');
+        if (reactTrigger) {
+            reactTrigger.addEventListener('click', e => {
                 e.stopPropagation();
-                sendReaction(btn.dataset.tokey, btn.dataset.toname, btn.dataset.emoji);
-                showReactionPop(btn.dataset.tokey, btn.dataset.emoji, null);
+                openReactionPopover(reactTrigger, reactTrigger.dataset.tokey, reactTrigger.dataset.toname);
             });
-        });
+        }
         const chalBtn = scoreCard.querySelector('.challenge-btn');
         if (chalBtn) {
             chalBtn.addEventListener('click', e => {
@@ -4606,6 +4609,67 @@ async function updateStreak(playerKey) {
 // ── Quick Reactions ───────────────────────────────────────────────────────────
 
 const REACTION_EMOJIS = ['🔥', '😮', '👏', '💀'];
+
+// FB/LinkedIn-style reaction picker — tap the React trigger on a player
+// card, a floating popover with the four reactions appears, tap one to
+// send. Click anywhere else (or another card) to close.
+function closeReactionPopover() {
+    const existing = document.getElementById('reactionPopover');
+    if (existing) existing.remove();
+    if (closeReactionPopover._handler) {
+        document.removeEventListener('click', closeReactionPopover._handler, true);
+        closeReactionPopover._handler = null;
+    }
+}
+
+function openReactionPopover(triggerBtn, toKey, toName) {
+    closeReactionPopover();
+    const pop = document.createElement('div');
+    pop.id = 'reactionPopover';
+    pop.className = 'reaction-popover';
+    pop.innerHTML = REACTION_EMOJIS.map(e =>
+        `<button class="reaction-pop-btn" data-emoji="${e}" type="button" aria-label="React ${e}">${e}</button>`
+    ).join('');
+    document.body.appendChild(pop);
+
+    // Position: prefer above the trigger; fall back to below if not enough room.
+    const rect = triggerBtn.getBoundingClientRect();
+    const popW = pop.offsetWidth || 240;
+    const popH = pop.offsetHeight || 56;
+    const viewportW = window.innerWidth;
+    let left = rect.left + window.scrollX + (rect.width / 2) - (popW / 2);
+    if (left + popW > viewportW - 8) left = viewportW - popW - 8;
+    if (left < 8) left = 8;
+    let top = rect.top + window.scrollY - popH - 8;
+    if (top < window.scrollY + 8) top = rect.bottom + window.scrollY + 8; // flip below if no room above
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    requestAnimationFrame(() => pop.classList.add('open'));
+
+    pop.querySelectorAll('.reaction-pop-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const emoji = btn.dataset.emoji;
+            sendReaction(toKey, toName, emoji);
+            showReactionPop(toKey, emoji, null);
+            closeReactionPopover();
+        });
+    });
+
+    // Tap anywhere outside the popover (or trigger) to dismiss. Capture phase
+    // so we see the click before card-level handlers consume it.
+    closeReactionPopover._handler = (ev) => {
+        if (ev.target.closest('#reactionPopover')) return;
+        if (ev.target === triggerBtn || triggerBtn.contains(ev.target)) return;
+        closeReactionPopover();
+    };
+    // Delay attachment so the opening click itself doesn't close it.
+    setTimeout(() => {
+        if (closeReactionPopover._handler) {
+            document.addEventListener('click', closeReactionPopover._handler, true);
+        }
+    }, 0);
+}
 
 function sendReaction(toKey, toName, emoji) {
     if (!currentGameRef || !currentPlayer) return;
