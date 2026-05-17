@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+    PlateQuest © 2026 Jess Bliss (JcWolF76). All rights reserved.
+    Proprietary software — see LICENSE at repo root. Unauthorized copying,
+    modification, redistribution, or commercial use is prohibited.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,14 +13,21 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', sans-serif; background: #0d1b2a; color: #e0e6f0; min-height: 100vh; padding: 20px; }
 
-/* ── Auth gate ── */
-#authGate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; }
-#authGate h1 { font-size: 22px; color: #7eb8f7; letter-spacing: 0.05em; }
-#authGate input { background: #1a2d42; border: 1px solid #2e4a68; border-radius: 10px; color: #e0e6f0; font-size: 16px; padding: 12px 16px; width: 280px; text-align: center; outline: none; }
-#authGate input:focus { border-color: #4a90d9; }
-#authGate button { background: #1a73e8; border: none; border-radius: 10px; color: #fff; cursor: pointer; font-size: 15px; font-weight: 700; padding: 12px 32px; width: 280px; }
-#authGate button:active { opacity: 0.85; }
-#authError { color: #e74c3c; font-size: 13px; display: none; }
+/* ── Auth gate (codepad) ── */
+#authGate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
+.pin-sheet { background: linear-gradient(145deg, #1a1a2e, #16213e); border: 1px solid rgba(108,52,131,0.7); border-radius: 22px; padding: 30px 22px 24px; width: min(340px, 96vw); text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+.pin-title { font-size: 22px; font-weight: 800; color: #f1c40f; margin-bottom: 4px; }
+.pin-sub { font-size: 13px; color: #bdc3c7; margin-bottom: 22px; }
+.pin-dots { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; flex-wrap: nowrap; }
+.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(108,52,131,0.8); background: transparent; transition: background 0.15s, border-color 0.15s; flex: 0 0 auto; }
+.pin-dot.filled { background: #9b59b6; border-color: #9b59b6; }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pin-key { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 14px 6px 10px; font-size: 20px; font-weight: 700; color: #ecf0f1; cursor: pointer; touch-action: manipulation; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; transition: background 0.12s, transform 0.1s; font-family: inherit; }
+.pin-key span { font-size: 8px; letter-spacing: 1px; color: #7f8c8d; margin-top: 3px; font-weight: 400; pointer-events: none; }
+.pin-key:active { background: rgba(108,52,131,0.45); transform: scale(0.93); }
+.pin-key.pin-cancel-key { color: #e74c3c; }
+.pin-key.pin-back-key { font-size: 18px; }
+.pin-error { color: #e74c3c; font-size: 13px; font-weight: 600; min-height: 20px; margin-top: 10px; }
 
 /* ── Admin panel ── */
 #adminPanel { display: none; max-width: 680px; margin: 0 auto; padding-bottom: 60px; }
@@ -107,10 +119,26 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 <!-- ── Auth Gate ── -->
 <div id="authGate">
-    <h1>🔐 PlateQuest Admin</h1>
-    <input type="password" id="passInput" placeholder="Password" autocomplete="off">
-    <div id="authError">Incorrect password</div>
-    <button onclick="checkAuth()">Enter</button>
+    <div class="pin-sheet">
+        <div class="pin-title">🐺 PlateQuest Admin</div>
+        <div class="pin-sub">Enter passcode</div>
+        <div class="pin-dots" id="pinDots"></div>
+        <div class="pin-pad">
+            <button class="pin-key" data-digit="1" type="button">1</button>
+            <button class="pin-key" data-digit="2" type="button">2<span>ABC</span></button>
+            <button class="pin-key" data-digit="3" type="button">3<span>DEF</span></button>
+            <button class="pin-key" data-digit="4" type="button">4<span>GHI</span></button>
+            <button class="pin-key" data-digit="5" type="button">5<span>JKL</span></button>
+            <button class="pin-key" data-digit="6" type="button">6<span>MNO</span></button>
+            <button class="pin-key" data-digit="7" type="button">7<span>PQRS</span></button>
+            <button class="pin-key" data-digit="8" type="button">8<span>TUV</span></button>
+            <button class="pin-key" data-digit="9" type="button">9<span>WXYZ</span></button>
+            <button class="pin-key pin-cancel-key" id="pinClearBtn" type="button">✕</button>
+            <button class="pin-key" data-digit="0" type="button">0</button>
+            <button class="pin-key pin-back-key" id="pinBackBtn" type="button">⌫</button>
+        </div>
+        <div class="pin-error" id="authError"></div>
+    </div>
 </div>
 
 <!-- ── Admin Panel ── -->
@@ -204,7 +232,6 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
-const ADMIN_PASS_HASH = '8e9c1a2f3b4d5e6f7a8b9c0d1e2f3a4b'; // replaced at init
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
     authDomain: "platequest-multiplayer.firebaseapp.com",
@@ -215,25 +242,68 @@ const FIREBASE_CONFIG = {
     appId: "1:109596979102:web:586740c408daec71af708f"
 };
 
-// Simple hash — change this to your preferred password
-const CORRECT_PASSWORD = 'PQ_ADMIN_2026';
+// Numeric admin passcode
+const CORRECT_PASSCODE = 'REDACTED';
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
-document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
+// ── Auth (codepad) ───────────────────────────────────────────────────────────
+let pinEntry = '';
+const pinDotsEl = document.getElementById('pinDots');
+(function buildPinDots() {
+    for (let i = 0; i < CORRECT_PASSCODE.length; i += 1) {
+        const dot = document.createElement('span');
+        dot.className = 'pin-dot';
+        pinDotsEl.appendChild(dot);
+    }
+})();
+
+function renderPinDots() {
+    [...pinDotsEl.children].forEach((dot, i) => dot.classList.toggle('filled', i < pinEntry.length));
+}
+
+function pinDigit(d) {
+    if (pinEntry.length >= CORRECT_PASSCODE.length) return;
+    pinEntry += d;
+    renderPinDots();
+    document.getElementById('authError').textContent = '';
+    if (pinEntry.length === CORRECT_PASSCODE.length) checkAuth();
+}
+
+function pinBackspace() {
+    pinEntry = pinEntry.slice(0, -1);
+    renderPinDots();
+    document.getElementById('authError').textContent = '';
+}
+
+function pinClear() {
+    pinEntry = '';
+    renderPinDots();
+    document.getElementById('authError').textContent = '';
+}
 
 function checkAuth() {
-    const val = document.getElementById('passInput').value;
-    if (val === CORRECT_PASSWORD) {
+    if (pinEntry === CORRECT_PASSCODE) {
         document.getElementById('authGate').style.display = 'none';
         document.getElementById('adminPanel').style.display = 'block';
         initFirebase();
     } else {
-        const err = document.getElementById('authError');
-        err.style.display = 'block';
-        document.getElementById('passInput').value = '';
-        setTimeout(() => { err.style.display = 'none'; }, 2000);
+        document.getElementById('authError').textContent = 'Incorrect passcode';
+        pinEntry = '';
+        renderPinDots();
     }
 }
+
+document.querySelectorAll('.pin-key[data-digit]').forEach(btn => {
+    btn.addEventListener('click', () => pinDigit(btn.dataset.digit));
+});
+document.getElementById('pinBackBtn').addEventListener('click', pinBackspace);
+document.getElementById('pinClearBtn').addEventListener('click', pinClear);
+document.addEventListener('keydown', e => {
+    if (document.getElementById('adminPanel').style.display === 'block') return;
+    if (/^[0-9]$/.test(e.key)) pinDigit(e.key);
+    else if (e.key === 'Backspace') pinBackspace();
+    else if (e.key === 'Escape') pinClear();
+    else if (e.key === 'Enter' && pinEntry.length === CORRECT_PASSCODE.length) checkAuth();
+});
 
 // ── Firebase ──────────────────────────────────────────────────────────────────
 let db = null;

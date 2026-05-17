@@ -1,8 +1,12 @@
 // PlateQuest Multiplayer v2
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
+//
+// PlateQuest © 2026 Jess Bliss (JcWolF76). All rights reserved.
+// Proprietary software — see LICENSE at repo root. Unauthorized copying,
+// modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260429y';
+const APP_VERSION = '20260430a';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -962,6 +966,7 @@ function restoreIdentity() {
     if (savedTag) document.getElementById('playerTagInput').value = normalizeTagInput(savedTag);
     const savedPlayer = safeParseStorage(STORAGE_KEYS.player);
     if (savedPlayer?.playerKey) { currentPlayer = { ...savedPlayer, tag: normalizeTagInput(savedPlayer.tag) }; enableGameCards(); }
+    updateSetupDevToolsVisibility();
     updateDiagnosticsPanel();
 }
 
@@ -1791,6 +1796,8 @@ function bindEventListeners() {
         const btn = e.target.closest('.wolf-pin-key[data-digit]');
         if (btn) wolfPinDigit(btn.dataset.digit);
     });
+    // Setup-page Dev Tools button (JcWolF only) — opens admin panel, which has its own codepad gate
+    document.getElementById('setupDevToolsBtn')?.addEventListener('click', () => window.open('admin.html', '_blank'));
     // Feedback modal
     document.querySelectorAll('.open-feedback-btn').forEach(btn => btn.addEventListener('click', openFeedbackModal));
     document.getElementById('feedbackCancelBtn')?.addEventListener('click', closeFeedbackModal);
@@ -1831,6 +1838,7 @@ function completeSetPlayerName(player) {
     currentPlayer = player;
     persistIdentity(player);
     enableGameCards();
+    updateSetupDevToolsVisibility();
     showToast(`Identity saved: ${player.displayName} ${resolvePlayerIcon(player)}`, 'success');
     if (pendingGameCodeFromUrl && game.style.display === 'block') document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl;
     updateDiagnosticsPanel();
@@ -1879,6 +1887,12 @@ function wolfPinConfirm() {
     const playerToSet = pendingJcWolFPlayer;
     closeWolfPinModal();
     if (playerToSet) completeSetPlayerName(playerToSet);
+}
+
+function updateSetupDevToolsVisibility() {
+    const row = document.getElementById('setupDevToolsRow');
+    if (!row) return;
+    row.style.display = currentPlayer?.tag === 'JcWolF' ? 'flex' : 'none';
 }
 
 function openEditIdentityModal() {

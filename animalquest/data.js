@@ -1,6 +1,10 @@
 /* AnimalQuest — shared game data
  * Used by both single-player (animalquest/index.html) and multiplayer.
- * Created by JcWoLF76.
+ * Created by JcWolF76.
+ *
+ * AnimalQuest © 2026 Jess Bliss (JcWolF76). All rights reserved.
+ * Proprietary software — see LICENSE at repo root. Unauthorized copying,
+ * modification, redistribution, or commercial use is prohibited.
  */
 (function (root) {
     'use strict';

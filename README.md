@@ -4,7 +4,7 @@
 
 Miles of highway. A car full of people. Someone just spotted a Wyoming plate in the middle of New Jersey and absolutely lost their mind about it. That's PlateQuest.
 
-Created by **Jess Bliss** · Player tag: **JcWoLF76**
+Created by **Jess Bliss** · Player tag: **JcWolF76**
 
 ---
 
@@ -83,3 +83,12 @@ Want to share it? Upload to GitHub Pages or any static host and hand out the lin
 ---
 
 Happy spotting.
+
+---
+
+## License
+
+**PlateQuest is proprietary software — © 2026 Jess Bliss (JcWolF76). All rights reserved.**
+
+This repository is **source-available, not open source**. The code is published here for transparency and demonstration only. You may not copy, modify, redistribute, or use any part of this Software — including the name "PlateQuest", the logo, the plate artwork, or any of the game content — without prior written permission. See [`LICENSE`](LICENSE) for the full terms.
+
