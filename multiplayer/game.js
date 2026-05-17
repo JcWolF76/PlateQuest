@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517d';
+const APP_VERSION = '20260517e';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517e': [
+        '📖 How2Play sheet now documents what 👏 React and ⚔️ Challenge do — they were undocumented and easy to mistake for badges. First-time tap on the leaderboard shows a one-time onboarding tip pointing at the React button. The Challenge confirmation toast now explains what a rivalry is (head-to-head stats on tap, one rival at a time, Drop to end it).',
+    ],
     '20260517d': [
         '🐛 Fixed: React and Challenge buttons on leaderboard cards no longer fall through to opening the player detail card. Tapping them now actually fires the action.',
     ],
@@ -820,7 +823,8 @@ const STORAGE_KEYS = {
     session: 'platequest_active_session_v2',
     myGames: 'platequest_my_games',
     darkMode: 'platequest_dark_mode',
-    diagnostics: 'platequest_diagnostics_visible'
+    diagnostics: 'platequest_diagnostics_visible',
+    reactHintSeen: 'platequest_react_hint_seen_v1'
 };
 
 const SESSION_KEYS = { joinReloadCode: 'platequest_join_reload_code_v1' };
@@ -2384,6 +2388,9 @@ function updateScores() {
         wrap.style.display = packFound > 0 ? '' : 'none';
     }
     updateCoinWallet();
+    // Show the React/Challenge onboarding hint once, after the leaderboard
+    // has rendered at least one other-player card (so there's a target).
+    maybeShowReactHint();
 }
 
 function updateCoinWallet() {
@@ -4678,6 +4685,56 @@ function openReactionPopover(triggerBtn, toKey, toName) {
     }, 0);
 }
 
+// One-time onboarding hint pointing at the first React button on the
+// leaderboard so users discover the reaction picker exists. Auto-dismisses
+// on any interaction or after 8 seconds. Sets a localStorage flag so it
+// only ever shows once per device.
+function maybeShowReactHint() {
+    try {
+        if (localStorage.getItem(STORAGE_KEYS.reactHintSeen) === '1') return;
+    } catch { return; }
+    const target = document.querySelector('.score-card .react-trigger-btn');
+    if (!target) return;
+    if (document.getElementById('reactFirstTimeHint')) return;
+
+    const tip = document.createElement('div');
+    tip.id = 'reactFirstTimeHint';
+    tip.className = 'first-time-hint';
+    tip.innerHTML = `
+        <div class="first-time-hint-text">👋 Tap <strong>👏 React</strong> to send a reaction — 🔥 😮 👏 💀. Tap <strong>⚔️ Challenge</strong> to mark someone as your rival.</div>
+        <button class="first-time-hint-dismiss" type="button">Got it</button>
+        <div class="first-time-hint-arrow"></div>
+    `;
+    document.body.appendChild(tip);
+
+    const rect = target.getBoundingClientRect();
+    const tipW = tip.offsetWidth || 260;
+    const tipH = tip.offsetHeight || 80;
+    const viewportW = window.innerWidth;
+    let left = rect.left + window.scrollX + (rect.width / 2) - (tipW / 2);
+    if (left + tipW > viewportW - 8) left = viewportW - tipW - 8;
+    if (left < 8) left = 8;
+    let top = rect.top + window.scrollY - tipH - 12;
+    if (top < window.scrollY + 8) top = rect.bottom + window.scrollY + 12;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    requestAnimationFrame(() => tip.classList.add('open'));
+
+    let dismissed = false;
+    const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        try { localStorage.setItem(STORAGE_KEYS.reactHintSeen, '1'); } catch {}
+        tip.classList.remove('open');
+        setTimeout(() => tip.remove(), 220);
+    };
+    tip.querySelector('.first-time-hint-dismiss').addEventListener('click', dismiss);
+    // Also dismiss when the user actually engages with the React button.
+    target.addEventListener('click', dismiss, { once: true });
+    // Auto-dismiss after 8 seconds so it doesn't linger forever.
+    setTimeout(dismiss, 8000);
+}
+
 function sendReaction(toKey, toName, emoji) {
     if (!currentGameRef || !currentPlayer) return;
     currentGameRef.child('reactions').push({
@@ -5061,7 +5118,7 @@ function setRivalry(toKey, toName) {
     updates[`rivalries/${myKey}`] = toKey;
     updates[`rivalries/${toKey}`] = myKey;
     currentGameRef.update(updates).catch(() => {});
-    showToast(`⚔️ You challenged ${toName} to a rivalry!`, 'success');
+    showToast(`⚔️ ${toName} is now your rival — tap their card for head-to-head stats. Tap ⚔️ Drop to end it.`, 'success');
 }
 
 function detectRivalryChallenges() {
