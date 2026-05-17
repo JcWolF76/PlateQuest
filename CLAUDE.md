@@ -119,7 +119,36 @@ across PlateQuest and AnimalQuest simultaneously, point them to:
 Don't try to clone, fetch, or push the AnimalQuest repo from a PlateQuest
 session — the harness blocks it and the user will see a denied-tool error.
 
-## 8. Don't add scope
+## 8. Never broadcast secrets into the build or git history
+
+Passcodes, API keys, admin gates, dev tokens, and similar values are
+**never** to appear in any of:
+
+- The user-visible update modal (`multiplayer/version.json` changelog text).
+- README, docs, or any other markdown file in the repo.
+- Commit messages (these are public on a public repo, and even on private
+  repos they're forever — git history is not a draft).
+- Diff bodies of "easy to grep" form (don't write `passcode = 'XXXXXXXX'`
+  in a commit if you can avoid it — refer to the file by path instead).
+
+A previous Claude session shipped an admin passcode in the update modal
+AND in a commit subject line. The value was broadcast to every visitor of
+the live site AND permanently logged in git history. The only true
+remediation was rotating the value, since git history can't be un-leaked.
+
+When the user asks for a gate / passcode feature:
+
+1. Put the value in code only (the file the gate logic lives in).
+2. In commit messages, refer to the change generically — "add codepad
+   gate to admin panel" — never name the value.
+3. In any user-visible changelog or release note, describe the
+   *capability* added, not the *value*.
+4. Remind the user that any client-side gate (the value in `admin.html`,
+   for instance) is visible in browser View Source and is **not real
+   security** — it's an obscurity barrier only. Real auth requires a
+   server.
+
+## 9. Don't add scope
 
 PlateQuest is an indie weekend project, not enterprise software. Avoid:
 
