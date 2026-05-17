@@ -187,7 +187,7 @@ button:disabled { opacity: 0.4; cursor: default; }
     <div class="card" id="findCard">
         <h3>Find My Records Across Games</h3>
         <div class="row">
-            <input id="findTagInput" placeholder="Tag to find (e.g. MRBLISS)" style="text-transform:uppercase;letter-spacing:0.05em">
+            <input id="findTagInput" placeholder="Tag to find (case-insensitive)" style="letter-spacing:0.05em">
             <button onclick="findMyRecords()">Search</button>
         </div>
         <div id="findResultsStats" style="font-size:12px;color:rgba(255,255,255,0.5);margin:10px 0"></div>
@@ -196,7 +196,7 @@ button:disabled { opacity: 0.4; cursor: default; }
             <div style="font-size:13px;color:#7eb8f7;font-weight:600;margin-bottom:8px">Bulk rename all matches</div>
             <div class="row" style="margin-bottom:8px">
                 <input id="bulkNewName" placeholder="New name (e.g. JcWolF)">
-                <input id="bulkNewTag" placeholder="New tag" style="text-transform:uppercase">
+                <input id="bulkNewTag" placeholder="New tag (case preserved)">
             </div>
             <button onclick="bulkRenameMatches()">Apply to all matches</button>
             <div id="bulkRenameStatus"></div>
@@ -878,9 +878,11 @@ async function openRenameFlow(playerKey) {
     if (newName === null) return;
     const trimName = newName.trim();
     if (!trimName) { alert('Name required.'); return; }
-    const newTag = prompt('New tag:', p.tag || '');
+    const newTag = prompt('New tag (case preserved — e.g. JcWolF):', p.tag || '');
     if (newTag === null) return;
-    const trimTag = newTag.trim().toUpperCase();
+    // Mirror game.js normalizeTagInput: strip non-alphanumeric, cap at 8 chars.
+    // Do NOT uppercase — tag case is meaningful (JcWolF ≠ JCWOLF visually).
+    const trimTag = normalizeTagAdmin(newTag);
     if (!trimTag) { alert('Tag required.'); return; }
 
     setStatus('playerMgrStatus', 'Renaming…', 'info');
@@ -1179,14 +1181,18 @@ async function confirmMerge() {
 let currentMatches = [];
 
 async function findMyRecords() {
-    const tag = (document.getElementById('findTagInput').value || '').trim().toUpperCase();
-    if (!tag) {
+    const rawTag = (document.getElementById('findTagInput').value || '').trim();
+    if (!rawTag) {
         document.getElementById('findResultsStats').textContent = 'Enter a tag to search.';
         document.getElementById('findResultsList').innerHTML = '';
         document.getElementById('bulkRenameSection').style.display = 'none';
         currentMatches = [];
         return;
     }
+    // Match case-insensitively against stored tags, but the search input
+    // itself preserves whatever case the user typed (purely a comparison
+    // convenience — does not affect anything saved or displayed).
+    const tagCmp = rawTag.toLowerCase();
     document.getElementById('findResultsStats').textContent = 'Searching all games…';
     try {
         const snap = await db.ref('games').once('value');
@@ -1194,7 +1200,7 @@ async function findMyRecords() {
         currentMatches = [];
         Object.entries(raw).forEach(([code, data]) => {
             Object.entries(data.players || {}).forEach(([key, p]) => {
-                if ((p.tag || '').toUpperCase() === tag) {
+                if ((p.tag || '').toLowerCase() === tagCmp) {
                     currentMatches.push({
                         gameCode: code,
                         gameName: data.name || '(unnamed)',
@@ -1250,7 +1256,8 @@ function jumpToGame(code) {
 
 async function bulkRenameMatches() {
     const newName = (document.getElementById('bulkNewName').value || '').trim();
-    const newTag = (document.getElementById('bulkNewTag').value || '').trim().toUpperCase();
+    // Preserve case the user typed — only strip non-alphanumeric and cap length, same as game.js.
+    const newTag = normalizeTagAdmin(document.getElementById('bulkNewTag').value || '');
     if (!newName || !newTag) { setStatus('bulkRenameStatus', 'Both name and tag required.', 'err'); return; }
     if (!currentMatches.length) return;
     const gameCount = new Set(currentMatches.map(m => m.gameCode)).size;
