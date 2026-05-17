@@ -172,6 +172,12 @@ button:disabled { opacity: 0.4; cursor: default; }
             <button class="secondary" onclick="sortGames('players')">Players</button>
         </div>
         <div class="browser-stats" id="browserStats"></div>
+        <div id="gameDeleteBar" style="display:none;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.4);border-radius:8px;padding:10px 14px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+            <span id="gameDeleteCount" style="font-size:13px;color:#e74c3c;font-weight:600"></span>
+            <button class="danger" onclick="deleteSelectedGames()" style="margin-left:auto">🗑 Delete selected</button>
+            <button class="secondary" onclick="clearGameSelection()" style="font-size:12px;padding:6px 12px">Clear</button>
+            <div id="gameDeleteStatus" style="width:100%"></div>
+        </div>
         <div id="gameList"><div class="browser-empty">Loading…</div></div>
     </div>
 
@@ -352,14 +358,25 @@ function initFirebase() {
 let allTickets = [];
 
 async function loadFeedback() {
-    document.getElementById('feedbackList').innerHTML = '<div class="browser-empty">Loading…</div>';
+    const listEl = document.getElementById('feedbackList');
+    listEl.innerHTML = '<div class="browser-empty">Loading…</div>';
+    document.getElementById('feedbackStats').textContent = '';
     try {
-        const snap = await db.ref('feedback').orderByChild('submittedAt').once('value');
+        // Read without orderByChild so we don't depend on a Firebase index
+        // being declared in database rules. Sort client-side after fetch.
+        const snap = await db.ref('feedback').once('value');
+        const raw = snap.val();
         allTickets = [];
-        snap.forEach(child => { allTickets.unshift({ id: child.key, ...child.val() }); });
+        if (raw && typeof raw === 'object') {
+            Object.entries(raw).forEach(([id, val]) => { allTickets.push({ id, ...val }); });
+            allTickets.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+        }
         renderFeedbackList();
     } catch (e) {
-        document.getElementById('feedbackList').innerHTML = '<div class="browser-empty">Failed to load feedback.</div>';
+        console.error('loadFeedback error:', e);
+        const msg = e && e.message ? e.message : String(e);
+        listEl.innerHTML = `<div class="browser-empty" style="color:#e74c3c">Could not load feedback: ${escapeHtmlAdmin(msg)}</div>`;
+        document.getElementById('feedbackStats').textContent = '';
     }
 }
 
@@ -375,7 +392,13 @@ function renderFeedbackList() {
     const bugs = allTickets.filter(t => t.type === 'bug' && t.status !== 'resolved').length;
     const features = allTickets.filter(t => t.type === 'feature' && t.status !== 'resolved').length;
     document.getElementById('feedbackStats').textContent = `${allTickets.length} total · ${bugs} open bugs · ${features} open feature requests`;
-    if (!list.length) { document.getElementById('feedbackList').innerHTML = '<div class="browser-empty">No tickets match this filter.</div>'; return; }
+    if (!list.length) {
+        const empty = allTickets.length === 0
+            ? 'No feedback received yet.'
+            : 'No tickets match this filter.';
+        document.getElementById('feedbackList').innerHTML = `<div class="browser-empty">${empty}</div>`;
+        return;
+    }
     document.getElementById('feedbackList').innerHTML = list.map(t => {
         const date = t.submittedAt ? new Date(t.submittedAt).toLocaleString() : '—';
         const isResolved = t.status === 'resolved';
@@ -453,6 +476,27 @@ function sortGames(mode, render = true) {
     if (render) renderGameList();
 }
 
+// Multi-select state for bulk game deletion. Checkbox per row; the rest of
+// the row still loads the game on click.
+const selectedGamesForDelete = new Set();
+
+function updateGameDeleteBar() {
+    const bar = document.getElementById('gameDeleteBar');
+    const n = selectedGamesForDelete.size;
+    if (n === 0) {
+        bar.style.display = 'none';
+    } else {
+        bar.style.display = 'flex';
+        document.getElementById('gameDeleteCount').textContent = `${n} game${n===1?'':'s'} selected for deletion`;
+    }
+}
+
+function clearGameSelection() {
+    selectedGamesForDelete.clear();
+    document.querySelectorAll('.game-row .game-del-check').forEach(cb => { cb.checked = false; });
+    updateGameDeleteBar();
+}
+
 function renderGameList() {
     const query = (document.getElementById('gameSearchInput')?.value || '').toLowerCase().trim();
     const listEl = document.getElementById('gameList');
@@ -465,6 +509,7 @@ function renderGameList() {
         : allGames;
     if (!visible.length) {
         listEl.innerHTML = '<div class="browser-empty">No games found.</div>';
+        updateGameDeleteBar();
         return;
     }
     listEl.innerHTML = '';
@@ -474,7 +519,9 @@ function renderGameList() {
         const ts = g.updatedAt ? new Date(g.updatedAt).toLocaleString() : '—';
         const roundLabel = g.roundNumber > 1 ? ` · Round ${g.roundNumber}` : '';
         const playerNames = Object.values(g.players).map(p => p.displayName || p.name || '?').join(', ') || '—';
+        const checked = selectedGamesForDelete.has(g.code) ? 'checked' : '';
         row.innerHTML = `
+            <input type="checkbox" class="game-del-check" data-code="${g.code}" ${checked} style="flex:0 0 auto;margin-right:4px">
             <div class="game-code">${g.code}</div>
             <div class="game-info">
                 <div class="game-name">${g.name}</div>
@@ -482,6 +529,16 @@ function renderGameList() {
                 <div class="game-meta" style="opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${playerNames}</div>
             </div>
             <div class="game-status ${g.status}">${g.status === 'ended' ? 'Ended' : 'Active'}</div>`;
+
+        // Checkbox toggles delete-selection without triggering the row's load action.
+        const cb = row.querySelector('.game-del-check');
+        cb.addEventListener('click', (ev) => ev.stopPropagation());
+        cb.addEventListener('change', () => {
+            if (cb.checked) selectedGamesForDelete.add(g.code);
+            else selectedGamesForDelete.delete(g.code);
+            updateGameDeleteBar();
+        });
+
         row.addEventListener('click', () => {
             document.querySelectorAll('.game-row').forEach(r => r.classList.remove('selected'));
             row.classList.add('selected');
@@ -491,6 +548,32 @@ function renderGameList() {
         });
         listEl.appendChild(row);
     });
+    updateGameDeleteBar();
+}
+
+async function deleteSelectedGames() {
+    const codes = [...selectedGamesForDelete];
+    if (!codes.length) return;
+    const msg = codes.length === 1
+        ? `Delete game ${codes[0]} permanently? Removes the entire game and every player record in it.\n\nCannot be undone.`
+        : `Delete ${codes.length} games permanently? Removes each game and every player record in them.\n\n  ${codes.join(', ')}\n\nCannot be undone.`;
+    if (!confirm(msg)) return;
+
+    const statusEl = document.getElementById('gameDeleteStatus');
+    statusEl.innerHTML = '<div class="status info">Deleting…</div>';
+    let ok = 0, fail = 0;
+    for (const code of codes) {
+        try {
+            await db.ref(`games/${code}`).remove();
+            ok++;
+        } catch (err) {
+            fail++;
+            console.error(`Failed to delete game ${code}:`, err);
+        }
+    }
+    selectedGamesForDelete.clear();
+    statusEl.innerHTML = `<div class="status ${fail ? 'err' : 'ok'}">${ok} deleted${fail ? ` · ${fail} failed (see console)` : ''}</div>`;
+    await browseGames();
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
