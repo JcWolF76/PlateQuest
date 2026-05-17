@@ -1,6 +1,7 @@
 {
-  "version": "20260517a",
+  "version": "20260517b",
   "changelog": {
+    "20260517b": ["🔍 New \"Find My Packs\" button on the setup screen — scans the server for every pack where your tag is a player and folds any missing ones into your My Packs list. Useful if you played from a different device or browser and your packs got dropped from local storage. My Packs capacity raised from 8 to 50."],
     "20260517a": ["🔄 New host-only Reset Round button — wipes all plates, first-finders, and region progress for the whole pack while keeping the round number the same. Use it for a clean do-over of the current round; use New Round to bump to a fresh round number."],
     "20260430b": ["🔧 Maintenance update"],
     "20260430a": ["🔐 Admin panel now uses a numeric codepad gate (same style as the JcWolF PlayerTag PIN). Setup-page Dev Tools button now opens it directly."],

@@ -797,6 +797,11 @@
                     <button class="btn btn-wolf-admin" id="setupDevToolsBtn" type="button">🐺 Dev Tools</button>
                 </div>
 
+                <!-- Audit server for every pack with this tag (across devices) -->
+                <div id="auditMyPacksRow" style="margin-bottom:10px;text-align:right;">
+                    <button class="btn btn-secondary" id="auditMyPacksBtn" type="button" style="font-size:12px;padding:6px 14px;">🔍 Find My Packs</button>
+                </div>
+
                 <!-- Previously joined packs stored in localStorage -->
                 <div id="myGamesSection" class="my-games-section" style="display:none;"></div>
 
@@ -1577,7 +1582,7 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260517a"></script>
+    <script src="game.js?v=20260517b"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

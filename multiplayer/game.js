@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517a';
+const APP_VERSION = '20260517b';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517b': [
+        '🔍 New "Find My Packs" button on the setup screen — scans the server for every pack where your tag is a player and folds any missing ones into your My Packs list. Useful if you played from a different device or browser and your packs got dropped from local storage. My Packs capacity raised from 8 to 50.',
+    ],
     '20260517a': [
         '🔄 New host-only Reset Round button — wipes all plates, first-finders, and region progress for the whole pack while keeping the round number the same. Use it for a clean do-over of the current round; use New Round to bump to a fresh round number.',
     ],
@@ -990,7 +993,7 @@ function addToMyGames(code, name) {
     if (!code) return;
     const games = getMyGames().filter(g => g.code !== code);
     games.unshift({ code, name: name || code, joinedAt: Date.now() });
-    if (games.length > 8) games.length = 8;
+    if (games.length > 50) games.length = 50;
     try { localStorage.setItem(STORAGE_KEYS.myGames, JSON.stringify(games)); } catch (e) {}
 }
 function removeFromMyGames(code) {
@@ -1029,6 +1032,44 @@ function formatRelativeTime(ts) {
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
+}
+
+// Audit the server for every game where the current player's tag appears
+// and fold any missing ones into the local My Packs list. Solves the
+// case where the same identity has joined packs from multiple devices /
+// browsers, so localStorage only knows a subset of the user's real packs.
+async function auditMyGames() {
+    if (!currentPlayer) { showToast('Set your name first to audit your packs.', 'error'); return; }
+    if (!(await ensureDatabaseReady('audit your packs'))) return;
+
+    const btn = document.getElementById('auditMyPacksBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '🔍 Searching…'; }
+    try {
+        const snap = await database.ref('games').once('value');
+        const raw = snap.val() || {};
+        const myTagCmp = (currentPlayer.tag || '').toLowerCase();
+        const known = new Set(getMyGames().map(g => g.code));
+        let added = 0;
+        Object.entries(raw).forEach(([code, data]) => {
+            if (known.has(code)) return;
+            const players = data.players || {};
+            const me = Object.values(players).find(p => (p.tag || '').toLowerCase() === myTagCmp);
+            if (me) {
+                addToMyGames(code, data.name || code);
+                added += 1;
+            }
+        });
+        renderMyGames();
+        if (added > 0) {
+            showToast(`✅ Found ${added} pack${added === 1 ? '' : 's'} with your tag — added to My Packs.`, 'success');
+        } else {
+            showToast('All packs with your tag are already in My Packs.', 'info');
+        }
+    } catch (err) {
+        showToast('Audit failed: ' + (err.message || err), 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔍 Find My Packs'; }
+    }
 }
 
 function renderMyGames() {
@@ -1724,6 +1765,7 @@ function bindEventListeners() {
     const editIdentityModal = document.getElementById('editIdentityModal');
     if (editIdentityModal) editIdentityModal.addEventListener('click', e => { if (e.target === editIdentityModal) closeEditIdentityModal(); });
     document.getElementById('resetMyProgressBtn').addEventListener('click', resetMyProgress);
+    document.getElementById('auditMyPacksBtn')?.addEventListener('click', auditMyGames);
     document.getElementById('leaveGameBtn').addEventListener('click', leaveGame);
     document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
     document.getElementById('copyCodeBtn').addEventListener('click', copyGameCode);
