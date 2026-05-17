@@ -518,15 +518,22 @@ function renderGameList() {
         row.className = 'game-row';
         const ts = g.updatedAt ? new Date(g.updatedAt).toLocaleString() : '—';
         const roundLabel = g.roundNumber > 1 ? ` · Round ${g.roundNumber}` : '';
-        const playerNames = Object.values(g.players).map(p => p.displayName || p.name || '?').join(', ') || '—';
+        let playerNames = '—';
+        try {
+            const players = g.players && typeof g.players === 'object' ? g.players : {};
+            const names = Object.values(players)
+                .map(p => (p && (p.displayName || p.name)) || '?')
+                .filter(Boolean);
+            if (names.length) playerNames = names.join(', ');
+        } catch (e) { /* leave as '—' */ }
         const checked = selectedGamesForDelete.has(g.code) ? 'checked' : '';
         row.innerHTML = `
-            <input type="checkbox" class="game-del-check" data-code="${g.code}" ${checked} style="flex:0 0 auto;margin-right:4px">
-            <div class="game-code">${g.code}</div>
+            <input type="checkbox" class="game-del-check" data-code="${escapeHtmlAdmin(g.code)}" ${checked} style="flex:0 0 auto;width:18px;height:18px;margin:0 4px 0 0;">
+            <div class="game-code">${escapeHtmlAdmin(g.code)}</div>
             <div class="game-info">
-                <div class="game-name">${g.name}</div>
+                <div class="game-name">${escapeHtmlAdmin(g.name)}</div>
                 <div class="game-meta">${g.playerCount} player${g.playerCount !== 1 ? 's' : ''}${roundLabel} · ${ts}</div>
-                <div class="game-meta" style="opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${playerNames}</div>
+                <div class="game-meta" style="opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtmlAdmin(playerNames)}</div>
             </div>
             <div class="game-status ${g.status}">${g.status === 'ended' ? 'Ended' : 'Active'}</div>`;
 
