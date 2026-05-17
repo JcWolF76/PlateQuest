@@ -1,6 +1,7 @@
 {
-  "version": "20260517c",
+  "version": "20260517d",
   "changelog": {
+    "20260517d": ["🐛 Fixed: React and Challenge buttons on leaderboard cards no longer fall through to opening the player detail card. Tapping them now actually fires the action."],
     "20260517c": ["👏 Reactions reworked — leaderboard cards now show a single \"👏 React\" button instead of four bare emoji icons that read like badges. Tap it and a floating picker (Facebook/LinkedIn style) shows all four reactions in big circular buttons. Tap one to send. Tap anywhere else to dismiss. Same reactions, less clutter."],
     "20260517b": ["🔍 New \"Find My Packs\" button on the setup screen — scans the server for every pack where your tag is a player and folds any missing ones into your My Packs list. Useful if you played from a different device or browser and your packs got dropped from local storage. My Packs capacity raised from 8 to 50."],
     "20260517a": ["🔄 New host-only Reset Round button — wipes all plates, first-finders, and region progress for the whole pack while keeping the round number the same. Use it for a clean do-over of the current round; use New Round to bump to a fresh round number."],

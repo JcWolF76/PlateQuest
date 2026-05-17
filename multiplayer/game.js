@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517c';
+const APP_VERSION = '20260517d';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517d': [
+        '🐛 Fixed: React and Challenge buttons on leaderboard cards no longer fall through to opening the player detail card. Tapping them now actually fires the action.',
+    ],
     '20260517c': [
         '👏 Reactions reworked — leaderboard cards now show a single "👏 React" button instead of four bare emoji icons that read like badges. Tap it and a floating picker (Facebook/LinkedIn style) shows all four reactions in big circular buttons. Tap one to send. Tap anywhere else to dismiss. Same reactions, less clutter.',
     ],
@@ -2338,12 +2341,16 @@ function updateScores() {
         let _tx = 0, _ty = 0, _tfire = 0;
         scoreCard.addEventListener('touchstart', e => { _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; }, { passive: true });
         scoreCard.addEventListener('touchend', e => {
+            // Don't treat a tap on an action button as a tap on the card.
+            // (touchend fires before click on mobile, so without this bail
+            // the card-detail opens before the button's click handler runs.)
+            if (e.target.closest('.react-trigger-btn') || e.target.closest('.challenge-btn') || e.target.closest('.reaction-popover') || e.target.closest('.reaction-pop-btn')) return;
             const dx = Math.abs(e.changedTouches[0].clientX - _tx);
             const dy = Math.abs(e.changedTouches[0].clientY - _ty);
             if (dx < 12 && dy < 12) { _tfire = Date.now(); openPlayerDetail(_pk); }
         }, { passive: true });
         scoreCard.addEventListener('click', e => {
-            if (e.target.closest('.react-trigger-btn') || e.target.closest('.challenge-btn') || e.target.closest('.reaction-popover')) return;
+            if (e.target.closest('.react-trigger-btn') || e.target.closest('.challenge-btn') || e.target.closest('.reaction-popover') || e.target.closest('.reaction-pop-btn')) return;
             if (Date.now() - _tfire > 350) openPlayerDetail(_pk);
         });
         const reactTrigger = scoreCard.querySelector('.react-trigger-btn');
