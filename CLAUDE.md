@@ -139,14 +139,24 @@ remediation was rotating the value, since git history can't be un-leaked.
 When the user asks for a gate / passcode feature:
 
 1. Put the value in code only (the file the gate logic lives in).
-2. In commit messages, refer to the change generically — "add codepad
-   gate to admin panel" — never name the value.
+2. **Describe the change normally in commit messages — what was added,
+   what files were touched, why.** The only thing you withhold is the
+   sensitive literal itself. Generic-everywhere is overcorrection and
+   makes the history useless for the user.
+   - Good: `feat: add codepad gate to admin panel (multiplayer/admin.html) with PIN-style auth and 3-strike lockout`
+   - Bad: `feat: codepad auth on admin panel, passcode 12345678` ← names the value
+   - Also bad: `fix: update admin` ← so vague the user can't tell what changed
 3. In any user-visible changelog or release note, describe the
    *capability* added, not the *value*.
 4. Remind the user that any client-side gate (the value in `admin.html`,
    for instance) is visible in browser View Source and is **not real
    security** — it's an obscurity barrier only. Real auth requires a
    server.
+
+The above applies **only to changes that touch sensitive values**. For
+all other work — features, bug fixes, refactors, docs — write detailed,
+descriptive commit messages as you normally would. The "don't name the
+literal" rule is narrow; the "be informative" rule is the default.
 
 ## 9. Don't add scope
 
