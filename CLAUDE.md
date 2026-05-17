@@ -233,3 +233,30 @@ fails (offline, CDN hiccup, etc.). It doesn't need every historical
 entry, but at minimum the latest entry should be there so a fallback
 modal shows real notes instead of "Performance improvements and bug
 fixes."
+
+## 12. Player tags are case-sensitive — never `.toUpperCase()` them
+
+The multiplayer game stores tags via `normalizeTagInput` in
+`multiplayer/game.js` (line ~878), which only strips non-alphanumeric
+characters and caps length at 8. **It preserves whatever case the user
+typed**, because tag case is meaningful: `JcWolF` reads as a distinct
+identity from `JCWOLF`.
+
+When writing or reviewing any code that touches a player tag — admin
+tools, rename flows, search inputs, anything — the rules are:
+
+- **Storage**: pass through `normalizeTagInput` (or its admin-side
+  mirror `normalizeTagAdmin` in `multiplayer/admin.html`). Never
+  `.toUpperCase()` a tag before saving it.
+- **Display / form inputs**: don't apply `style="text-transform: uppercase"`
+  on tag fields. The user is allowed to type mixed case and the
+  rendered input should show what they typed.
+- **Comparison / search**: case-insensitive matching is fine, but do
+  it by lowercasing both sides *for the comparison only*. Don't mutate
+  the user's input or the stored value to make the comparison cheaper.
+
+Game codes (`RM43ME`, `WOLF`) are the opposite — they go through
+`normalizeCodeInput`, which DOES uppercase. Don't confuse the two:
+codes uppercase, tags preserve case.
+
+Lapsing on this has broken the user's identity twice. Keep it.
