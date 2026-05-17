@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 //
-// PlateQuest © 2026 Jess Bliss (JcWoLF76). All rights reserved.
+// PlateQuest © 2026 Jess Bliss (JcWolF76). All rights reserved.
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 

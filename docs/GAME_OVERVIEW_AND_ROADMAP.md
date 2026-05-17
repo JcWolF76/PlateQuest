@@ -1,6 +1,6 @@
 # PlateQuest — Game Overview & Development Plan
 
-Created by Jess Bliss · Player tag: **JcWoLF76**
+Created by Jess Bliss · Player tag: **JcWolF76**
 
 ---
 
