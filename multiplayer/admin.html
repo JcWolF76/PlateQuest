@@ -617,6 +617,12 @@ async function loadGame() {
         document.getElementById('editorCard').style.display = 'none';
         selectedPlayerKey = null;
         plates = [];
+        // Clear status messages tied to the previously-loaded game so a stale
+        // 'Renamed to X' or 'Removed Y' doesn't linger over a different game.
+        const pms = document.getElementById('playerMgrStatus');
+        if (pms) pms.innerHTML = '';
+        const es = document.getElementById('editStatus');
+        if (es) es.innerHTML = '';
         renderPlayerMgr();
     } catch (err) {
         setStatus('loadStatus', 'Error: ' + err.message, 'err');
