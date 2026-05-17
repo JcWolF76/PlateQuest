@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260429z';
+const APP_VERSION = '20260430a';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -847,7 +847,6 @@ let attemptedAutoResume = false;
 let currentConnectionState = 'connecting';
 let presenceCleanup = null;
 let pendingJcWolFPlayer = null;  // player object held while PIN modal is open
-const DEV_TOOLS_PASSCODE = 'REDACTED';
 let wolfPinEntry = '';           // digits typed so far in the PIN modal
 let heartbeatInterval = null;
 let pendingGameCodeFromUrl = null;
@@ -1797,16 +1796,8 @@ function bindEventListeners() {
         const btn = e.target.closest('.wolf-pin-key[data-digit]');
         if (btn) wolfPinDigit(btn.dataset.digit);
     });
-    // Setup-page Dev Tools button (JcWolF only) + passcode modal
-    document.getElementById('setupDevToolsBtn')?.addEventListener('click', openDevAccessModal);
-    document.getElementById('devAccessCancelBtn')?.addEventListener('click', closeDevAccessModal);
-    document.getElementById('devAccessSubmitBtn')?.addEventListener('click', submitDevAccessPasscode);
-    document.getElementById('devAccessInput')?.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); submitDevAccessPasscode(); }
-        else if (e.key === 'Escape') closeDevAccessModal();
-    });
-    const devAccessModal = document.getElementById('devAccessModal');
-    if (devAccessModal) devAccessModal.addEventListener('click', e => { if (e.target === devAccessModal) closeDevAccessModal(); });
+    // Setup-page Dev Tools button (JcWolF only) — opens admin panel, which has its own codepad gate
+    document.getElementById('setupDevToolsBtn')?.addEventListener('click', () => window.open('admin.html', '_blank'));
     // Feedback modal
     document.querySelectorAll('.open-feedback-btn').forEach(btn => btn.addEventListener('click', openFeedbackModal));
     document.getElementById('feedbackCancelBtn')?.addEventListener('click', closeFeedbackModal);
@@ -1902,34 +1893,6 @@ function updateSetupDevToolsVisibility() {
     const row = document.getElementById('setupDevToolsRow');
     if (!row) return;
     row.style.display = currentPlayer?.tag === 'JcWolF' ? 'flex' : 'none';
-}
-
-function openDevAccessModal() {
-    const modal = document.getElementById('devAccessModal');
-    if (!modal) return;
-    const input = document.getElementById('devAccessInput');
-    input.value = '';
-    document.getElementById('devAccessError').textContent = '';
-    modal.style.display = 'flex';
-    setTimeout(() => input.focus(), 120);
-}
-
-function closeDevAccessModal() {
-    const modal = document.getElementById('devAccessModal');
-    if (modal) modal.style.display = 'none';
-}
-
-function submitDevAccessPasscode() {
-    const input = document.getElementById('devAccessInput');
-    const err = document.getElementById('devAccessError');
-    if (input.value === DEV_TOOLS_PASSCODE) {
-        closeDevAccessModal();
-        window.open('admin.html', '_blank');
-    } else {
-        err.textContent = 'Incorrect passcode.';
-        input.value = '';
-        input.focus();
-    }
 }
 
 function openEditIdentityModal() {
