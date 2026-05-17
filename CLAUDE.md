@@ -194,25 +194,38 @@ Examples (assuming today is 2026-05-17):
 - Second push today: `20260517b` ✓
 - Reusing `20260430c` because the file already had `20260430b`: ✗
 
-## 11. Bumping `version.json` is a TWO-FILE change — also update `APP_VERSION`
+## 11. Bumping `version.json` is a THREE-FILE change
 
-`multiplayer/version.json` is the source of truth fetched by the client
-to decide whether to show the update banner. But the *current* version
-that the client compares against is **hardcoded** into
-`multiplayer/game.js` as `const APP_VERSION = '...'` (line ~9, search
-`APP_VERSION`).
+A version bump must touch **all three** of these in the same commit, all
+set to the same value (e.g. `20260517a`):
 
-If you bump `version.json` without also bumping `APP_VERSION`, every
-visitor's browser fetches the new `version.json`, sees a mismatch, shows
-the update banner — and on reload **the same old `game.js` loads again
-with the same old `APP_VERSION` constant**, so the mismatch persists and
-the banner re-appears. **Infinite loop for every user.** This has
-happened twice already.
+1. **`multiplayer/version.json`** — `"version"` field at the top, plus a
+   new changelog entry keyed by the same string.
+2. **`multiplayer/game.js`** — `const APP_VERSION = '...'` at line ~9
+   (search `APP_VERSION`). This is the value the client compares fresh
+   `version.json` against to decide whether to show the update banner.
+3. **`multiplayer/index.html`** — the `?v=...` cache-buster on the
+   game.js script tag (`<script src="game.js?v=YYYYMMDDx"></script>`,
+   search `game.js?v=`). Without bumping this, every browser keeps
+   loading the cached old `game.js` (same URL = same cache entry), so
+   even after the deploy lands the user still gets the stale
+   `APP_VERSION` constant.
 
-The rule: whenever you change `multiplayer/version.json`, you MUST also
-edit `multiplayer/game.js` to set `APP_VERSION` to the exact same value
-in the same commit. They are a pair. There is no scenario where bumping
-only one is correct.
+Missing **any** of the three creates an infinite update-banner loop:
+
+- Skip `APP_VERSION`: client fetches new `version.json`, sees mismatch,
+  reloads — same old `game.js` runs with same old `APP_VERSION` — same
+  mismatch — loops forever.
+- Skip the script-tag `?v=`: the browser keeps the cached `game.js`
+  blob keyed on `?v=<old>`, so even though `APP_VERSION` is fixed in
+  the file on disk, the user never receives that file — loops forever.
+- Skip `version.json`: nothing visible happens (no update modal), but
+  fallback `CHANGELOG` drifts out of sync with reality.
+
+The loop has been shipped to production three times. Do not ship a
+fourth. Search-and-verify: before committing a version bump, run
+`grep -E '20260[0-9]{3}[a-z]|APP_VERSION|game\\.js\\?v=' multiplayer/`
+and make sure all three references agree.
 
 Also keep the `CHANGELOG` constant near the top of `game.js` in rough
 sync — that's the fallback the modal uses when the `version.json` fetch
