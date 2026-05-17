@@ -169,3 +169,27 @@ PlateQuest is an indie weekend project, not enterprise software. Avoid:
 - Adding "future-proofing" abstractions for features that don't exist yet.
 - Writing docs files (`*.md`) unless the user explicitly asks. `docs/`
   already exists for the user's own writing.
+
+## 10. Dates — always use today's actual date
+
+When creating any dated identifier — version strings in
+`multiplayer/version.json`, changelog entries, dated filenames, anything
+that references "today" — **check the actual current date and use it.**
+Do NOT mechanically bump a letter suffix on whatever date string is
+already in the file; that's how `20260430b` ended up shipping on
+2026-05-17.
+
+The session's current date is provided in the harness reminder at the
+top of the session prompt as `Today's date is YYYY-MM-DD`. That is the
+source of truth. (You can also run `date +%Y%m%d` if needed.)
+
+**Version string format:** `YYYYMMDD<letter>` where `<letter>` is a
+lowercase suffix. First release of a new day starts at `a`; same day
+again increments to `b`, `c`, etc. Crossing a date boundary always
+resets to `a` for the new date — never carry the suffix sequence
+across days.
+
+Examples (assuming today is 2026-05-17):
+- First push today: `20260517a` ✓
+- Second push today: `20260517b` ✓
+- Reusing `20260430c` because the file already had `20260430b`: ✗
