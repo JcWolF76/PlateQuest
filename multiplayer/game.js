@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260430a';
+const APP_VERSION = '20260517a';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,15 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517a': [
+        '🔄 New host-only Reset Round button — wipes all plates, first-finders, and region progress for the whole pack while keeping the round number the same. Use it for a clean do-over of the current round; use New Round to bump to a fresh round number.',
+    ],
+    '20260430b': [
+        '🔧 Maintenance update',
+    ],
+    '20260430a': [
+        '🔐 Admin panel now uses a numeric codepad gate (same style as the JcWolF PlayerTag PIN). Setup-page Dev Tools button now opens it directly.',
+    ],
     '20260424a': [
         '😈 Taunts — fire friendly trash talk at specific players or the whole pack',
     ],

@@ -193,3 +193,30 @@ Examples (assuming today is 2026-05-17):
 - First push today: `20260517a` ✓
 - Second push today: `20260517b` ✓
 - Reusing `20260430c` because the file already had `20260430b`: ✗
+
+## 11. Bumping `version.json` is a TWO-FILE change — also update `APP_VERSION`
+
+`multiplayer/version.json` is the source of truth fetched by the client
+to decide whether to show the update banner. But the *current* version
+that the client compares against is **hardcoded** into
+`multiplayer/game.js` as `const APP_VERSION = '...'` (line ~9, search
+`APP_VERSION`).
+
+If you bump `version.json` without also bumping `APP_VERSION`, every
+visitor's browser fetches the new `version.json`, sees a mismatch, shows
+the update banner — and on reload **the same old `game.js` loads again
+with the same old `APP_VERSION` constant**, so the mismatch persists and
+the banner re-appears. **Infinite loop for every user.** This has
+happened twice already.
+
+The rule: whenever you change `multiplayer/version.json`, you MUST also
+edit `multiplayer/game.js` to set `APP_VERSION` to the exact same value
+in the same commit. They are a pair. There is no scenario where bumping
+only one is correct.
+
+Also keep the `CHANGELOG` constant near the top of `game.js` in rough
+sync — that's the fallback the modal uses when the `version.json` fetch
+fails (offline, CDN hiccup, etc.). It doesn't need every historical
+entry, but at minimum the latest entry should be there so a fallback
+modal shows real notes instead of "Performance improvements and bug
+fixes."
