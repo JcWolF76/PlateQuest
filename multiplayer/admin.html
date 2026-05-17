@@ -175,7 +175,41 @@ button:disabled { opacity: 0.4; cursor: default; }
         <div id="gameList"><div class="browser-empty">Loading…</div></div>
     </div>
 
-    <h2 style="margin-bottom:20px">🛠️ Timestamp Editor</h2>
+    <h2 style="margin:24px 0 16px">👥 Player Management</h2>
+
+    <!-- Cross-game finder -->
+    <div class="card" id="findCard">
+        <h3>Find My Records Across Games</h3>
+        <div class="row">
+            <input id="findTagInput" placeholder="Tag to find (e.g. MRBLISS)" style="text-transform:uppercase;letter-spacing:0.05em">
+            <button onclick="findMyRecords()">Search</button>
+        </div>
+        <div id="findResultsStats" style="font-size:12px;color:rgba(255,255,255,0.5);margin:10px 0"></div>
+        <div id="findResultsList"></div>
+        <div id="bulkRenameSection" style="display:none;border-top:1px solid #2e4a68;padding-top:14px;margin-top:14px">
+            <div style="font-size:13px;color:#7eb8f7;font-weight:600;margin-bottom:8px">Bulk rename all matches</div>
+            <div class="row" style="margin-bottom:8px">
+                <input id="bulkNewName" placeholder="New name (e.g. JcWolF)">
+                <input id="bulkNewTag" placeholder="New tag" style="text-transform:uppercase">
+            </div>
+            <button onclick="bulkRenameMatches()">Apply to all matches</button>
+            <div id="bulkRenameStatus"></div>
+        </div>
+    </div>
+
+    <!-- In-game player manager (appears when a game is loaded) -->
+    <div class="card" id="playerMgrCard" style="display:none">
+        <h3 id="playerMgrTitle">Players in this game</h3>
+        <div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:10px">Tick 2+ to merge. ✏️ to rename in place. 🗑 to delete from this game only.</div>
+        <div id="playerMgrList"></div>
+        <div id="mergeBar" style="display:none;border-top:1px solid #2e4a68;padding-top:12px;margin-top:12px;display:flex;align-items:center;gap:10px">
+            <span id="mergeCount" style="font-size:13px;color:#7eb8f7"></span>
+            <button onclick="openMergeDialog()" id="mergeBtn" style="margin-left:auto">Merge selected →</button>
+        </div>
+        <div id="playerMgrStatus"></div>
+    </div>
+
+    <h2 style="margin:24px 0 16px">🛠️ Timestamp Editor</h2>
 
     <!-- Game loader -->
     <div class="card">
@@ -493,6 +527,7 @@ async function loadGame() {
         document.getElementById('editorCard').style.display = 'none';
         selectedPlayerKey = null;
         plates = [];
+        renderPlayerMgr();
     } catch (err) {
         setStatus('loadStatus', 'Error: ' + err.message, 'err');
     }
@@ -664,6 +699,388 @@ document.getElementById('gameCodeInput')?.addEventListener('input', function() {
     this.value = this.value.toUpperCase();
 });
 document.getElementById('gameCodeInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') loadGame(); });
+
+// ── In-game Player Manager ────────────────────────────────────────────────────
+const selectedForMerge = new Set();
+
+function currentGameCodeUpper() {
+    return (document.getElementById('gameCodeInput').value || '').trim().toUpperCase();
+}
+
+function renderPlayerMgr() {
+    const card = document.getElementById('playerMgrCard');
+    if (!gameData || !gameData.players) { card.style.display = 'none'; return; }
+    card.style.display = '';
+
+    const code = currentGameCodeUpper();
+    document.getElementById('playerMgrTitle').textContent = `Players in "${gameData.name || code}" (${Object.keys(gameData.players).length})`;
+
+    const list = document.getElementById('playerMgrList');
+    list.innerHTML = '';
+    selectedForMerge.clear();
+    updateMergeBar();
+
+    Object.entries(gameData.players).forEach(([key, p]) => {
+        const plateCount = Object.keys(p.states || {}).length;
+        const coins = p.coins || 0;
+        const isHost = key === gameData.hostPlayerKey;
+        const row = document.createElement('div');
+        row.className = 'plate-row';
+        row.style.cssText = 'cursor:default;flex-wrap:wrap';
+        const shortKey = key.length > 36 ? key.slice(0, 36) + '…' : key;
+        row.innerHTML = `
+            <input type="checkbox" data-key="${key}" class="mgr-check" style="margin-right:6px;flex:0 0 auto">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600">
+                    ${escapeHtmlAdmin(p.displayName || p.name || key)}
+                    ${isHost ? '<span style="color:#f1c40f;font-size:11px;margin-left:6px">★ host</span>' : ''}
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.5);overflow:hidden;text-overflow:ellipsis">
+                    ${plateCount} plate${plateCount===1?'':'s'} · ${coins} coins · <span style="font-family:monospace">${shortKey}</span>
+                </div>
+            </div>
+            <button class="secondary" data-action="rename" data-key="${key}" style="font-size:11px;padding:5px 10px;flex:0 0 auto">✏️</button>
+            <button class="danger" data-action="delete" data-key="${key}" style="font-size:11px;padding:5px 10px;flex:0 0 auto">🗑</button>
+        `;
+        list.appendChild(row);
+    });
+
+    list.querySelectorAll('.mgr-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const k = cb.dataset.key;
+            if (cb.checked) selectedForMerge.add(k); else selectedForMerge.delete(k);
+            updateMergeBar();
+        });
+    });
+    list.querySelectorAll('[data-action="rename"]').forEach(btn => {
+        btn.addEventListener('click', () => openRenameFlow(btn.dataset.key));
+    });
+    list.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => deletePlayerInGameUI(btn.dataset.key));
+    });
+}
+
+function updateMergeBar() {
+    const bar = document.getElementById('mergeBar');
+    const n = selectedForMerge.size;
+    bar.style.display = (n >= 2) ? 'flex' : 'none';
+    document.getElementById('mergeCount').textContent = n >= 2 ? `${n} selected` : '';
+}
+
+async function openRenameFlow(playerKey) {
+    const p = gameData.players[playerKey];
+    if (!p) return;
+    const newName = prompt(`New name for "${p.displayName || p.name || playerKey}":`, p.name || '');
+    if (newName === null) return;
+    const trimName = newName.trim();
+    if (!trimName) { alert('Name required.'); return; }
+    const newTag = prompt('New tag:', p.tag || '');
+    if (newTag === null) return;
+    const trimTag = newTag.trim().toUpperCase();
+    if (!trimTag) { alert('Tag required.'); return; }
+
+    setStatus('playerMgrStatus', 'Renaming…', 'info');
+    try {
+        await renamePlayerInGame(currentGameCodeUpper(), playerKey, trimName, trimTag);
+        await loadGame();
+        setStatus('playerMgrStatus', `✅ Renamed to "${trimName} (${trimTag})"`, 'ok');
+    } catch (err) {
+        setStatus('playerMgrStatus', 'Error: ' + err.message, 'err');
+    }
+}
+
+// Reusable: rename one player in one game, also rewriting claimedStates + foundBy refs.
+async function renamePlayerInGame(gameCode, playerKey, newName, newTag) {
+    const ref = db.ref(`games/${gameCode}`);
+    const displayName = `${newName} (${newTag})`;
+
+    const updates = {};
+    updates[`players/${playerKey}/name`] = newName;
+    updates[`players/${playerKey}/tag`] = newTag;
+    updates[`players/${playerKey}/displayName`] = displayName;
+
+    // Update first-finder claims this player owns
+    const claimsSnap = await ref.child('claimedStates').once('value');
+    const claims = claimsSnap.val() || {};
+    Object.entries(claims).forEach(([state, claim]) => {
+        if (claim.playerKey === playerKey) {
+            updates[`claimedStates/${state}/name`] = newName;
+            updates[`claimedStates/${state}/tag`] = newTag;
+            updates[`claimedStates/${state}/displayName`] = displayName;
+        }
+    });
+
+    // Update historical foundBy on this player's own states (the cosmetic "found by ___" string on plate cards)
+    const statesSnap = await ref.child(`players/${playerKey}/states`).once('value');
+    const states = statesSnap.val() || {};
+    Object.keys(states).forEach(stateName => {
+        if (states[stateName] && states[stateName].foundByKey === playerKey) {
+            updates[`players/${playerKey}/states/${stateName}/foundBy`] = displayName;
+        }
+    });
+
+    await ref.update(updates);
+}
+
+async function deletePlayerInGameUI(playerKey) {
+    const p = gameData.players[playerKey];
+    if (!confirm(`Delete "${p.displayName || playerKey}" from this game?\n\nRemoves their plates, coins, and any first-finder claims. Cannot be undone.`)) return;
+    setStatus('playerMgrStatus', 'Deleting…', 'info');
+    try {
+        const ref = db.ref(`games/${currentGameCodeUpper()}`);
+        const updates = {};
+        updates[`players/${playerKey}`] = null;
+        const claimsSnap = await ref.child('claimedStates').once('value');
+        const claims = claimsSnap.val() || {};
+        Object.entries(claims).forEach(([state, claim]) => {
+            if (claim.playerKey === playerKey) updates[`claimedStates/${state}`] = null;
+        });
+        if (gameData.hostPlayerKey === playerKey) updates['hostPlayerKey'] = null;
+        await ref.update(updates);
+        await loadGame();
+        setStatus('playerMgrStatus', `✅ Player deleted.`, 'ok');
+    } catch (err) {
+        setStatus('playerMgrStatus', 'Error: ' + err.message, 'err');
+    }
+}
+
+// ── Merge dialog ──────────────────────────────────────────────────────────────
+function openMergeDialog() {
+    if (selectedForMerge.size < 2) return;
+    const players = [...selectedForMerge].map(k => ({ key: k, ...(gameData.players[k] || {}) }));
+
+    const modal = document.createElement('div');
+    modal.id = 'mergeModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999';
+    modal.innerHTML = `
+        <div style="background:#1a2d42;border:1px solid #2e4a68;border-radius:14px;padding:18px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto">
+            <h2 style="font-size:18px;color:#7eb8f7;margin-bottom:8px">Merge Players</h2>
+            <div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:14px">Pick the player to KEEP. Others' plates, coins, effects, and first-finder claims fold into the winner; then the loser records get deleted.</div>
+            <div id="mergeWinnerList">
+                ${players.map(p => `
+                    <label style="display:block;background:#0d1b2a;border:1px solid #2e4a68;border-radius:8px;padding:10px 14px;margin-bottom:8px;cursor:pointer">
+                        <input type="radio" name="mergeWinner" value="${p.key}" style="margin-right:8px">
+                        <strong>${escapeHtmlAdmin(p.displayName || p.name || p.key)}</strong>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px">
+                            ${Object.keys(p.states || {}).length} plates · ${p.coins || 0} coins
+                            <div style="font-family:monospace;margin-top:2px;opacity:0.7">${p.key}</div>
+                        </div>
+                    </label>
+                `).join('')}
+            </div>
+            <div id="mergePreview" style="font-size:12px;color:rgba(255,255,255,0.7);margin:10px 0;line-height:1.5"></div>
+            <div id="mergeStatus"></div>
+            <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+                <button class="secondary" onclick="closeMergeDialog()">Cancel</button>
+                <button onclick="confirmMerge()" id="confirmMergeBtn" disabled>Merge</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll('input[name="mergeWinner"]').forEach(r => {
+        r.addEventListener('change', () => {
+            document.getElementById('confirmMergeBtn').disabled = false;
+            updateMergePreview();
+        });
+    });
+}
+
+function updateMergePreview() {
+    const winnerKey = document.querySelector('input[name="mergeWinner"]:checked')?.value;
+    if (!winnerKey) return;
+    const winner = gameData.players[winnerKey];
+    const losers = [...selectedForMerge].filter(k => k !== winnerKey).map(k => gameData.players[k]);
+    const plateIn = losers.reduce((s, p) => s + Object.keys(p.states || {}).length, 0);
+    const coinIn = losers.reduce((s, p) => s + (p.coins || 0), 0);
+    document.getElementById('mergePreview').innerHTML = `
+        <strong>Winner:</strong> ${escapeHtmlAdmin(winner.displayName || winner.name)}<br>
+        <strong>Folding in:</strong> ${losers.length} record${losers.length===1?'':'s'} carrying ${plateIn} plate${plateIn===1?'':'s'} and ${coinIn} coin${coinIn===1?'':'s'}<br>
+        <strong>Plate conflicts:</strong> earliest <code>foundAt</code> wins<br>
+        <strong>Effects:</strong> max remaining expiry per effect
+    `;
+}
+
+function closeMergeDialog() {
+    document.getElementById('mergeModal')?.remove();
+}
+
+async function confirmMerge() {
+    const winnerKey = document.querySelector('input[name="mergeWinner"]:checked')?.value;
+    if (!winnerKey) return;
+    const loserKeys = [...selectedForMerge].filter(k => k !== winnerKey);
+    if (!loserKeys.length) return;
+
+    const winner = gameData.players[winnerKey];
+    setStatus('mergeStatus', 'Merging…', 'info');
+    try {
+        const ref = db.ref(`games/${currentGameCodeUpper()}`);
+
+        const mergedStates = { ...(winner.states || {}) };
+        const mergedEffects = { ...(winner.effects || {}) };
+        let mergedCoins = winner.coins || 0;
+
+        for (const loserKey of loserKeys) {
+            const loser = gameData.players[loserKey];
+            if (!loser) continue;
+            mergedCoins += loser.coins || 0;
+
+            Object.entries(loser.states || {}).forEach(([stateName, rec]) => {
+                const existing = mergedStates[stateName];
+                const winnerRecord = (existing && (existing.foundAt || 0) <= (rec.foundAt || 0))
+                    ? existing
+                    : rec;
+                mergedStates[stateName] = {
+                    ...winnerRecord,
+                    foundBy: winner.displayName,
+                    foundByKey: winnerKey,
+                };
+            });
+
+            Object.entries(loser.effects || {}).forEach(([k, v]) => {
+                const cur = mergedEffects[k];
+                if (typeof v === 'number') {
+                    mergedEffects[k] = Math.max(typeof cur === 'number' ? cur : 0, v);
+                } else if (v === true) {
+                    mergedEffects[k] = true;
+                }
+            });
+        }
+
+        const updates = {};
+        updates[`players/${winnerKey}/coins`] = mergedCoins;
+        updates[`players/${winnerKey}/states`] = mergedStates;
+        updates[`players/${winnerKey}/effects`] = mergedEffects;
+
+        // Retarget first-finder claims to the winner
+        const claimsSnap = await ref.child('claimedStates').once('value');
+        const claims = claimsSnap.val() || {};
+        Object.entries(claims).forEach(([state, claim]) => {
+            if (loserKeys.includes(claim.playerKey)) {
+                updates[`claimedStates/${state}`] = {
+                    state,
+                    playerKey: winnerKey,
+                    name: winner.name,
+                    tag: winner.tag,
+                    displayName: winner.displayName,
+                    claimedAt: claim.claimedAt,
+                };
+            }
+        });
+
+        // Host transfer
+        if (loserKeys.includes(gameData.hostPlayerKey)) {
+            updates['hostPlayerKey'] = winnerKey;
+            updates[`players/${winnerKey}/isHost`] = true;
+            updates[`players/${winnerKey}/role`] = 'host';
+        }
+
+        // Delete losers
+        loserKeys.forEach(k => { updates[`players/${k}`] = null; });
+
+        await ref.update(updates);
+        setStatus('mergeStatus', `✅ Merged ${loserKeys.length} record${loserKeys.length===1?'':'s'} into "${winner.displayName}"`, 'ok');
+        setTimeout(() => { closeMergeDialog(); loadGame(); }, 1200);
+    } catch (err) {
+        setStatus('mergeStatus', 'Error: ' + err.message, 'err');
+    }
+}
+
+// ── Cross-game finder ─────────────────────────────────────────────────────────
+let currentMatches = [];
+
+async function findMyRecords() {
+    const tag = (document.getElementById('findTagInput').value || '').trim().toUpperCase();
+    if (!tag) {
+        document.getElementById('findResultsStats').textContent = 'Enter a tag to search.';
+        document.getElementById('findResultsList').innerHTML = '';
+        document.getElementById('bulkRenameSection').style.display = 'none';
+        currentMatches = [];
+        return;
+    }
+    document.getElementById('findResultsStats').textContent = 'Searching all games…';
+    try {
+        const snap = await db.ref('games').once('value');
+        const raw = snap.val() || {};
+        currentMatches = [];
+        Object.entries(raw).forEach(([code, data]) => {
+            Object.entries(data.players || {}).forEach(([key, p]) => {
+                if ((p.tag || '').toUpperCase() === tag) {
+                    currentMatches.push({
+                        gameCode: code,
+                        gameName: data.name || '(unnamed)',
+                        playerKey: key,
+                        displayName: p.displayName || p.name || '?',
+                        name: p.name || '',
+                        tag: p.tag || '',
+                        plateCount: Object.keys(p.states || {}).length,
+                        coins: p.coins || 0,
+                    });
+                }
+            });
+        });
+        renderRecordResults();
+    } catch (err) {
+        document.getElementById('findResultsStats').textContent = 'Error: ' + err.message;
+    }
+}
+
+function renderRecordResults() {
+    const list = document.getElementById('findResultsList');
+    const stats = document.getElementById('findResultsStats');
+    const bulk = document.getElementById('bulkRenameSection');
+
+    if (!currentMatches.length) {
+        stats.textContent = 'No matches.';
+        list.innerHTML = '';
+        bulk.style.display = 'none';
+        return;
+    }
+    const gameCount = new Set(currentMatches.map(m => m.gameCode)).size;
+    stats.textContent = `${currentMatches.length} record${currentMatches.length===1?'':'s'} across ${gameCount} game${gameCount===1?'':'s'}`;
+    list.innerHTML = currentMatches.map(m => `
+        <div class="plate-row" style="cursor:default;flex-wrap:wrap">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600">${escapeHtmlAdmin(m.displayName)}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.5)">
+                    <span style="font-family:monospace;color:#7eb8f7">[${m.gameCode}]</span>
+                    ${escapeHtmlAdmin(m.gameName)} · ${m.plateCount} plates · ${m.coins} coins
+                </div>
+            </div>
+            <button class="secondary" onclick="jumpToGame('${m.gameCode}')" style="font-size:11px;padding:5px 10px;flex:0 0 auto">Open</button>
+        </div>
+    `).join('');
+    bulk.style.display = '';
+}
+
+function jumpToGame(code) {
+    document.getElementById('gameCodeInput').value = code;
+    loadGame();
+    document.getElementById('gameCodeInput').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function bulkRenameMatches() {
+    const newName = (document.getElementById('bulkNewName').value || '').trim();
+    const newTag = (document.getElementById('bulkNewTag').value || '').trim().toUpperCase();
+    if (!newName || !newTag) { setStatus('bulkRenameStatus', 'Both name and tag required.', 'err'); return; }
+    if (!currentMatches.length) return;
+    const gameCount = new Set(currentMatches.map(m => m.gameCode)).size;
+    if (!confirm(`Rename ${currentMatches.length} record${currentMatches.length===1?'':'s'} to "${newName} (${newTag})" across ${gameCount} game${gameCount===1?'':'s'}?\n\nCannot be undone.`)) return;
+
+    setStatus('bulkRenameStatus', 'Applying…', 'info');
+    let ok = 0, fail = 0;
+    for (const m of currentMatches) {
+        try {
+            await renamePlayerInGame(m.gameCode, m.playerKey, newName, newTag);
+            ok++;
+        } catch (err) {
+            fail++;
+            console.error(`Rename failed for ${m.gameCode}/${m.playerKey}:`, err);
+        }
+    }
+    setStatus('bulkRenameStatus', `${ok} renamed${fail ? ` · ${fail} failed (see console)` : ''}`, fail ? 'err' : 'ok');
+    findMyRecords();
+}
 </script>
 </body>
 </html>
