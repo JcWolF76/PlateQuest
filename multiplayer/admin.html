@@ -820,6 +820,12 @@ function currentGameCodeUpper() {
 function renderPlayerMgr() {
     const card = document.getElementById('playerMgrCard');
     if (!gameData || !gameData.players) { card.style.display = 'none'; return; }
+    // Defensive clear of any stale per-action status from a previous game,
+    // belt-and-suspenders to the clear in loadGame(). openRenameFlow /
+    // deletePlayerInGameUI re-set this AFTER calling loadGame so live
+    // confirmations for the just-loaded game still appear.
+    const pms = document.getElementById('playerMgrStatus');
+    if (pms) pms.innerHTML = '';
     card.style.display = '';
 
     const code = currentGameCodeUpper();
