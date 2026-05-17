@@ -703,6 +703,20 @@ document.getElementById('gameCodeInput')?.addEventListener('keydown', e => { if 
 // ── In-game Player Manager ────────────────────────────────────────────────────
 const selectedForMerge = new Set();
 
+// Mirror the slugify + tag-normalize logic from game.js so admin-computed
+// playerKeys match the keys the multiplayer client will derive at runtime.
+// game.js:876  function slugify(value) { ... toLowerCase().replace(/[^a-z0-9]+/g,'_')... }
+// game.js:878  function normalizeTagInput(value) { ... replace(/[^a-zA-Z0-9]/g,'').slice(0,8); }
+function slugifyAdmin(value) {
+    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+}
+function normalizeTagAdmin(value) {
+    return String(value || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
+}
+function derivedKey(name, tag) {
+    return `${slugifyAdmin(name)}__${slugifyAdmin(normalizeTagAdmin(tag))}`;
+}
+
 function currentGameCodeUpper() {
     return (document.getElementById('gameCodeInput').value || '').trim().toUpperCase();
 }
@@ -790,6 +804,9 @@ async function openRenameFlow(playerKey) {
 }
 
 // Reusable: rename one player in one game, also rewriting claimedStates + foundBy refs.
+// After the field update, auto-re-keys the record if the derived slug key
+// no longer matches the current playerKey (e.g. renamed Jc → JcWolF, so
+// jc__jcwolf needs to become jcwolf__jcwolf to match the device's derivation).
 async function renamePlayerInGame(gameCode, playerKey, newName, newTag) {
     const ref = db.ref(`games/${gameCode}`);
     const displayName = `${newName} (${newTag})`;
@@ -820,6 +837,70 @@ async function renamePlayerInGame(gameCode, playerKey, newName, newTag) {
     });
 
     await ref.update(updates);
+
+    // Auto-re-key if the derived key changed (rename changes slug-derived key).
+    const newDerived = derivedKey(newName, newTag);
+    if (newDerived !== playerKey) {
+        await rekeyPlayerInGame(gameCode, playerKey, newDerived, { allowOverwrite: true });
+    }
+}
+
+// Move a player record from oldKey to newKey within one game. Rewrites
+// foundByKey on every state, repoints claimedStates entries, and transfers
+// hostPlayerKey if applicable. With allowOverwrite, a destination key that
+// already exists but holds an empty record (0 plates, 0 coins) gets clobbered;
+// without it, a non-empty destination throws so data is never silently lost.
+async function rekeyPlayerInGame(gameCode, oldKey, newKey, opts = {}) {
+    if (oldKey === newKey) return false;
+    const ref = db.ref(`games/${gameCode}`);
+
+    const [srcSnap, dstSnap, claimsSnap, gameSnap] = await Promise.all([
+        ref.child(`players/${oldKey}`).once('value'),
+        ref.child(`players/${newKey}`).once('value'),
+        ref.child('claimedStates').once('value'),
+        ref.child('hostPlayerKey').once('value'),
+    ]);
+    const src = srcSnap.val();
+    if (!src) throw new Error(`Source player ${oldKey} not found in ${gameCode}`);
+
+    const dst = dstSnap.val();
+    if (dst) {
+        const dstHasContent = Object.keys(dst.states || {}).length > 0 || (dst.coins || 0) > 0;
+        if (dstHasContent && !opts.allowOverwrite) {
+            throw new Error(`Destination key ${newKey} already has content. Merge first, then re-key.`);
+        }
+    }
+
+    // Rewrite foundByKey on the source player's states so any self-references
+    // point at the new key.
+    const newStates = {};
+    Object.entries(src.states || {}).forEach(([stateName, rec]) => {
+        if (rec && rec.foundByKey === oldKey) {
+            newStates[stateName] = { ...rec, foundByKey: newKey };
+        } else {
+            newStates[stateName] = rec;
+        }
+    });
+
+    const updates = {};
+    updates[`players/${newKey}`] = { ...src, states: newStates };
+    updates[`players/${oldKey}`] = null;
+
+    // Repoint claimedStates that pointed at the old key
+    const claims = claimsSnap.val() || {};
+    Object.entries(claims).forEach(([state, claim]) => {
+        if (claim.playerKey === oldKey) {
+            updates[`claimedStates/${state}/playerKey`] = newKey;
+        }
+    });
+
+    // Transfer host pointer
+    if (gameSnap.val() === oldKey) {
+        updates['hostPlayerKey'] = newKey;
+    }
+
+    await ref.update(updates);
+    return true;
 }
 
 async function deletePlayerInGameUI(playerKey) {
@@ -979,8 +1060,26 @@ async function confirmMerge() {
         loserKeys.forEach(k => { updates[`players/${k}`] = null; });
 
         await ref.update(updates);
-        setStatus('mergeStatus', `✅ Merged ${loserKeys.length} record${loserKeys.length===1?'':'s'} into "${winner.displayName}"`, 'ok');
-        setTimeout(() => { closeMergeDialog(); loadGame(); }, 1200);
+
+        // Auto-re-key the winner if its current key doesn't match the slug
+        // derived from its current name+tag. After the loser-delete updates
+        // above, the destination slot is empty if a loser had been holding it.
+        const winnerDerived = derivedKey(winner.name, winner.tag);
+        let finalKey = winnerKey;
+        if (winnerDerived !== winnerKey) {
+            try {
+                await rekeyPlayerInGame(currentGameCodeUpper(), winnerKey, winnerDerived, { allowOverwrite: true });
+                finalKey = winnerDerived;
+            } catch (rekeyErr) {
+                // Surface the failure but leave the merge result in place — the
+                // user can re-key manually later or rename the winner.
+                console.warn('Post-merge re-key skipped:', rekeyErr);
+            }
+        }
+
+        const keyNote = finalKey !== winnerKey ? ` (also re-keyed: ${winnerKey} → ${finalKey})` : '';
+        setStatus('mergeStatus', `✅ Merged ${loserKeys.length} record${loserKeys.length===1?'':'s'} into "${winner.displayName}"${keyNote}`, 'ok');
+        setTimeout(() => { closeMergeDialog(); loadGame(); }, 1500);
     } catch (err) {
         setStatus('mergeStatus', 'Error: ' + err.message, 'err');
     }
