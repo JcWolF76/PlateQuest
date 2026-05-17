@@ -175,6 +175,19 @@
         .edit-identity-field input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #ecf0f1; font-size: 15px; padding: 11px 12px; box-sizing: border-box; font-family: inherit; }
         .edit-identity-field input:focus { outline: none; border-color: #3498db; }
         .edit-identity-actions { display: flex; gap: 10px; margin-top: 20px; }
+        /* Setup Dev Tools row (JcWolF only) */
+        .dev-tools-row { margin: 12px 0 8px; display: flex; justify-content: center; }
+        .dev-tools-row .btn { padding: 12px 22px; font-size: 14px; }
+        /* Developer Access passcode modal */
+        .dev-access-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 1400; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .dev-access-sheet { background: linear-gradient(160deg, #2c1735, #1a0f24); border: 1px solid rgba(241,196,15,0.35); border-radius: 20px; padding: 24px 22px 20px; width: min(360px, 96vw); box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+        .dev-access-title { font-size: 18px; font-weight: 800; color: #f1c40f; text-align: center; margin-bottom: 4px; }
+        .dev-access-sub { font-size: 13px; color: #bdc3c7; text-align: center; margin-bottom: 16px; }
+        .dev-access-input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(241,196,15,0.25); border-radius: 10px; color: #ecf0f1; font-size: 16px; padding: 12px 14px; box-sizing: border-box; font-family: inherit; letter-spacing: 4px; text-align: center; }
+        .dev-access-input:focus { outline: none; border-color: #f1c40f; }
+        .dev-access-error { color: #e74c3c; font-size: 13px; font-weight: 600; min-height: 18px; margin-top: 8px; text-align: center; }
+        .dev-access-actions { display: flex; gap: 10px; margin-top: 12px; }
+        .dev-access-actions .btn { flex: 1; }
         /* Pack Shop */
         .btn-shop { background: linear-gradient(135deg, #7d5a00, #b8860b); color: #ffe066; font-weight: 800; border: 1px solid rgba(255,224,102,0.35); }
         .shop-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 1420; display: flex; align-items: flex-end; justify-content: center; padding: 0; }
@@ -784,6 +797,11 @@
                     </div>
                 </div>
 
+                <!-- Dev Tools entry — JcWolF only -->
+                <div class="dev-tools-row" id="setupDevToolsRow" style="display:none;">
+                    <button class="btn btn-wolf-admin" id="setupDevToolsBtn" type="button">🐺 Dev Tools</button>
+                </div>
+
                 <!-- Previously joined packs stored in localStorage -->
                 <div id="myGamesSection" class="my-games-section" style="display:none;"></div>
 
@@ -1367,6 +1385,20 @@
                     <button class="wolf-pin-key wolf-pin-back-key" id="wolfPinBackBtn" type="button">⌫</button>
                 </div>
                 <div class="wolf-pin-error" id="wolfPinError"></div>
+            </div>
+        </div>
+
+        <!-- Developer Access passcode modal (opens admin tools from setup) -->
+        <div id="devAccessModal" class="dev-access-modal" style="display:none;">
+            <div class="dev-access-sheet">
+                <div class="dev-access-title">🔐 Developer Access</div>
+                <div class="dev-access-sub">Enter passcode to open Dev Tools</div>
+                <input type="password" id="devAccessInput" class="dev-access-input" inputmode="numeric" autocomplete="off" placeholder="••••••••" maxlength="16">
+                <div class="dev-access-error" id="devAccessError"></div>
+                <div class="dev-access-actions">
+                    <button class="btn btn-secondary" id="devAccessCancelBtn" type="button">Cancel</button>
+                    <button class="btn btn-primary" id="devAccessSubmitBtn" type="button">Open</button>
+                </div>
             </div>
         </div>
 

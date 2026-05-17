@@ -2,7 +2,7 @@
 // Durable room membership, stable player identity, silent rejoin,
 // first-finder tags, host-configured trip play area, and optional Canada support.
 
-const APP_VERSION = '20260429y';
+const APP_VERSION = '20260429z';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -843,6 +843,7 @@ let attemptedAutoResume = false;
 let currentConnectionState = 'connecting';
 let presenceCleanup = null;
 let pendingJcWolFPlayer = null;  // player object held while PIN modal is open
+const DEV_TOOLS_PASSCODE = 'REDACTED';
 let wolfPinEntry = '';           // digits typed so far in the PIN modal
 let heartbeatInterval = null;
 let pendingGameCodeFromUrl = null;
@@ -962,6 +963,7 @@ function restoreIdentity() {
     if (savedTag) document.getElementById('playerTagInput').value = normalizeTagInput(savedTag);
     const savedPlayer = safeParseStorage(STORAGE_KEYS.player);
     if (savedPlayer?.playerKey) { currentPlayer = { ...savedPlayer, tag: normalizeTagInput(savedPlayer.tag) }; enableGameCards(); }
+    updateSetupDevToolsVisibility();
     updateDiagnosticsPanel();
 }
 
@@ -1791,6 +1793,16 @@ function bindEventListeners() {
         const btn = e.target.closest('.wolf-pin-key[data-digit]');
         if (btn) wolfPinDigit(btn.dataset.digit);
     });
+    // Setup-page Dev Tools button (JcWolF only) + passcode modal
+    document.getElementById('setupDevToolsBtn')?.addEventListener('click', openDevAccessModal);
+    document.getElementById('devAccessCancelBtn')?.addEventListener('click', closeDevAccessModal);
+    document.getElementById('devAccessSubmitBtn')?.addEventListener('click', submitDevAccessPasscode);
+    document.getElementById('devAccessInput')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); submitDevAccessPasscode(); }
+        else if (e.key === 'Escape') closeDevAccessModal();
+    });
+    const devAccessModal = document.getElementById('devAccessModal');
+    if (devAccessModal) devAccessModal.addEventListener('click', e => { if (e.target === devAccessModal) closeDevAccessModal(); });
     // Feedback modal
     document.querySelectorAll('.open-feedback-btn').forEach(btn => btn.addEventListener('click', openFeedbackModal));
     document.getElementById('feedbackCancelBtn')?.addEventListener('click', closeFeedbackModal);
@@ -1831,6 +1843,7 @@ function completeSetPlayerName(player) {
     currentPlayer = player;
     persistIdentity(player);
     enableGameCards();
+    updateSetupDevToolsVisibility();
     showToast(`Identity saved: ${player.displayName} ${resolvePlayerIcon(player)}`, 'success');
     if (pendingGameCodeFromUrl && game.style.display === 'block') document.getElementById('joinCodeInput').value = pendingGameCodeFromUrl;
     updateDiagnosticsPanel();
@@ -1879,6 +1892,40 @@ function wolfPinConfirm() {
     const playerToSet = pendingJcWolFPlayer;
     closeWolfPinModal();
     if (playerToSet) completeSetPlayerName(playerToSet);
+}
+
+function updateSetupDevToolsVisibility() {
+    const row = document.getElementById('setupDevToolsRow');
+    if (!row) return;
+    row.style.display = currentPlayer?.tag === 'JcWolF' ? 'flex' : 'none';
+}
+
+function openDevAccessModal() {
+    const modal = document.getElementById('devAccessModal');
+    if (!modal) return;
+    const input = document.getElementById('devAccessInput');
+    input.value = '';
+    document.getElementById('devAccessError').textContent = '';
+    modal.style.display = 'flex';
+    setTimeout(() => input.focus(), 120);
+}
+
+function closeDevAccessModal() {
+    const modal = document.getElementById('devAccessModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function submitDevAccessPasscode() {
+    const input = document.getElementById('devAccessInput');
+    const err = document.getElementById('devAccessError');
+    if (input.value === DEV_TOOLS_PASSCODE) {
+        closeDevAccessModal();
+        window.open('admin.html', '_blank');
+    } else {
+        err.textContent = 'Incorrect passcode.';
+        input.value = '';
+        input.focus();
+    }
 }
 
 function openEditIdentityModal() {

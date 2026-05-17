@@ -1,6 +1,7 @@
 {
-  "version": "20260429y",
+  "version": "20260429z",
   "changelog": {
+    "20260429z": ["🐺 Fixed: editing your identity to the JcWolF dev tag now actually saves after the PIN — previously the new name/tag was silently dropped and the old identity stuck around", "🔐 New Dev Tools button on the setup page (JcWolF only) — passcode-gated link to the admin panel"],
     "20260429y": ["📥 New persistent Pending Requests inbox for the host — plate-removal requests now live in their own sheet (Host Controls → 📥 Pending Requests) with a red badge showing the count, so they no longer disappear before you can approve or deny"],
     "20260429x": ["🔊 Fixed sounds not playing on iOS — audio is now unlocked on first tap so taunts, praises, chat blips, badge fanfares, and other-player plate finds actually make noise"],
     "20260429w": ["🔊 New sound effects — chat messages get a soft blip, taunts get a cheeky descending sneer, praises get a bright ascending sparkle, and badge unlocks get a triumphant fanfare"],
