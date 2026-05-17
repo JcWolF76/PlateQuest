@@ -1,6 +1,7 @@
 {
-  "version": "20260430b",
+  "version": "20260517a",
   "changelog": {
+    "20260517a": ["🔄 New host-only Reset Round button — wipes all plates, first-finders, and region progress for the whole pack while keeping the round number the same. Use it for a clean do-over of the current round; use New Round to bump to a fresh round number."],
     "20260430b": ["🔧 Maintenance update"],
     "20260430a": ["🔐 Admin panel now uses a numeric codepad gate (same style as the JcWolF PlayerTag PIN). Setup-page Dev Tools button now opens it directly."],
     "20260429z": ["🐺 Fixed: editing your identity to the JcWolF dev tag now actually saves after the PIN — previously the new name/tag was silently dropped and the old identity stuck around", "🔐 New Dev Tools button on the setup page (JcWolF only) — passcode-gated link to the admin panel"],

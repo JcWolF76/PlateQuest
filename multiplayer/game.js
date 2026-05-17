@@ -1680,6 +1680,7 @@ function bindEventListeners() {
     const chatPolicyModal = document.getElementById('chatPolicyModal');
     if (chatPolicyModal) chatPolicyModal.addEventListener('click', e => { if (e.target === chatPolicyModal) chatPolicyModal.classList.remove('visible'); });
     document.getElementById('newRoundBtn')?.addEventListener('click', startNewRound);
+    document.getElementById('resetRoundBtn')?.addEventListener('click', resetCurrentRound);
     document.getElementById('rerollPrizesBtn')?.addEventListener('click', rerollPrizes);
     document.getElementById('placeBountyBtn')?.addEventListener('click', openBountyModal);
     document.getElementById('speedRoundBtn')?.addEventListener('click', openSpeedRoundModal);
@@ -5103,6 +5104,43 @@ async function startNewRound() {
     } catch (err) {
         console.error('Error starting new round:', err);
         showToast('Failed to start new round.', 'error');
+    }
+}
+
+async function resetCurrentRound() {
+    if (!currentGameRef || !currentPlayer) return;
+    if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
+    if (!confirm('Reset this round? Wipes all plates, first-finders, and region completions for everyone — but keeps the round number the same. Pack stays together.')) return;
+    try {
+        const snap = await currentGameRef.once('value');
+        const room = snap.val();
+        if (!room) return;
+        const updates = {};
+        Object.keys(room.players || {}).forEach(pKey => { updates[`players/${pKey}/states`] = {}; });
+        updates.claimedStates = null;
+        updates.completedSubRegions = null;
+        updates.completedRegions = null;
+        updates.completedCorridor = null;
+        updates.taunts = null;
+        updates.announcements = null;
+        updates.reactions = null;
+        updates.bounties = null;
+        updates.speedRound = null;
+        updates.secretTargets = null;
+        updates.rivalries = null;
+        updates.suddenDeath = null;
+        updates.luckyPlate = null;
+        updates.luckyPlateFound = null;
+        updates.chests = null;
+        updates.status = 'active';
+        updates.endedAt = null;
+        // Intentionally NOT bumping roundNumber — that's what differentiates this from startNewRound.
+        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        await currentGameRef.update(updates);
+        await assignGamePrizes(currentGameCode, room.settings?.plateScope);
+    } catch (err) {
+        console.error('Error resetting round:', err);
+        showToast('Failed to reset round.', 'error');
     }
 }
 
