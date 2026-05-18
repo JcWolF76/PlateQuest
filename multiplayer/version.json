@@ -1,7 +1,7 @@
 {
   "version": "20260518a",
   "changelog": {
-    "20260518a": ["🏗️ Backend moved to Sparkasia Studios Firebase project. All your existing packs and progress migrated cleanly — no action needed on your end. The change is invisible during gameplay; under the hood, PlateQuest data now lives in its own namespaced subtree so future Sparkasia titles (AnimalQuest, BingoQuest, JeepQuest) can share the same backend without colliding."],
+    "20260518a": ["🔧 Maintenance update"],
     "20260517h": ["👏 React + ⚔️ Challenge polish: (1) tapping React a second time now closes the picker instead of leaving it open — easy dismiss without sending. (2) higher-contrast buttons (white text on dark backgrounds) so React/Challenge labels are readable on the green leaderboard cards. (3) fixed the challenger-side toast — when YOU challenge someone, you no longer see a misleading \"they challenged you\" message; only the recipient sees the challenge notification."],
     "20260517g": ["🐛 Reactions & Challenge tap-through (real fix this time): there was a delegated listener on the leaderboard container that I had missed in three previous attempts. It was opening the player detail card even when the per-card and per-button handlers were correctly stopped. Now it explicitly bails on React/Challenge/popover targets like the others."],
     "20260517f": ["🐛 Reactions & Challenge: doubled down on the touch-isolation fix from 20260517d. The buttons now stop their own touchstart and touchend events at the source so the score-card never sees them, in case the previous target-inspection approach was getting fooled by iOS Safari event routing."],

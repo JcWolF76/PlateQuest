@@ -139,7 +139,7 @@ const COIN_RATES = {
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
     '20260518a': [
-        '🏗️ Backend moved to Sparkasia Studios Firebase project. All your existing packs and progress migrated cleanly — no action needed on your end. The change is invisible during gameplay; under the hood, PlateQuest data now lives in its own namespaced subtree so future Sparkasia titles (AnimalQuest, BingoQuest, JeepQuest) can share the same backend without colliding.',
+        '🔧 Maintenance update',
     ],
     '20260517h': [
         '👏 React + ⚔️ Challenge polish: (1) tapping React a second time now closes the picker instead of leaving it open — easy dismiss without sending. (2) higher-contrast buttons (white text on dark backgrounds) so React/Challenge labels are readable on the green leaderboard cards. (3) fixed the challenger-side toast — when YOU challenge someone, you no longer see a misleading "they challenged you" message; only the recipient sees the challenge notification.',

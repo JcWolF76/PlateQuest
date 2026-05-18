@@ -310,3 +310,51 @@ Game codes (`RM43ME`, `WOLF`) are the opposite — they go through
 codes uppercase, tags preserve case.
 
 Lapsing on this has broken the user's identity twice. Keep it.
+
+## 13. The update modal is user-facing release notes, not a dev log
+
+The `changelog` array in `multiplayer/version.json` and the matching
+`CHANGELOG` constant in `multiplayer/game.js` are what every player
+sees in the "What's New" modal that pops on update. They are
+**marketing copy**, not dev notes. Treat each entry like you'd write
+a release note on an app store.
+
+**Only put things in here if they:**
+- Add or change a feature the player can see / use
+- Fix a bug the player would have noticed
+- Change something visually obvious (new UI element, new screen, etc.)
+
+**Never put any of this in user-visible changelog entries:**
+- Infrastructure / backend / database / hosting changes
+- Refactors, code reorganizations, internal API changes
+- Roadmap hints — unreleased game names (e.g. "BingoQuest, JeepQuest"),
+  unannounced features, business plans. The user has been very clear:
+  do not pre-announce titles or strategic plans via update modal.
+- Internal debugging notes ("the touch handler was actually firing
+  from a delegated listener I missed three times…") — interesting
+  in commit messages, useless and noisy in release notes.
+- Sensitive values (covered in §8 already, but worth restating —
+  passcodes, keys, etc. are an automatic disqualifier).
+
+When a release is purely under-the-hood (backend swap, namespace
+migration, refactor, dependency bump), the changelog entry is
+**exactly**:
+
+```
+"🔧 Maintenance update"
+```
+
+Two notes that have already been shipped this way: `20260430b` and
+the corrected form of `20260518a`. Use the same pattern.
+
+The commit message is where the rich detail goes — files touched,
+why, what subsystems moved. Commit messages live in git history for
+the developer's benefit. Changelog entries live in the modal for the
+player's benefit. Different audience, different content. Don't mix
+them up.
+
+A previous Claude session shipped a backend-migration changelog entry
+that listed three unreleased Sparkasia titles by name as a hint at
+future releases. That information was internal roadmap data and
+should never have reached players. Rule pinned now so a future
+session can't repeat it.
