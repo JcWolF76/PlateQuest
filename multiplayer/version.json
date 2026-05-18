@@ -1,6 +1,12 @@
 {
-  "version": "20260518b",
+  "version": "20260518c",
   "changelog": {
+    "20260518c": [
+      "🐛 Edit Pack (the host's settings modal) now saves properly. It was silently failing since yesterday's update.",
+      "✏️ Rename Pack now updates the displayed pack name immediately — no more refresh required.",
+      "👤 Solo player profiles now have both Name and Tag fields, matching the multiplayer setup.",
+      "🏠 Sparkasia Studios landing page polish — logo no longer crops, and the brand attribution is cleaned up."
+    ],
     "20260518b": [
       "🐛 Challenging someone no longer shows you a misleading \"they challenged you\" message — only the recipient gets the challenge notification.",
       "✏️ Hosts can rename a pack on the fly — new \"Rename Pack\" button in Host Controls. The game code stays the same, only the display name changes.",

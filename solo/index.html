@@ -932,9 +932,15 @@
                         <select id="profileSelect" style="flex: 1; min-width: 200px;">
                             <option value="">Select Profile...</option>
                         </select>
-                        <input type="text" id="newProfileInput" placeholder="Create new profile..." style="flex: 1; min-width: 200px;">
+                    </div>
+                    <div class="input-row" style="margin-top:10px;">
+                        <input type="text" id="newProfileInput" placeholder="Name (e.g. Jesse)" style="flex: 2; min-width: 140px;">
+                        <input type="text" id="newProfileTagInput" placeholder="Tag (e.g. JcWolF)" maxlength="8" style="flex: 1; min-width: 100px; font-family: monospace; letter-spacing: 0.5px;">
                         <button class="btn btn-primary" id="createProfileBtn">Create</button>
                         <button class="btn btn-secondary" id="deleteProfileBtn">Delete</button>
+                    </div>
+                    <div id="soloDevToolsRow" style="display:none; margin-top:10px;">
+                        <a class="btn btn-secondary" href="../multiplayer/admin.html" style="text-decoration:none; display:inline-flex; align-items:center;">🐺 Dev Tools</a>
                     </div>
                 </div>
 
@@ -1334,7 +1340,10 @@
             const profiles = getProfiles();
             profileSelect.innerHTML = '<option value="">Select Profile...</option>';
             profiles.forEach(profile => {
-                profileSelect.add(new Option(profile.name, profile.id));
+                // Show "Name (TAG)" — matching how multiplayer displays player identity.
+                // Falls back to just the name for legacy profiles (no tag stored).
+                const label = profile.tag ? `${profile.name} (${profile.tag})` : profile.name;
+                profileSelect.add(new Option(label, profile.id));
             });
 
             if (currentProfileId && profiles.some(profile => profile.id === currentProfileId)) {
@@ -1347,6 +1356,7 @@
             }
 
             loadTripsIntoUI();
+            updateSoloDevToolsVisibility();
         }
 
         function loadTripsIntoUI() {
@@ -1382,26 +1392,50 @@
             renderStates();
         }
 
+        // Mirror multiplayer's normalizeTagInput (game.js:878). Strips non-
+        // alphanumeric, caps at 8, preserves case (per CLAUDE.md section 12 —
+        // JcWolF is a distinct identity from JCWOLF).
+        function normalizeTagInputSolo(value) {
+            return String(value || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
+        }
+
+        // Show / hide the 🐺 Dev Tools row depending on whether the currently
+        // selected profile's tag matches the developer handle.
+        function updateSoloDevToolsVisibility() {
+            const row = document.getElementById('soloDevToolsRow');
+            if (!row) return;
+            const profile = getCurrentProfile();
+            row.style.display = (profile && profile.tag === 'JcWolF') ? 'block' : 'none';
+        }
+
         function createProfile() {
             const name = document.getElementById('newProfileInput').value.trim();
+            const tagRaw = document.getElementById('newProfileTagInput').value;
+            const tag = normalizeTagInputSolo(tagRaw);
             if (!name) {
                 alert('Please enter a profile name!');
                 return;
             }
-
-            const profiles = getProfiles();
-            if (profiles.some(profile => profile.name.toLowerCase() === name.toLowerCase())) {
-                alert('That profile already exists.');
+            if (!tag) {
+                alert('Please enter a player tag!');
                 return;
             }
 
-            const profile = { id: createId('profile'), name, createdAt: Date.now() };
+            const profiles = getProfiles();
+            if (profiles.some(profile => profile.name.toLowerCase() === name.toLowerCase() && (profile.tag || '').toLowerCase() === tag.toLowerCase())) {
+                alert('A profile with that name + tag already exists.');
+                return;
+            }
+
+            const profile = { id: createId('profile'), name, tag, createdAt: Date.now() };
             profiles.push(profile);
             saveProfiles(profiles);
             currentProfileId = profile.id;
             document.getElementById('newProfileInput').value = '';
+            document.getElementById('newProfileTagInput').value = '';
             loadProfilesIntoUI();
             updateGameTitle();
+            updateSoloDevToolsVisibility();
         }
 
         function deleteProfile() {
@@ -1470,6 +1504,7 @@
             currentTripId = null;
             currentTripData = null;
             loadTripsIntoUI();
+            updateSoloDevToolsVisibility();
         }
 
         function selectTrip() {

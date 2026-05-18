@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518b';
+const APP_VERSION = '20260518c';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,12 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518c': [
+        '🐛 Edit Pack (the host\'s settings modal) now saves properly. It was silently failing since yesterday\'s update.',
+        '✏️ Rename Pack now updates the displayed pack name immediately — no more refresh required.',
+        '👤 Solo player profiles now have both Name and Tag fields, matching the multiplayer setup.',
+        '🏠 Sparkasia Studios landing page polish — logo no longer crops, and the brand attribution is cleaned up.',
+    ],
     '20260518b': [
         '🐛 Challenging someone no longer shows you a misleading "they challenged you" message — only the recipient gets the challenge notification.',
         '✏️ Hosts can rename a pack on the fly — new "Rename Pack" button in Host Controls. The game code stays the same, only the display name changes.',
@@ -5215,6 +5221,12 @@ async function renamePack() {
             name: trimmed,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
         });
+        // Defensive UI update — the on('value') listener should also fire and
+        // re-paint gameTitle via updateGameUI, but force the change locally so
+        // the host sees the new name immediately without waiting for the round-trip.
+        if (gameData) gameData.name = trimmed;
+        const titleEl = document.getElementById('gameTitle');
+        if (titleEl) titleEl.textContent = `${trimmed} Pack 🐺`;
         showToast(`✏️ Pack renamed to "${trimmed}".`, 'success');
     } catch (err) {
         showToast('Rename failed: ' + (err.message || err), 'error');
