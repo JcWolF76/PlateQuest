@@ -113,7 +113,7 @@
         /* ── Flagship hero ───────────────────────────────────────────── */
         .hero {
             display: grid;
-            grid-template-columns: minmax(180px, 240px) 1fr;
+            grid-template-columns: minmax(260px, 360px) 1fr;
             gap: 36px;
             align-items: center;
             padding: 56px 0 36px;
@@ -121,16 +121,11 @@
 
         .hero-logo {
             width: 100%;
-            max-width: 240px;
-            aspect-ratio: 1 / 1;
-            object-fit: contain;
-            background: #ffffff;
-            padding: 14px;
-            border-radius: 22px;
-            box-shadow:
-                0 0 0 1px rgba(255,255,255,0.08),
-                0 0 40px rgba(52,152,219,0.25),
-                0 20px 50px rgba(0,0,0,0.45);
+            max-width: 360px;
+            height: auto;
+            display: block;
+            filter: drop-shadow(0 0 32px rgba(52,152,219,0.28))
+                    drop-shadow(0 16px 32px rgba(0,0,0,0.45));
             justify-self: center;
         }
 
@@ -377,7 +372,7 @@
         <!-- Studio header: Sparkasia + JcWolF wolf-paw mark -->
         <header class="studio-bar">
             <a href="/" class="studio-mark" aria-label="Sparkasia home">
-                <img src="platequest-final-logo.jpeg" alt="">
+                <img src="PlateQuest_Logo-JcWolF.png" alt="">
                 <span class="studio-wordmark">
                     <span class="name">Sparkasia Studios</span>
                     <span class="tag">Games for the Road</span>
@@ -388,7 +383,7 @@
 
         <!-- Flagship: PlateQuest -->
         <section class="hero" aria-labelledby="pq-name">
-            <img class="hero-logo" src="platequest-final-logo.jpeg" alt="PlateQuest">
+            <img class="hero-logo" src="PlateQuest_Logo-JcWolF.png" alt="PlateQuest">
             <div class="hero-copy">
                 <div class="kicker">Flagship title</div>
                 <h1 id="pq-name">PlateQuest</h1>
@@ -436,7 +431,7 @@
                 A Sparkasia Studios title — by <strong>JcWolF</strong> · © 2026 Jesse Bliss. All rights reserved.
             </div>
             <span class="foot-mark">
-                <img src="platequest-final-logo.jpeg" alt="">
+                <img src="PlateQuest_Logo-JcWolF.png" alt="">
                 <span>Sparkasia Studios · est. 1996</span>
             </span>
         </footer>
