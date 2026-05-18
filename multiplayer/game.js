@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517g';
+const APP_VERSION = '20260517h';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517h': [
+        '👏 React + ⚔️ Challenge polish: (1) tapping React a second time now closes the picker instead of leaving it open — easy dismiss without sending. (2) higher-contrast buttons (white text on dark backgrounds) so React/Challenge labels are readable on the green leaderboard cards. (3) fixed the challenger-side toast — when YOU challenge someone, you no longer see a misleading "they challenged you" message; only the recipient sees the challenge notification.',
+    ],
     '20260517g': [
         '🐛 Reactions & Challenge tap-through (real fix this time): there was a delegated listener on the leaderboard container that I had missed in three previous attempts. It was opening the player detail card even when the per-card and per-button handlers were correctly stopped. Now it explicitly bails on React/Challenge/popover targets like the others.',
     ],
@@ -2386,7 +2389,14 @@ function updateScores() {
             reactTrigger.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
             reactTrigger.addEventListener('click', e => {
                 e.stopPropagation();
-                openReactionPopover(reactTrigger, reactTrigger.dataset.tokey, reactTrigger.dataset.toname);
+                // Toggle — if the popover is already open, close it instead of
+                // reopening it. So a second tap on the React button dismisses
+                // without sending a reaction.
+                if (document.getElementById('reactionPopover')) {
+                    closeReactionPopover();
+                } else {
+                    openReactionPopover(reactTrigger, reactTrigger.dataset.tokey, reactTrigger.dataset.toname);
+                }
             });
         }
         const chalBtn = scoreCard.querySelector('.challenge-btn');
@@ -5145,6 +5155,11 @@ function setRivalry(toKey, toName) {
     updates[`rivalries/${myKey}`] = toKey;
     updates[`rivalries/${toKey}`] = myKey;
     currentGameRef.update(updates).catch(() => {});
+    // Pre-set lastKnownRivalry so the rivalry-change detector running on
+    // this device sees no delta when Firebase echoes the update back —
+    // otherwise the challenger ALSO gets the "X challenged you" toast,
+    // which reads as if they were on the receiving end.
+    lastKnownRivalry = toKey;
     showToast(`⚔️ ${toName} is now your rival — tap their card for head-to-head stats. Tap ⚔️ Drop to end it.`, 'success');
 }
 

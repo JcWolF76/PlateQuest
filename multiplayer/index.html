@@ -246,8 +246,8 @@
         /* Rivalry */
         .rival-badge { background: linear-gradient(135deg,#3d0f3d,#7d1a7d); color: #f0a0f0; font-size: 10px; font-weight: 800; border-radius: 8px; padding: 2px 6px; white-space: nowrap; flex-shrink:0; }
         .score-card.rival { border-color: rgba(192,57,219,0.45); box-shadow: 0 0 12px rgba(192,57,219,0.15); }
-        .challenge-btn { background: rgba(155,89,182,0.15); border: 1px solid rgba(155,89,182,0.3); border-radius: 20px; padding: 4px 9px; font-size: 12px; font-weight: 700; color: #d7bfff; cursor: pointer; touch-action: manipulation; transition: background 0.15s; white-space: nowrap; }
-        .challenge-btn:active { background: rgba(155,89,182,0.35); }
+        .challenge-btn { background: #2a1a3a; border: 1px solid #9b59b6; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 800; color: #ffffff; cursor: pointer; touch-action: manipulation; transition: background 0.15s, transform 0.1s; white-space: nowrap; letter-spacing: 0.3px; -webkit-tap-highlight-color: transparent; }
+        .challenge-btn:active { background: #3d2654; transform: scale(0.96); }
         /* H2H in player detail */
         .h2h-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
         .h2h-stat { text-align: center; }
@@ -641,12 +641,12 @@
         .reaction-row { display:flex; gap:6px; justify-content:flex-start; margin-top:5px; flex-wrap:wrap; align-items:center; }
         .reaction-btn { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:3px 6px; font-size:14px; cursor:pointer; transition:background 0.15s, transform 0.1s; touch-action:manipulation; }
         .reaction-btn:active { background:rgba(255,255,255,0.25); transform:scale(1.25); }
-        .react-trigger-btn { background:rgba(52,152,219,0.18); border:1px solid rgba(52,152,219,0.45); border-radius:18px; padding:4px 12px; font-size:12px; font-weight:700; color:#7eb8f7; letter-spacing:0.3px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:background 0.15s, transform 0.1s; }
-        .react-trigger-btn:active { background:rgba(52,152,219,0.35); transform:scale(0.96); }
-        .reaction-popover { position:absolute; z-index:9998; background:linear-gradient(135deg,#1f2a3a,#15202e); border:1px solid rgba(255,255,255,0.18); border-radius:999px; padding:6px 8px; display:flex; gap:6px; box-shadow:0 12px 32px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3); opacity:0; transform:translateY(8px) scale(0.85); transition:opacity 0.16s ease, transform 0.18s cubic-bezier(0.25,1.5,0.5,1); transform-origin:center bottom; pointer-events:auto; }
+        .react-trigger-btn { background:#0d1b2a; border:1px solid #5dade2; border-radius:18px; padding:5px 12px; font-size:12px; font-weight:800; color:#ffffff; letter-spacing:0.3px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:background 0.15s, transform 0.1s; }
+        .react-trigger-btn:active { background:#1a2d42; transform:scale(0.96); }
+        .reaction-popover { position:absolute; z-index:9998; background:linear-gradient(135deg,#1f2a3a,#15202e); border:1px solid rgba(255,255,255,0.25); border-radius:999px; padding:6px 8px; display:flex; gap:6px; box-shadow:0 12px 32px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3); opacity:0; transform:translateY(8px) scale(0.85); transition:opacity 0.16s ease, transform 0.18s cubic-bezier(0.25,1.5,0.5,1); transform-origin:center bottom; pointer-events:auto; }
         .reaction-popover.open { opacity:1; transform:translateY(0) scale(1); }
-        .reaction-pop-btn { width:42px; height:42px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.18); border-radius:50%; font-size:22px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:transform 0.12s, background 0.15s; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
-        .reaction-pop-btn:active { transform:scale(1.35); background:rgba(255,255,255,0.22); }
+        .reaction-pop-btn { width:46px; height:46px; background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.4); border-radius:50%; font-size:24px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:transform 0.12s, background 0.15s; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+        .reaction-pop-btn:active { transform:scale(1.35); background:rgba(255,255,255,0.32); }
         .first-time-hint { position:absolute; z-index:9997; max-width:260px; background:linear-gradient(135deg,#1f3a5a,#15263e); border:1px solid rgba(94,173,226,0.55); border-radius:14px; padding:12px 14px 10px; box-shadow:0 16px 40px rgba(0,0,0,0.55); opacity:0; transform:translateY(6px) scale(0.96); transition:opacity 0.2s ease, transform 0.22s cubic-bezier(0.25,1.5,0.5,1); }
         .first-time-hint.open { opacity:1; transform:translateY(0) scale(1); }
         .first-time-hint-arrow { position:absolute; bottom:-7px; left:50%; transform:translateX(-50%) rotate(45deg); width:13px; height:13px; background:#15263e; border-right:1px solid rgba(94,173,226,0.55); border-bottom:1px solid rgba(94,173,226,0.55); }
@@ -1604,7 +1604,7 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260517g"></script>
+    <script src="game.js?v=20260517h"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
