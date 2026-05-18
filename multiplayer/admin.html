@@ -273,13 +273,13 @@ button:disabled { opacity: 0.4; cursor: default; }
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
 const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
-    authDomain: "platequest-multiplayer.firebaseapp.com",
-    databaseURL: "https://platequest-multiplayer-default-rtdb.firebaseio.com/",
-    projectId: "platequest-multiplayer",
-    storageBucket: "platequest-multiplayer.firebasestorage.app",
-    messagingSenderId: "109596979102",
-    appId: "1:109596979102:web:586740c408daec71af708f"
+    apiKey: "AIzaSyCP7wJIufoS6_BVwlaBXtF0SOzqujN-uHo",
+    authDomain: "sparkasia-studios.firebaseapp.com",
+    databaseURL: "https://sparkasia-studios-default-rtdb.firebaseio.com/",
+    projectId: "sparkasia-studios",
+    storageBucket: "sparkasia-studios.firebasestorage.app",
+    messagingSenderId: "1056103344185",
+    appId: "1:1056103344185:web:7016bd6ad39b7a87cec5e8"
 };
 
 // Numeric admin passcode
@@ -364,7 +364,7 @@ async function loadFeedback() {
     try {
         // Read without orderByChild so we don't depend on a Firebase index
         // being declared in database rules. Sort client-side after fetch.
-        const snap = await db.ref('feedback').once('value');
+        const snap = await db.ref('platequest/feedback').once('value');
         const raw = snap.val();
         allTickets = [];
         if (raw && typeof raw === 'object') {
@@ -422,7 +422,7 @@ function renderFeedbackList() {
 }
 
 async function setTicketStatus(id, status) {
-    await db.ref(`feedback/${id}/status`).set(status);
+    await db.ref(`platequest/feedback/${id}/status`).set(status);
     const t = allTickets.find(t => t.id === id);
     if (t) t.status = status;
     renderFeedbackList();
@@ -430,7 +430,7 @@ async function setTicketStatus(id, status) {
 
 async function deleteTicket(id) {
     if (!confirm('Delete this ticket permanently?')) return;
-    await db.ref(`feedback/${id}`).remove();
+    await db.ref(`platequest/feedback/${id}`).remove();
     allTickets = allTickets.filter(t => t.id !== id);
     renderFeedbackList();
 }
@@ -449,7 +449,7 @@ async function browseGames() {
     listEl.innerHTML = '<div class="browser-empty">Loading all games…</div>';
     statsEl.textContent = '';
     try {
-        const snap = await db.ref('games').once('value');
+        const snap = await db.ref('platequest/games').once('value');
         const raw = snap.val() || {};
         allGames = Object.entries(raw).map(([code, data]) => ({
             code,
@@ -571,7 +571,7 @@ async function deleteSelectedGames() {
     let ok = 0, fail = 0;
     for (const code of codes) {
         try {
-            await db.ref(`games/${code}`).remove();
+            await db.ref(`platequest/games/${code}`).remove();
             ok++;
         } catch (err) {
             fail++;
@@ -597,10 +597,10 @@ async function loadGame() {
     if (!code) return;
     setStatus('loadStatus', 'Loading…', 'info');
     try {
-        const snap = await db.ref(`games/${code}`).once('value');
+        const snap = await db.ref(`platequest/games/${code}`).once('value');
         gameData = snap.val();
         if (!gameData) { setStatus('loadStatus', 'Game not found.', 'err'); return; }
-        gameRef = db.ref(`games/${code}`);
+        gameRef = db.ref(`platequest/games/${code}`);
         setStatus('loadStatus', `✅ Loaded "${gameData.name || code}" — ${Object.keys(gameData.players || {}).length} player(s)`, 'ok');
 
         // Populate player selector
@@ -912,7 +912,7 @@ async function openRenameFlow(playerKey) {
 // no longer matches the current playerKey (e.g. renamed Jc → JcWolF, so
 // jc__jcwolf needs to become jcwolf__jcwolf to match the device's derivation).
 async function renamePlayerInGame(gameCode, playerKey, newName, newTag) {
-    const ref = db.ref(`games/${gameCode}`);
+    const ref = db.ref(`platequest/games/${gameCode}`);
     const displayName = `${newName} (${newTag})`;
 
     const updates = {};
@@ -956,7 +956,7 @@ async function renamePlayerInGame(gameCode, playerKey, newName, newTag) {
 // without it, a non-empty destination throws so data is never silently lost.
 async function rekeyPlayerInGame(gameCode, oldKey, newKey, opts = {}) {
     if (oldKey === newKey) return false;
-    const ref = db.ref(`games/${gameCode}`);
+    const ref = db.ref(`platequest/games/${gameCode}`);
 
     const [srcSnap, dstSnap, claimsSnap, gameSnap] = await Promise.all([
         ref.child(`players/${oldKey}`).once('value'),
@@ -1012,7 +1012,7 @@ async function deletePlayerInGameUI(playerKey) {
     if (!confirm(`Delete "${p.displayName || playerKey}" from this game?\n\nRemoves their plates, coins, and any first-finder claims. Cannot be undone.`)) return;
     setStatus('playerMgrStatus', 'Deleting…', 'info');
     try {
-        const ref = db.ref(`games/${currentGameCodeUpper()}`);
+        const ref = db.ref(`platequest/games/${currentGameCodeUpper()}`);
         const updates = {};
         updates[`players/${playerKey}`] = null;
         const claimsSnap = await ref.child('claimedStates').once('value');
@@ -1099,7 +1099,7 @@ async function confirmMerge() {
     const winner = gameData.players[winnerKey];
     setStatus('mergeStatus', 'Merging…', 'info');
     try {
-        const ref = db.ref(`games/${currentGameCodeUpper()}`);
+        const ref = db.ref(`platequest/games/${currentGameCodeUpper()}`);
 
         const mergedStates = { ...(winner.states || {}) };
         const mergedEffects = { ...(winner.effects || {}) };
@@ -1207,7 +1207,7 @@ async function findMyRecords() {
     const tagCmp = rawTag.toLowerCase();
     document.getElementById('findResultsStats').textContent = 'Searching all games…';
     try {
-        const snap = await db.ref('games').once('value');
+        const snap = await db.ref('platequest/games').once('value');
         const raw = snap.val() || {};
         currentMatches = [];
         Object.entries(raw).forEach(([code, data]) => {

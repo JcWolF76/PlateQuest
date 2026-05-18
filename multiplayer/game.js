@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517h';
+const APP_VERSION = '20260518a';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518a': [
+        '🏗️ Backend moved to Sparkasia Studios Firebase project. All your existing packs and progress migrated cleanly — no action needed on your end. The change is invisible during gameplay; under the hood, PlateQuest data now lives in its own namespaced subtree so future Sparkasia titles (AnimalQuest, BingoQuest, JeepQuest) can share the same backend without colliding.',
+    ],
     '20260517h': [
         '👏 React + ⚔️ Challenge polish: (1) tapping React a second time now closes the picker instead of leaving it open — easy dismiss without sending. (2) higher-contrast buttons (white text on dark backgrounds) so React/Challenge labels are readable on the green leaderboard cards. (3) fixed the challenger-side toast — when YOU challenge someone, you no longer see a misleading "they challenged you" message; only the recipient sees the challenge notification.',
     ],
@@ -377,13 +380,13 @@ const CHANGELOG = {
 };
 
 const firebaseConfig = {
-    apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
-    authDomain: "platequest-multiplayer.firebaseapp.com",
-    databaseURL: "https://platequest-multiplayer-default-rtdb.firebaseio.com/",
-    projectId: "platequest-multiplayer",
-    storageBucket: "platequest-multiplayer.firebasestorage.app",
-    messagingSenderId: "109596979102",
-    appId: "1:109596979102:web:586740c408daec71af708f"
+    apiKey: "AIzaSyCP7wJIufoS6_BVwlaBXtF0SOzqujN-uHo",
+    authDomain: "sparkasia-studios.firebaseapp.com",
+    databaseURL: "https://sparkasia-studios-default-rtdb.firebaseio.com/",
+    projectId: "sparkasia-studios",
+    storageBucket: "sparkasia-studios.firebasestorage.app",
+    messagingSenderId: "1056103344185",
+    appId: "1:1056103344185:web:7016bd6ad39b7a87cec5e8"
 };
 
 const US_PLATES = [
@@ -1064,7 +1067,7 @@ async function auditMyGames() {
     const btn = document.getElementById('auditMyPacksBtn');
     if (btn) { btn.disabled = true; btn.textContent = '🔍 Searching…'; }
     try {
-        const snap = await database.ref('games').once('value');
+        const snap = await database.ref('platequest/games').once('value');
         const raw = snap.val() || {};
         const myTagCmp = (currentPlayer.tag || '').toLowerCase();
         const known = new Set(getMyGames().map(g => g.code));
@@ -1337,7 +1340,7 @@ function checkAppVersion() {
     if (urlNow.searchParams.has('_v')) { urlNow.searchParams.delete('_v'); window.history.replaceState({}, document.title, urlNow.toString()); }
     // Promote our version in Firebase if we appear to be newest (best-effort)
     if (database) {
-        const vRef = database.ref('config/latestVersion');
+        const vRef = database.ref('platequest/config/latestVersion');
         vRef.transaction((current) => { if (!current || APP_VERSION > current) return APP_VERSION; return undefined; });
     }
     const doCheck = async () => {
@@ -1684,7 +1687,7 @@ async function submitFeedback() {
     btn.disabled = true;
     btn.textContent = 'Sending…';
     try {
-        await database.ref('feedback').push({
+        await database.ref('platequest/feedback').push({
             type: feedbackType,
             description: text,
             playerName: currentPlayer?.name || 'Anonymous',
@@ -2020,7 +2023,7 @@ async function generateUniqueGameCode() {
     for (let attempt = 0; attempt < 12; attempt += 1) {
         let code = '';
         for (let i = 0; i < 6; i += 1) code += chars.charAt(Math.floor(Math.random() * chars.length));
-        const snapshot = await database.ref(`games/${code}`).once('value');
+        const snapshot = await database.ref(`platequest/games/${code}`).once('value');
         if (!snapshot.exists()) return code;
     }
     throw new Error('Unable to generate a unique game code.');
@@ -2040,7 +2043,7 @@ async function createGame() {
     showLoading('Creating pack...');
     try {
         const code = await generateUniqueGameCode();
-        const roomRef = database.ref(`games/${code}`);
+        const roomRef = database.ref(`platequest/games/${code}`);
         const roomData = {
             version: ROOM_VERSION,
             name: gameName,
@@ -2082,7 +2085,7 @@ async function joinGame(codeOverride = null) {
 }
 
 async function connectToGame(code, options = {}) {
-    const roomRef = database.ref(`games/${code}`);
+    const roomRef = database.ref(`platequest/games/${code}`);
     const snapshot = await roomRef.once('value');
     if (!snapshot.exists()) throw new Error('Pack not found. Check the code, or reload the app if this pack is active.');
     const room = snapshot.val();
@@ -2193,7 +2196,7 @@ function setupPresence() {
     if (!database || !currentGameCode || !currentPlayer || currentConnectionState !== 'online') return;
     if (presenceCleanup) { presenceCleanup(); presenceCleanup = null; }
     if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
-    const playerRef = database.ref(`games/${currentGameCode}/players/${currentPlayer.playerKey}`);
+    const playerRef = database.ref(`platequest/games/${currentGameCode}/players/${currentPlayer.playerKey}`);
     const connectedRef = database.ref('.info/connected');
     const connectedListener = connectedRef.on('value', (snapshot) => {
         if (snapshot.val() !== true) return;
@@ -4620,7 +4623,7 @@ async function assignGamePrizes(gameCode, plateScope) {
     shuffled.slice(1, chestCount + 1).forEach(e => {
         chests[e.name] = CHEST_PRIZES[Math.floor(Math.random() * CHEST_PRIZES.length)];
     });
-    await database.ref(`games/${gameCode}`).update({ luckyPlate, chests });
+    await database.ref(`platequest/games/${gameCode}`).update({ luckyPlate, chests });
 }
 
 let lastKnownLuckyFound = null;

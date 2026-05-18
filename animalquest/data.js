@@ -494,13 +494,13 @@
     }
 
     const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
-        authDomain: "platequest-multiplayer.firebaseapp.com",
-        databaseURL: "https://platequest-multiplayer-default-rtdb.firebaseio.com/",
-        projectId: "platequest-multiplayer",
-        storageBucket: "platequest-multiplayer.firebasestorage.app",
-        messagingSenderId: "109596979102",
-        appId: "1:109596979102:web:586740c408daec71af708f"
+        apiKey: "AIzaSyCP7wJIufoS6_BVwlaBXtF0SOzqujN-uHo",
+        authDomain: "sparkasia-studios.firebaseapp.com",
+        databaseURL: "https://sparkasia-studios-default-rtdb.firebaseio.com/",
+        projectId: "sparkasia-studios",
+        storageBucket: "sparkasia-studios.firebasestorage.app",
+        messagingSenderId: "1056103344185",
+        appId: "1:1056103344185:web:7016bd6ad39b7a87cec5e8"
     };
 
     const API = {

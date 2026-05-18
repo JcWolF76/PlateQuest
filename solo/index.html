@@ -1026,13 +1026,13 @@
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyADgN2_6yMeIuWRZxsXdlUUjmZEd_Rn9qQ",
-            authDomain: "platequest-multiplayer.firebaseapp.com",
-            databaseURL: "https://platequest-multiplayer-default-rtdb.firebaseio.com/",
-            projectId: "platequest-multiplayer",
-            storageBucket: "platequest-multiplayer.firebasestorage.app",
-            messagingSenderId: "109596979102",
-            appId: "1:109596979102:web:586740c408daec71af708f"
+            apiKey: "AIzaSyCP7wJIufoS6_BVwlaBXtF0SOzqujN-uHo",
+            authDomain: "sparkasia-studios.firebaseapp.com",
+            databaseURL: "https://sparkasia-studios-default-rtdb.firebaseio.com/",
+            projectId: "sparkasia-studios",
+            storageBucket: "sparkasia-studios.firebasestorage.app",
+            messagingSenderId: "1056103344185",
+            appId: "1:1056103344185:web:7016bd6ad39b7a87cec5e8"
         };
 
         const statesData = [
@@ -1316,7 +1316,7 @@
                 return;
             }
             try {
-                await database.ref('_platequestHealthcheck').set({ checkedAt: Date.now() });
+                await database.ref('platequest/_healthcheck').set({ checkedAt: Date.now() });
                 alert('Connection test: SUCCESS ✅');
             } catch (error) {
                 alert(`Connection test: FAILED ❌\n${error.message}`);
@@ -1865,7 +1865,7 @@
             for (let attempt = 0; attempt < 12; attempt += 1) {
                 const code = generateShareCode();
                 if (!database) return code;
-                const snapshot = await database.ref(`sharedTrips/${code}`).once('value');
+                const snapshot = await database.ref(`platequest/sharedTrips/${code}`).once('value');
                 if (!snapshot.exists()) return code;
             }
             throw new Error('Unable to create a unique share code.');
@@ -1895,7 +1895,7 @@
                     isPublic: true
                 };
                 if (tripData.createdAt === undefined) delete tripData.createdAt;
-                await database.ref(`sharedTrips/${shareCode}`).update(tripData);
+                await database.ref(`platequest/sharedTrips/${shareCode}`).update(tripData);
                 currentTripData.shareCode = shareCode;
                 persistCurrentTrip();
                 hideLoading();
@@ -1962,7 +1962,7 @@
             }
             try {
                 showLoading('Loading shared trip...');
-                const snapshot = await database.ref(`sharedTrips/${shareCode}`).once('value');
+                const snapshot = await database.ref(`platequest/sharedTrips/${shareCode}`).once('value');
                 if (!snapshot.exists()) {
                     hideLoading();
                     alert('Share code not found. Please check the code and try again.');
@@ -2025,7 +2025,7 @@
             }
             try {
                 showLoading('Updating shared trip...');
-                await database.ref(`sharedTrips/${shareCode}`).update({
+                await database.ref(`platequest/sharedTrips/${shareCode}`).update({
                     ...buildTripPayloadForShare(),
                     shareCode,
                     lastUpdated: firebase.database.ServerValue.TIMESTAMP
