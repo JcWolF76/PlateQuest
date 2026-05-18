@@ -789,6 +789,24 @@
             border: 1px solid #3498db;
         }
 
+        .debug-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999;
+            background: rgba(52, 152, 219, 0.15);
+            color: #74b9ff;
+            border: 1px solid rgba(52, 152, 219, 0.4);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 160ms ease, background 160ms ease;
+        }
+        .debug-toggle:hover { opacity: 1; background: rgba(52, 152, 219, 0.28); }
+
         @keyframes slideInUp {
             from {
                 transform: translateY(30px);
@@ -1015,6 +1033,8 @@
             <div class="loading-text">Loading...</div>
         </div>
     </div>
+
+    <button id="debugToggle" class="debug-toggle" type="button" title="Firebase debug" aria-label="Toggle Firebase debug panel">🔧</button>
 
     <div id="debugPanel" class="debug-panel" style="display: none;">
         <div><strong>🔧 Firebase Debug</strong></div>
@@ -1286,6 +1306,16 @@
             document.getElementById('debugPanel').style.display = 'block';
             updateDebugStatus();
         }
+
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+            } else {
+                showDebugPanel();
+            }
+        }
+        document.getElementById('debugToggle')?.addEventListener('click', toggleDebugPanel);
 
         async function initializeCloudSharing() {
             try {
@@ -2196,7 +2226,6 @@
             });
 
             initializeCloudSharing();
-            setTimeout(showDebugPanel, 2000);
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('share')) {
