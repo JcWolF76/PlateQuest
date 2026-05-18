@@ -203,6 +203,23 @@ PlateQuest is an indie weekend project, not enterprise software. Avoid:
 - Writing docs files (`*.md`) unless the user explicitly asks. `docs/`
   already exists for the user's own writing.
 
+**Hosting decision (settled):** hosting stays on GitHub Pages serving
+from `main`. Firebase is for Realtime Database only — not Hosting, not
+Functions, not Auth. The two concerns are separate by design: GitHub
+owns code + static hosting, Firebase owns multiplayer state. Don't
+propose migrating hosting to Firebase Hosting (or anywhere else)
+unless one of these trigger conditions applies:
+
+- The project needs real server-side auth (Firebase Auth integrates
+  more cleanly with Firebase Hosting than with GitHub Pages).
+- The project needs Cloud Functions for server-side logic.
+- The project needs preview channels for team playtesting.
+- A specific GitHub Pages limit (bandwidth, build time, custom domain)
+  is actually blocking work — not hypothetically might-someday.
+
+Until then, `git push origin main` = deploy in ~1 min is the workflow.
+Don't trade it for a CLI deploy step or CI pipeline.
+
 ## 10. Dates — always use today's actual date
 
 When creating any dated identifier — version strings in
