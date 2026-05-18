@@ -30,8 +30,8 @@
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; position: relative; z-index: 2; }
         #splash { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 20px; }
         .logo-container { position: relative; margin-bottom: 40px; }
-        .logo { width: 300px; height: auto; border-radius: 20px; box-shadow: 0 0 40px rgba(52, 152, 219, 0.6), 0 0 80px rgba(52, 152, 219, 0.4); border: 3px solid rgba(52, 152, 219, 0.4); animation: logoGlow 3s ease-in-out infinite; }
-        @keyframes logoGlow { 0%, 100% { box-shadow: 0 0 40px rgba(52, 152, 219, 0.6), 0 0 80px rgba(52, 152, 219, 0.4); transform: scale(1); } 50% { box-shadow: 0 0 50px rgba(52, 152, 219, 0.8), 0 0 100px rgba(52, 152, 219, 0.6); transform: scale(1.02); } }
+        .logo { width: 340px; max-width: 88vw; height: auto; display: block; filter: drop-shadow(0 0 28px rgba(52, 152, 219, 0.55)) drop-shadow(0 14px 32px rgba(0,0,0,0.5)); animation: logoGlow 3s ease-in-out infinite; }
+        @keyframes logoGlow { 0%, 100% { filter: drop-shadow(0 0 28px rgba(52, 152, 219, 0.55)) drop-shadow(0 14px 32px rgba(0,0,0,0.5)); transform: scale(1); } 50% { filter: drop-shadow(0 0 40px rgba(52, 152, 219, 0.8)) drop-shadow(0 14px 32px rgba(0,0,0,0.5)); transform: scale(1.02); } }
         .logo-container::before, .logo-container::after { content: '🐾'; position: absolute; font-size: 24px; color: rgba(52, 152, 219, 0.6); animation: pawFloat 4s ease-in-out infinite; }
         .logo-container::before { top: -20px; left: -30px; animation-delay: 0s; }
         .logo-container::after { bottom: -20px; right: -30px; animation-delay: 2s; }
@@ -748,7 +748,7 @@
 <body>
     <div class="container">
         <div id="splash">
-            <div class="logo-container"><img src="../platequest-final-logo.jpeg" alt="PlateQuest Logo" class="logo"></div>
+            <div class="logo-container"><img src="../PlateQuest_Logo-JcWolF.png" alt="PlateQuest" class="logo"></div>
             <div class="welcome-text">
                 <p><strong>MULTIPLAYER EDITION</strong></p>
                 <p>Play live with friends and family! Real-time updates, shared adventures, and instant competition across all devices.</p>
@@ -1607,7 +1607,7 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260518c"></script>
+    <script src="game.js?v=20260518d"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';

@@ -1,6 +1,9 @@
 {
-  "version": "20260518c",
+  "version": "20260518d",
   "changelog": {
+    "20260518d": [
+      "🎨 Refreshed splash screen with the new PlateQuest logo art."
+    ],
     "20260518c": [
       "🐛 Edit Pack (the host's settings modal) now saves properly. It was silently failing since yesterday's update.",
       "✏️ Rename Pack now updates the displayed pack name immediately — no more refresh required.",

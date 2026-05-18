@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518c';
+const APP_VERSION = '20260518d';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518d': [
+        '🎨 Refreshed splash screen with the new PlateQuest logo art.',
+    ],
     '20260518c': [
         '🐛 Edit Pack (the host\'s settings modal) now saves properly. It was silently failing since yesterday\'s update.',
         '✏️ Rename Pack now updates the displayed pack name immediately — no more refresh required.',
