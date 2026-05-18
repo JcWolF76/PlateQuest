@@ -126,30 +126,9 @@
             justify-self: center;
         }
 
-        .hero-copy h1 {
-            font-size: clamp(2.2rem, 5vw, 3.4rem);
-            font-weight: 800;
-            letter-spacing: -0.01em;
-            background: linear-gradient(90deg, var(--pq-blue-bright) 0%, #ffffff 60%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            color: transparent;
-        }
-
-        .hero-copy .kicker {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--pq-blue-bright);
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-        }
-
         .hero-copy .lede {
             font-size: 17px;
             color: var(--ink-1);
-            margin-top: 14px;
             max-width: 540px;
         }
 
@@ -363,10 +342,9 @@
 <body>
     <div class="page">
 
-        <!-- Studio header: Sparkasia + JcWolF wolf-paw mark -->
+        <!-- Studio header: Sparkasia wordmark only (logo art shown in hero) -->
         <header class="studio-bar">
             <a href="/" class="studio-mark" aria-label="Sparkasia home">
-                <img src="PlateQuest_Logo-JcWolF.png" alt="">
                 <span class="studio-wordmark">
                     <span class="name">Sparkasia Studios</span>
                     <span class="tag">Games for the Road</span>
@@ -377,10 +355,8 @@
 
         <!-- Flagship: PlateQuest -->
         <section class="hero" aria-labelledby="pq-name">
-            <img class="hero-logo" src="PlateQuest_Logo-JcWolF.png" alt="PlateQuest">
+            <img class="hero-logo" id="pq-name" src="PlateQuest_Logo-JcWolF.png" alt="PlateQuest">
             <div class="hero-copy">
-                <div class="kicker">Flagship title</div>
-                <h1 id="pq-name">PlateQuest</h1>
                 <p class="lede">The road trip game that turns every license plate into a mini victory. Spot them, claim them, and beat your friends to them.</p>
             </div>
         </section>
