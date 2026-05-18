@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517f';
+const APP_VERSION = '20260517g';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517g': [
+        '🐛 Reactions & Challenge tap-through (real fix this time): there was a delegated listener on the leaderboard container that I had missed in three previous attempts. It was opening the player detail card even when the per-card and per-button handlers were correctly stopped. Now it explicitly bails on React/Challenge/popover targets like the others.',
+    ],
     '20260517f': [
         '🐛 Reactions & Challenge: doubled down on the touch-isolation fix from 20260517d. The buttons now stop their own touchstart and touchend events at the source so the score-card never sees them, in case the previous target-inspection approach was getting fooled by iOS Safari event routing.',
     ],
@@ -1799,12 +1802,23 @@ function bindEventListeners() {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); setDiagnosticsVisible(); }
         if (e.key === 'Escape') { closePlayerDetail(); closeAnnounceModal(); closeTauntModal(); closePraiseModal(); closeChatSheet(); closeAuditModal(); closeQRModal(); closeActivityFeed(); closePendingRequestsSheet(); closeEndGameScreen(); closeHowToPlay(); }
     });
-    // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds
+    // Delegated listener on stable element — survives scoresContainer innerHTML rebuilds.
+    // THIS is what was opening the player detail when React / Challenge were tapped
+    // — even after the per-card handlers were fixed in 20260517d/f, this delegated
+    // listener kept firing because button-level stopPropagation, even when working
+    // correctly, didn't change the fact that this listener was lower in the DOM
+    // chain and processed the event first. Bail explicitly on action-button targets.
     const liveScores = document.getElementById('liveScores');
     if (liveScores) {
+        const isActionTarget = (target) =>
+            !!(target.closest('.react-trigger-btn')
+                || target.closest('.challenge-btn')
+                || target.closest('.reaction-popover')
+                || target.closest('.reaction-pop-btn'));
         let _scTouchX = 0, _scTouchY = 0, _scTouchFired = 0;
         liveScores.addEventListener('touchstart', e => { _scTouchX = e.touches[0].clientX; _scTouchY = e.touches[0].clientY; }, { passive: true });
         liveScores.addEventListener('touchend', e => {
+            if (isActionTarget(e.target)) return;
             const card = e.target.closest('[data-playerkey]');
             if (!card) return;
             const dx = Math.abs(e.changedTouches[0].clientX - _scTouchX);
@@ -1812,6 +1826,7 @@ function bindEventListeners() {
             if (dx < 10 && dy < 10) { _scTouchFired = Date.now(); openPlayerDetail(card.dataset.playerkey); }
         }, { passive: true });
         liveScores.addEventListener('click', e => {
+            if (isActionTarget(e.target)) return;
             const card = e.target.closest('[data-playerkey]');
             if (card && Date.now() - _scTouchFired > 350) openPlayerDetail(card.dataset.playerkey);
         });

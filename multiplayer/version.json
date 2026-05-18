@@ -1,6 +1,7 @@
 {
-  "version": "20260517f",
+  "version": "20260517g",
   "changelog": {
+    "20260517g": ["🐛 Reactions & Challenge tap-through (real fix this time): there was a delegated listener on the leaderboard container that I had missed in three previous attempts. It was opening the player detail card even when the per-card and per-button handlers were correctly stopped. Now it explicitly bails on React/Challenge/popover targets like the others."],
     "20260517f": ["🐛 Reactions & Challenge: doubled down on the touch-isolation fix from 20260517d. The buttons now stop their own touchstart and touchend events at the source so the score-card never sees them, in case the previous target-inspection approach was getting fooled by iOS Safari event routing."],
     "20260517e": ["📖 How2Play sheet now documents what 👏 React and ⚔️ Challenge do — they were undocumented and easy to mistake for badges. First-time tap on the leaderboard shows a one-time onboarding tip pointing at the React button. The Challenge confirmation toast now explains what a rivalry is (head-to-head stats on tap, one rival at a time, Drop to end it)."],
     "20260517d": ["🐛 Fixed: React and Challenge buttons on leaderboard cards no longer fall through to opening the player detail card. Tapping them now actually fires the action."],
