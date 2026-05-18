@@ -45,18 +45,51 @@ The PR/Branch view in the GitHub UI shows **branch** state, not
 live. If the user says "I don't see my change on the site," check
 `git log origin/main` first — not the branch.
 
-## 3. Project identity
+## 3. Project identity — three layers
 
-- **Owner:** Jesse Bliss. GitHub handle is **`JcWolF76`** — capital `F`,
-  lowercase everything else. Don't write `JcWolf76` or `JcWoLF76` in code,
-  commits, or docs.
-- **Game:** PlateQuest — license plate spotting game.
-- **Umbrella:** **Sparkasia** — a multi-game publisher identity. The repo
-  root `index.html` is the **Sparkasia landing page**, NOT the game itself.
-  PlateQuest is one card on that landing.
-- **Sister title:** AnimalQuest, currently under `/animalquest/`. Slated
-  for split-out to `JcWolF76/AnimalQuest`. See
-  `scripts/migrate-animalquest.sh`.
+There are three distinct identities in this project. Do not collapse
+them or substitute one for another; each lives where it lives for a
+reason.
+
+- **Person:** **Jesse Bliss** — the legal name. Holds the copyright.
+  Appears on LICENSE, in `© 2026 Jesse Bliss (...)` headers, and in
+  any legal or financial document. Not currently incorporated; the
+  studio name is a brand label, not a legal entity.
+
+- **Studio:** **Sparkasia Studios** — the brand / publisher identity.
+  Appears on user-facing copy ("A Sparkasia Studios title"), splash
+  screens, store-page metadata, and the Firebase project display name.
+  Plain caps in official places. The stylized form `SparKasiA StuDios`
+  is reserved for playful contexts (Discord names, in-game easter eggs)
+  and should never appear in LICENSE, README, or other formal docs.
+
+- **Handle:** **JcWolF** — the canonical dev / player handle. Capital
+  `F`, lowercase everything else. Used in LICENSE bylines, source-file
+  copyright headers, in-game player tag, and all "Created by" credits.
+  Game code special-cases `tag === 'JcWolF'` for dev-only UI — do not
+  change that constant.
+
+- **Handle (GitHub variant):** **JcWolF76** — the literal GitHub
+  username, because `JcWolF` was unavailable when the account was
+  registered. Use this **only** in URLs, repo references, and places
+  that are specifically pointing at the GitHub account
+  (`github.com/JcWolF76/PlateQuest`, `JcWolF76/AnimalQuest`, etc.).
+  Don't use it as a brand handle in bylines or credits.
+
+Never write `JcWolf`, `JcWoLF`, `JCWOLF`, or any other casing
+variation. `JcWolF` is the canonical form; `JcWolF76` is its
+GitHub-specific variant.
+
+**Games under Sparkasia Studios:**
+- **PlateQuest** — license plate spotting (this repo).
+- **AnimalQuest** — wildlife spotting; sister title, currently
+  under `/animalquest/`. Slated for split-out to
+  `JcWolF76/AnimalQuest`. See `scripts/migrate-animalquest.sh`.
+- Future titles (BingoQuest, JeepQuest, etc.) follow the same
+  pattern: own game name, own repo, published by Sparkasia Studios.
+
+The repo root `index.html` is the **Sparkasia Studios landing page**,
+NOT the PlateQuest game. PlateQuest is one card on that landing.
 
 ## 4. License
 
@@ -64,7 +97,7 @@ PlateQuest is **proprietary**, not open source. See `LICENSE` for terms.
 When adding new source files, include the standard header:
 
 ```
-© 2026 Jesse Bliss (JcWolF76). All rights reserved.
+© 2026 Jesse Bliss (JcWolF). All rights reserved.
 Proprietary software — see LICENSE.
 ```
 
