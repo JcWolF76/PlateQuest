@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518a';
+const APP_VERSION = '20260518b';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,11 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518b': [
+        '🐛 Challenging someone no longer shows you a misleading "they challenged you" message — only the recipient gets the challenge notification.',
+        '✏️ Hosts can rename a pack on the fly — new "Rename Pack" button in Host Controls. The game code stays the same, only the display name changes.',
+        '🚗 Easier navigation from inside the multiplayer game — new shortcuts to the Single Player Version and the Sparkasia Studios landing page in the App section of the menu.',
+    ],
     '20260518a': [
         '🔧 Maintenance update',
     ],
@@ -1751,6 +1756,7 @@ function bindEventListeners() {
     });
     const chatPolicyModal = document.getElementById('chatPolicyModal');
     if (chatPolicyModal) chatPolicyModal.addEventListener('click', e => { if (e.target === chatPolicyModal) chatPolicyModal.classList.remove('visible'); });
+    document.getElementById('renamePackBtn')?.addEventListener('click', renamePack);
     document.getElementById('newRoundBtn')?.addEventListener('click', startNewRound);
     document.getElementById('resetRoundBtn')?.addEventListener('click', resetCurrentRound);
     document.getElementById('rerollPrizesBtn')?.addEventListener('click', rerollPrizes);
@@ -5150,19 +5156,26 @@ function setRivalry(toKey, toName) {
     const updates = {};
     if (currentRival) updates[`rivalries/${currentRival}`] = null; // clear their side
     if (currentRival === toKey) {
+        // Drop path: preset to null BEFORE the update so the local-write
+        // listener (which Firebase fires synchronously for latency compensation)
+        // sees no delta when it runs.
+        lastKnownRivalry = null;
         updates[`rivalries/${myKey}`] = null;
         currentGameRef.update(updates).catch(() => {});
         showToast('⚔️ Rivalry ended.', 'info');
         return;
     }
+    // Challenge path: SAME reason — preset MUST happen BEFORE the update call.
+    // Firebase RTDB fires local-write listeners synchronously with the optimistic
+    // local data, so any post-update assignment loses the race: detectRivalryChallenges
+    // runs first, sees myRivalKey=toKey vs stale lastKnownRivalry, and fires the
+    // "X challenged you" toast on the challenger's own screen. This was the
+    // proximate cause of three failed fixes — the preset was always there,
+    // just in the wrong place.
+    lastKnownRivalry = toKey;
     updates[`rivalries/${myKey}`] = toKey;
     updates[`rivalries/${toKey}`] = myKey;
     currentGameRef.update(updates).catch(() => {});
-    // Pre-set lastKnownRivalry so the rivalry-change detector running on
-    // this device sees no delta when Firebase echoes the update back —
-    // otherwise the challenger ALSO gets the "X challenged you" toast,
-    // which reads as if they were on the receiving end.
-    lastKnownRivalry = toKey;
     showToast(`⚔️ ${toName} is now your rival — tap their card for head-to-head stats. Tap ⚔️ Drop to end it.`, 'success');
 }
 
@@ -5172,12 +5185,39 @@ function detectRivalryChallenges() {
     if (myRivalKey === lastKnownRivalry) return;
     const prev = lastKnownRivalry;
     lastKnownRivalry = myRivalKey;
-    if (lastKnownRivalry === undefined) return; // first run — don't toast
+    // First-run check now correctly tests the PREVIOUS value of lastKnownRivalry —
+    // the line above just overwrote it with the new value, so checking the
+    // current value after assignment was always wrong (and harmless because
+    // myRivalKey is normalized to null and never undefined).
+    if (prev === undefined) return;
     if (myRivalKey && prev !== myRivalKey) {
         const rival = playersData[myRivalKey];
         if (rival?.playerKey !== currentPlayer.playerKey) {
             showToast(`⚔️ ${rival?.displayName || '?'} challenged you to a rivalry!`, 'info');
         }
+    }
+}
+
+// Host-only: rename the pack (game name). The game code stays the same so all
+// existing share links / QR codes / player references keep working — only the
+// human-readable display name changes.
+async function renamePack() {
+    if (!currentGameRef || !currentPlayer) return;
+    if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
+    const currentName = gameData?.name || '';
+    const newName = prompt('Rename this pack (the game code stays the same):', currentName);
+    if (newName === null) return;
+    const trimmed = newName.trim().slice(0, 60);
+    if (!trimmed) { showToast('Pack name cannot be empty.', 'error'); return; }
+    if (trimmed === currentName) return;
+    try {
+        await currentGameRef.update({
+            name: trimmed,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        showToast(`✏️ Pack renamed to "${trimmed}".`, 'success');
+    } catch (err) {
+        showToast('Rename failed: ' + (err.message || err), 'error');
     }
 }
 

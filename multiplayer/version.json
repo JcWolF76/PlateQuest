@@ -1,6 +1,11 @@
 {
-  "version": "20260518a",
+  "version": "20260518b",
   "changelog": {
+    "20260518b": [
+      "🐛 Challenging someone no longer shows you a misleading \"they challenged you\" message — only the recipient gets the challenge notification.",
+      "✏️ Hosts can rename a pack on the fly — new \"Rename Pack\" button in Host Controls. The game code stays the same, only the display name changes.",
+      "🚗 Easier navigation from inside the multiplayer game — new shortcuts to the Single Player Version and the Sparkasia Studios landing page in the App section of the menu."
+    ],
     "20260518a": ["🔧 Maintenance update"],
     "20260517h": ["👏 React + ⚔️ Challenge polish: (1) tapping React a second time now closes the picker instead of leaving it open — easy dismiss without sending. (2) higher-contrast buttons (white text on dark backgrounds) so React/Challenge labels are readable on the green leaderboard cards. (3) fixed the challenger-side toast — when YOU challenge someone, you no longer see a misleading \"they challenged you\" message; only the recipient sees the challenge notification."],
     "20260517g": ["🐛 Reactions & Challenge tap-through (real fix this time): there was a delegated listener on the leaderboard container that I had missed in three previous attempts. It was opening the player detail card even when the per-card and per-button handlers were correctly stopped. Now it explicitly bails on React/Challenge/popover targets like the others."],

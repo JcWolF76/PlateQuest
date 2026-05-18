@@ -1019,6 +1019,7 @@
                     <div class="action-section" id="hostSection" style="display:none;">
                         <div class="action-section-label">Host Controls</div>
                         <div class="action-grid">
+                            <button class="btn btn-secondary action-span" id="renamePackBtn">✏️ Rename Pack</button>
                             <button class="btn btn-pending-requests action-span" id="pendingRequestsBtn">📥 Pending Requests <span class="pending-badge" id="pendingRequestsBadge" style="display:none;">0</span></button>
                             <button class="btn btn-announce" id="announceBtn">📣 Announce</button>
                             <div class="audit-btn-wrap">
@@ -1083,6 +1084,8 @@
                     <div class="action-section">
                         <div class="action-section-label">App</div>
                         <div class="action-grid">
+                            <a class="btn btn-secondary action-span" href="../solo/index.html" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">🚗 Single Player Version</a>
+                            <a class="btn btn-secondary action-span" href="../index.html" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">🏠 Sparkasia Studios</a>
                             <button class="btn btn-secondary action-span" id="darkModeBtn">🌙 Dark Mode</button>
                             <button class="btn btn-wolf-admin action-span" id="wolfAdminBtn" style="display:none;">🐺 Admin Panel</button>
                         </div>
@@ -1604,7 +1607,7 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260518a"></script>
+    <script src="game.js?v=20260518b"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
