@@ -219,12 +219,25 @@
             100% { transform: translateX(100%); }
         }
 
+        .game-logo {
+            display: block;
+            margin: 0 auto 10px;
+            width: 240px;
+            max-width: 80vw;
+            height: auto;
+            filter:
+                drop-shadow(0 0 18px rgba(52, 152, 219, 0.45))
+                drop-shadow(0 8px 20px rgba(0,0,0,0.45));
+        }
+
         .game-title {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 10px;
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 8px;
+            opacity: 0.85;
             text-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
         }
+        .game-title:empty { display: none; }
 
         .game-subtitle {
             opacity: 0.9;
@@ -902,8 +915,9 @@
 
         <div id="game">
             <div class="game-header">
-                <div class="game-title" id="gameTitle">PlateQuest Adventure</div>
+                <img src="../PlateQuest_Logo-JcWolF.png" alt="PlateQuest" class="game-logo">
                 <div class="game-subtitle">Find all 50 state license plates!</div>
+                <div class="game-title" id="gameTitle"></div>
             </div>
 
             <div class="controls-section steel-texture">
@@ -1849,7 +1863,7 @@
             if (currentTripData && profile) {
                 title.textContent = `${currentTripData.name} - ${gameModes[currentGameMode].name}`;
             } else {
-                title.textContent = 'PlateQuest Adventure';
+                title.textContent = '';
             }
         }
 
