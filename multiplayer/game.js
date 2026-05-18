@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260517e';
+const APP_VERSION = '20260517f';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260517f': [
+        '🐛 Reactions & Challenge: doubled down on the touch-isolation fix from 20260517d. The buttons now stop their own touchstart and touchend events at the source so the score-card never sees them, in case the previous target-inspection approach was getting fooled by iOS Safari event routing.',
+    ],
     '20260517e': [
         '📖 How2Play sheet now documents what 👏 React and ⚔️ Challenge do — they were undocumented and easy to mistake for badges. First-time tap on the leaderboard shows a one-time onboarding tip pointing at the React button. The Challenge confirmation toast now explains what a rivalry is (head-to-head stats on tap, one rival at a time, Drop to end it).',
     ],
@@ -2359,6 +2362,13 @@ function updateScores() {
         });
         const reactTrigger = scoreCard.querySelector('.react-trigger-btn');
         if (reactTrigger) {
+            // Stop touch + click events at the button so the score-card's
+            // tap-to-open-detail handler never sees them. Belt-and-suspenders
+            // — the parent handler also bails on .react-trigger-btn targets,
+            // but iOS Safari has been observed to mis-route e.target in
+            // some configurations, so this guarantees isolation.
+            reactTrigger.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+            reactTrigger.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
             reactTrigger.addEventListener('click', e => {
                 e.stopPropagation();
                 openReactionPopover(reactTrigger, reactTrigger.dataset.tokey, reactTrigger.dataset.toname);
@@ -2366,6 +2376,8 @@ function updateScores() {
         }
         const chalBtn = scoreCard.querySelector('.challenge-btn');
         if (chalBtn) {
+            chalBtn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+            chalBtn.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
             chalBtn.addEventListener('click', e => {
                 e.stopPropagation();
                 setRivalry(chalBtn.dataset.tokey, chalBtn.dataset.toname);
