@@ -1,6 +1,9 @@
 {
-  "version": "20260518g",
+  "version": "20260518h",
   "changelog": {
+    "20260518h": [
+      "🐛 If you have zero plates spotted, your coins, streak, active boosts, and achievements now auto-clear to match — no more lingering 🪙/🔥/🏆 totals after wiping your plates. Runs both on every clear-plate approval and on a quiet background sweep so existing stuck values catch up too."
+    ],
     "20260518g": [
       "🐛 Achievements now revoke themselves when their criteria stop being true — e.g., if a plate is cleared and your plate count drops back below a milestone threshold, that achievement comes off your count. Previously they were sticky.",
       "🌫️ Fog of War, Haze, and Oil Slick no longer block toast notifications and the chat sheet. You still can't see the game board or scores, but you can still see other players' finds, achievements, taunts, praise, and chat messages, and you can still chat back."

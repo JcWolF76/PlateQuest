@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518g';
+const APP_VERSION = '20260518h';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518h': [
+        '🐛 If you have zero plates spotted, your coins, streak, active boosts, and achievements now auto-clear to match — no more lingering 🪙/🔥/🏆 totals after wiping your plates. Runs both on every clear-plate approval and on a quiet background sweep so existing stuck values catch up too.',
+    ],
     '20260518g': [
         '🐛 Achievements now revoke themselves when their criteria stop being true — e.g., if a plate is cleared and your plate count drops back below a milestone threshold, that achievement comes off your count. Previously they were sticky.',
         '🌫️ Fog of War, Haze, and Oil Slick no longer block toast notifications and the chat sheet. You still can\'t see the game board or scores, but you can still see other players\' finds, achievements, taunts, praise, and chat messages, and you can still chat back.',
@@ -2281,7 +2284,7 @@ function updateGameUI() {
     detectRivalryChallenges();
     if (Date.now() - lastAchievementCheck > 4000) {
         lastAchievementCheck = Date.now();
-        checkAchievements(currentPlayer.playerKey).catch(() => {});
+        reconcilePlayerState(currentPlayer.playerKey).catch(() => {});
     }
     autoCleanRegionBackups();
     autoCleanPlateBackups();
@@ -2736,10 +2739,11 @@ async function approveClearRequest(stateName, req) {
                 .transaction(c => Math.max(0, (c || 0) - coinsRefund))
                 .catch(() => {});
         }
-        // Give the listener a beat to refresh playersData, then re-evaluate
-        // achievements so any that depended on this plate (foundCount /
-        // firstCount thresholds, coins-on-hand, etc.) are revoked.
-        setTimeout(() => checkAchievements(req.playerKey).catch(() => {}), 350);
+        // Give the listener a beat to refresh playersData, then reconcile.
+        // If this was the player's last plate, that zeros their coins,
+        // streak, effects, and achievements; otherwise just re-runs the
+        // achievement-revoke pass against the new stats.
+        setTimeout(() => reconcilePlayerState(req.playerKey).catch(() => {}), 350);
         showToast(`Cleared ${stateName} for ${req.displayName}.`, 'info');
     } catch (err) {
         showToast('Failed to apply clear.', 'error');
@@ -5076,6 +5080,30 @@ async function finalizeSpeedRound(sr) {
 }
 
 // ── Achievements ──────────────────────────────────────────────────────────────
+
+// Full per-player reconciliation: drop stale counters that no plate
+// finding currently justifies. Called periodically for self and from
+// approveClearRequest for the affected player after a clear lands.
+async function reconcilePlayerState(playerKey) {
+    if (!currentGameRef || !playerKey) return;
+    const player = playersData[playerKey];
+    if (!player) return;
+    const foundCount = Object.keys(player.states || {}).length;
+    if (foundCount === 0) {
+        const updates = {};
+        if ((player.coins || 0) !== 0) updates[`players/${playerKey}/coins`] = 0;
+        if (player.streak) updates[`players/${playerKey}/streak`] = null;
+        if (player.achievements && Object.keys(player.achievements).length) {
+            updates[`players/${playerKey}/achievements`] = null;
+        }
+        if (player.effects) updates[`players/${playerKey}/effects`] = null;
+        if (Object.keys(updates).length) {
+            await currentGameRef.update(updates);
+        }
+        return;
+    }
+    await checkAchievements(playerKey);
+}
 
 async function checkAchievements(playerKey) {
     if (!currentGameRef || !playerKey) return;
