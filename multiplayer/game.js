@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518e';
+const APP_VERSION = '20260518f';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518f': [
+        '🐛 Reset Round and New Round now also reset every player\'s coins, active boosts/debuffs, and streaks — previously the coin counts and effects carried over, so the leaderboard wasn\'t a true clean slate.',
+    ],
     '20260518e': [
         '🐛 Approving a clear-plate request (host\'s pending requests) now correctly refunds the coins that were awarded for finding it — the player\'s coin count actually updates instead of staying high.',
     ],
@@ -5362,13 +5365,18 @@ async function rerollPrizes() {
 async function startNewRound() {
     if (!currentGameRef || !currentPlayer) return;
     if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
-    if (!confirm('Start a new round? This wipes all plates, first-finders, and region completions for everyone. Pack stays together.')) return;
+    if (!confirm('Start a new round? This wipes all plates, first-finders, coins, streaks, and region completions for everyone. Pack stays together.')) return;
     try {
         const snap = await currentGameRef.once('value');
         const room = snap.val();
         if (!room) return;
         const updates = {};
-        Object.keys(room.players || {}).forEach(pKey => { updates[`players/${pKey}/states`] = {}; });
+        Object.keys(room.players || {}).forEach(pKey => {
+            updates[`players/${pKey}/states`] = {};
+            updates[`players/${pKey}/coins`] = 0;
+            updates[`players/${pKey}/effects`] = null;
+            updates[`players/${pKey}/streak`] = null;
+        });
         updates.claimedStates = null;
         updates.completedSubRegions = null;
         updates.completedRegions = null;
@@ -5399,13 +5407,18 @@ async function startNewRound() {
 async function resetCurrentRound() {
     if (!currentGameRef || !currentPlayer) return;
     if (gameData?.hostPlayerKey !== currentPlayer.playerKey) return;
-    if (!confirm('Reset this round? Wipes all plates, first-finders, and region completions for everyone — but keeps the round number the same. Pack stays together.')) return;
+    if (!confirm('Reset this round? Wipes all plates, first-finders, coins, streaks, and region completions for everyone — but keeps the round number the same. Pack stays together.')) return;
     try {
         const snap = await currentGameRef.once('value');
         const room = snap.val();
         if (!room) return;
         const updates = {};
-        Object.keys(room.players || {}).forEach(pKey => { updates[`players/${pKey}/states`] = {}; });
+        Object.keys(room.players || {}).forEach(pKey => {
+            updates[`players/${pKey}/states`] = {};
+            updates[`players/${pKey}/coins`] = 0;
+            updates[`players/${pKey}/effects`] = null;
+            updates[`players/${pKey}/streak`] = null;
+        });
         updates.claimedStates = null;
         updates.completedSubRegions = null;
         updates.completedRegions = null;

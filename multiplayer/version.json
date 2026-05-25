@@ -1,6 +1,9 @@
 {
-  "version": "20260518e",
+  "version": "20260518f",
   "changelog": {
+    "20260518f": [
+      "🐛 Reset Round and New Round now also reset every player's coins, active boosts/debuffs, and streaks — previously the coin counts and effects carried over, so the leaderboard wasn't a true clean slate."
+    ],
     "20260518e": [
       "🐛 Approving a clear-plate request (host's pending requests) now correctly refunds the coins that were awarded for finding it — the player's coin count actually updates instead of staying high."
     ],
