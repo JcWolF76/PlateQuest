@@ -1,6 +1,10 @@
 {
-  "version": "20260518f",
+  "version": "20260518g",
   "changelog": {
+    "20260518g": [
+      "🐛 Achievements now revoke themselves when their criteria stop being true — e.g., if a plate is cleared and your plate count drops back below a milestone threshold, that achievement comes off your count. Previously they were sticky.",
+      "🌫️ Fog of War, Haze, and Oil Slick no longer block toast notifications and the chat sheet. You still can't see the game board or scores, but you can still see other players' finds, achievements, taunts, praise, and chat messages, and you can still chat back."
+    ],
     "20260518f": [
       "🐛 Reset Round and New Round now also reset every player's coins, active boosts/debuffs, and streaks — previously the coin counts and effects carried over, so the leaderboard wasn't a true clean slate."
     ],

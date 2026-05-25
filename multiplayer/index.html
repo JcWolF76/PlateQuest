@@ -335,7 +335,7 @@
         .paused-pack-name { font-size: 20px; font-weight: 800; color: #ecf0f1; margin-bottom: 4px; }
         .paused-pack-divider { border: none; border-top: 1px solid rgba(52, 152, 219, 0.2); margin: 14px 0; }
         body.dark .paused-pack-section { background: rgba(39, 174, 96, 0.05); border-color: rgba(39, 174, 96, 0.25); }
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1301; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9700; }
         .toast { background: linear-gradient(145deg, #34495e, #2c3e50); color: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); transform: translateX(400px); animation: slideInToast 0.3s ease forwards; border: 1px solid rgba(52, 152, 219, 0.3); position: relative; max-width: min(92vw, 360px); }
         .toast::before { content: '🐾'; position: absolute; top: 5px; left: 8px; font-size: 10px; opacity: 0.5; }
         .toast.success { background: linear-gradient(45deg, #27ae60, #2ecc71); }
@@ -450,7 +450,7 @@
         .btn-chat-agree { background:linear-gradient(135deg,#1abc9c,#0e6655); color:#fff; font-weight:800; border:none; }
         .btn-chat-agree:hover { background:linear-gradient(135deg,#48c9b0,#1abc9c); }
 
-        .chat-sheet { position:fixed; bottom:0; left:0; right:0; height:70vh; background:linear-gradient(180deg,rgba(8,28,22,0.99),rgba(4,16,12,0.99)); border-top:2px solid rgba(26,188,156,0.35); border-radius:22px 22px 0 0; z-index:1300; display:none; flex-direction:column; box-shadow:0 -12px 40px rgba(0,0,0,0.5); }
+        .chat-sheet { position:fixed; bottom:0; left:0; right:0; height:70vh; background:linear-gradient(180deg,rgba(8,28,22,0.99),rgba(4,16,12,0.99)); border-top:2px solid rgba(26,188,156,0.35); border-radius:22px 22px 0 0; z-index:9600; display:none; flex-direction:column; box-shadow:0 -12px 40px rgba(0,0,0,0.5); }
         .chat-sheet.open { display:flex; }
         .chat-hdr { display:flex; justify-content:space-between; align-items:center; padding:16px 20px 12px; border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
         .chat-hdr-title { font-size:16px; font-weight:800; color:#a9dfbf; }
@@ -1607,7 +1607,7 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260518f"></script>
+    <script src="game.js?v=20260518g"></script>
     <script>
     (function() {
         const LIBRARY_KEY_PREFIX = 'platequest_created_games_v1_';
