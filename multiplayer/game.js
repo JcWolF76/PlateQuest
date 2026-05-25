@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518i';
+const APP_VERSION = '20260518j';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518j': [
+        '🐛 Audit now also revokes manually-awarded achievements (Bounty Hunter, Road Sprinter) when the player has zero plates, and resets the active 🔥 streak whenever foundCount drops to zero — previously those stayed sticky because the audit could only verify achievements with an automatic check function and only nulled streaks past the 10-minute stale window.',
+    ],
     '20260518i': [
         '🐛 Approving a clear-plate request now triggers a full silent audit so coins, achievements, region records, and stale streaks all reconcile against the new state in one pass — partial clears (e.g., remove 5 of 6 plates) correctly drop the counts that those 5 plates were responsible for, not just the last one. The host\'s session also runs the audit quietly every 30s as a safety net for already-stuck records.',
     ],
@@ -4203,6 +4206,10 @@ async function computeAuditCorrections() {
         // ── Achievement corrections (bidirectional) ───────────────────────────────
         // missing-but-passing → award
         // earned-but-failing  → revoke (skip manually-awarded ones with no check)
+        // foundCount === 0    → revoke ALL existing achievements (including
+        //                       manual ones like bounty_hunter, speed_podium —
+        //                       a player with zero plates can't justify any
+        //                       award even if we can't re-derive it).
         const achievementCorrections = [];
         const totalPlatesForAudit = getActivePlateEntries(room.settings?.plateScope).length;
         Object.entries(players).forEach(([playerKey, playerData]) => {
@@ -4216,8 +4223,17 @@ async function computeAuditCorrections() {
             const corridorComplete = corridorStates.length > 0 && corridorStates.every(s => foundSet.has(s));
             const stats = { foundSet, foundCount, firstCount, completedRegions, corridorComplete };
 
+            // Special case: player has no plates → strip everything.
+            if (foundCount === 0) {
+                Object.keys(existing).forEach(achId => {
+                    const ach = ACHIEVEMENTS.find(a => a.id === achId);
+                    achievementCorrections.push({ action: 'revoke', playerKey, playerName: playerData.displayName || playerKey, achId, achName: ach?.name || achId, achIcon: ach?.icon || '🏆' });
+                });
+                return;
+            }
+
             ACHIEVEMENTS.forEach(ach => {
-                if (!ach.check) return; // manually-awarded (bounty_hunter, speed_podium)
+                if (!ach.check) return; // manually-awarded — can't auto-verify when foundCount > 0
                 try {
                     const earned = !!existing[ach.id];
                     const passes = ach.id === 'lucky'
@@ -4232,16 +4248,18 @@ async function computeAuditCorrections() {
             });
         });
 
-        // ── Streak corrections (stale-window cleanup) ─────────────────────────────
-        // Streaks that haven't been touched within STREAK_WINDOW_MS are expired
-        // — null them so they stop showing as 🔥×N on the leaderboard.
+        // ── Streak corrections ────────────────────────────────────────────────────
+        // Null streaks that are stale (no find within the streak window) OR
+        // belong to a player who currently has zero plates spotted.
         const streakCorrections = [];
         const now = Date.now();
         Object.entries(players).forEach(([playerKey, playerData]) => {
             const streak = playerData.streak;
             if (!streak) return;
+            const foundCount = Object.keys(playerData.states || {}).length;
             const lastFoundAt = streak.lastFoundAt || 0;
-            if (now - lastFoundAt > STREAK_WINDOW_MS) {
+            const stale = (now - lastFoundAt) > STREAK_WINDOW_MS;
+            if (foundCount === 0 || stale) {
                 streakCorrections.push({ playerKey, playerName: playerData.displayName || playerKey });
             }
         });

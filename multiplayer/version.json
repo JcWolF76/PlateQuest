@@ -1,6 +1,9 @@
 {
-  "version": "20260518i",
+  "version": "20260518j",
   "changelog": {
+    "20260518j": [
+      "🐛 Audit now also revokes manually-awarded achievements (Bounty Hunter, Road Sprinter) when the player has zero plates, and resets the active 🔥 streak whenever foundCount drops to zero — previously those stayed sticky because the audit could only verify achievements with an automatic check function and only nulled streaks past the 10-minute stale window."
+    ],
     "20260518i": [
       "🐛 Approving a clear-plate request now triggers a full silent audit so coins, achievements, region records, and stale streaks all reconcile against the new state in one pass — partial clears (e.g., remove 5 of 6 plates) correctly drop the counts that those 5 plates were responsible for, not just the last one. The host's session also runs the audit quietly every 30s as a safety net for already-stuck records."
     ],
