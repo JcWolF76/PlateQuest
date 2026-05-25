@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518d';
+const APP_VERSION = '20260518e';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518e': [
+        '🐛 Approving a clear-plate request (host\'s pending requests) now correctly refunds the coins that were awarded for finding it — the player\'s coin count actually updates instead of staying high.',
+    ],
     '20260518d': [
         '🎨 Refreshed splash screen with the new PlateQuest logo art.',
     ],
@@ -2714,11 +2717,18 @@ function showClearRequestToast(req, stateName) {
 
 async function approveClearRequest(stateName, req) {
     try {
+        const wasFirstFinder = gameData?.claimedStates?.[stateName]?.playerKey === req.playerKey;
+        const coinsRefund = COIN_RATES.plateFind + (wasFirstFinder ? COIN_RATES.plateFirst : 0);
         const updates = {};
         updates[`clearRequests/${stateName}`] = null;
         updates[`claimedStates/${stateName}`] = null;
         updates[`players/${req.playerKey}/states/${stateName}`] = null;
         await currentGameRef.update(updates);
+        if (coinsRefund > 0) {
+            currentGameRef.child(`players/${req.playerKey}/coins`)
+                .transaction(c => Math.max(0, (c || 0) - coinsRefund))
+                .catch(() => {});
+        }
         showToast(`Cleared ${stateName} for ${req.displayName}.`, 'info');
     } catch (err) {
         showToast('Failed to apply clear.', 'error');

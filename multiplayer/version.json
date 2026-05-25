@@ -1,6 +1,9 @@
 {
-  "version": "20260518d",
+  "version": "20260518e",
   "changelog": {
+    "20260518e": [
+      "🐛 Approving a clear-plate request (host's pending requests) now correctly refunds the coins that were awarded for finding it — the player's coin count actually updates instead of staying high."
+    ],
     "20260518d": [
       "🎨 Refreshed splash screen with the new PlateQuest logo art."
     ],
