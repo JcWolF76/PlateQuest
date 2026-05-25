@@ -1,6 +1,9 @@
 {
-  "version": "20260518h",
+  "version": "20260518i",
   "changelog": {
+    "20260518i": [
+      "🐛 Approving a clear-plate request now triggers a full silent audit so coins, achievements, region records, and stale streaks all reconcile against the new state in one pass — partial clears (e.g., remove 5 of 6 plates) correctly drop the counts that those 5 plates were responsible for, not just the last one. The host's session also runs the audit quietly every 30s as a safety net for already-stuck records."
+    ],
     "20260518h": [
       "🐛 If you have zero plates spotted, your coins, streak, active boosts, and achievements now auto-clear to match — no more lingering 🪙/🔥/🏆 totals after wiping your plates. Runs both on every clear-plate approval and on a quiet background sweep so existing stuck values catch up too."
     ],

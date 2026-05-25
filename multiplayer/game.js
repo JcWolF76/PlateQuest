@@ -6,7 +6,7 @@
 // Proprietary software — see LICENSE at repo root. Unauthorized copying,
 // modification, redistribution, or commercial use is prohibited.
 
-const APP_VERSION = '20260518h';
+const APP_VERSION = '20260518i';
 
 const TAUNT_LIST = [
     "Watch out, [name] — I'm coming for that top spot! 🚗💨",
@@ -138,6 +138,9 @@ const COIN_RATES = {
 
 // Release notes shown to players when an update is detected
 const CHANGELOG = {
+    '20260518i': [
+        '🐛 Approving a clear-plate request now triggers a full silent audit so coins, achievements, region records, and stale streaks all reconcile against the new state in one pass — partial clears (e.g., remove 5 of 6 plates) correctly drop the counts that those 5 plates were responsible for, not just the last one. The host\'s session also runs the audit quietly every 30s as a safety net for already-stuck records.',
+    ],
     '20260518h': [
         '🐛 If you have zero plates spotted, your coins, streak, active boosts, and achievements now auto-clear to match — no more lingering 🪙/🔥/🏆 totals after wiping your plates. Runs both on every clear-plate approval and on a quiet background sweep so existing stuck values catch up too.',
     ],
@@ -895,6 +898,7 @@ let speedRoundInterval = null;  // setInterval handle for countdown ticker
 let lastKnownSpeedRoundEnd = null; // dedup speed-round finalization
 let pendingAchievements = new Set(); // IDs written this session — prevents double-toast
 let lastAchievementCheck = 0;       // timestamp of last checkAchievements call
+let lastSilentAuditAt = 0;          // host-only background audit throttle
 let lastKnownRivalry = undefined;   // undefined = not initialized; null = no rival; string = rival key
 let lastKnownSuddenDeathWinner = null; // wonAt timestamp of last announced SD winner
 let pendingClearState = null;   // stateName waiting for host-request confirm sheet
@@ -2265,7 +2269,7 @@ function updateGameUI() {
         prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null;
         prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null;
         prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0;
-        lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null;
+        lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastSilentAuditAt = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null;
         if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; }
         endGameScreenShown = false; lastRenderedStateSignature = '';
         closeEndGameScreen();
@@ -2285,6 +2289,15 @@ function updateGameUI() {
     if (Date.now() - lastAchievementCheck > 4000) {
         lastAchievementCheck = Date.now();
         reconcilePlayerState(currentPlayer.playerKey).catch(() => {});
+    }
+    // Host-only background audit every 30s — heals partial-clear staleness
+    // (coins/achievements/streaks left over from old code paths) without
+    // requiring the host to push the manual audit button.
+    if (gameData?.hostPlayerKey === currentPlayer.playerKey) {
+        if (Date.now() - lastSilentAuditAt > 30000) {
+            lastSilentAuditAt = Date.now();
+            runAuditSilently();
+        }
     }
     autoCleanRegionBackups();
     autoCleanPlateBackups();
@@ -2727,23 +2740,16 @@ function showClearRequestToast(req, stateName) {
 
 async function approveClearRequest(stateName, req) {
     try {
-        const wasFirstFinder = gameData?.claimedStates?.[stateName]?.playerKey === req.playerKey;
-        const coinsRefund = COIN_RATES.plateFind + (wasFirstFinder ? COIN_RATES.plateFirst : 0);
         const updates = {};
         updates[`clearRequests/${stateName}`] = null;
         updates[`claimedStates/${stateName}`] = null;
         updates[`players/${req.playerKey}/states/${stateName}`] = null;
         await currentGameRef.update(updates);
-        if (coinsRefund > 0) {
-            await currentGameRef.child(`players/${req.playerKey}/coins`)
-                .transaction(c => Math.max(0, (c || 0) - coinsRefund))
-                .catch(() => {});
-        }
-        // Give the listener a beat to refresh playersData, then reconcile.
-        // If this was the player's last plate, that zeros their coins,
-        // streak, effects, and achievements; otherwise just re-runs the
-        // achievement-revoke pass against the new stats.
-        setTimeout(() => reconcilePlayerState(req.playerKey).catch(() => {}), 350);
+        // Run a silent full audit so coins, achievements, region records,
+        // and stale streaks are all reconciled against the new state in
+        // one pass. The 350ms delay lets the listener refresh playersData
+        // first so the audit sees the post-clear snapshot.
+        setTimeout(() => runAuditSilently(), 350);
         showToast(`Cleared ${stateName} for ${req.displayName}.`, 'info');
     } catch (err) {
         showToast('Failed to apply clear.', 'error');
@@ -2899,7 +2905,7 @@ function returnToSetup(clearSessionToo = false) {
     teardownCurrentRoomListeners();
     currentGameRef = null; currentGameCode = null; window.currentGameCode = null;
     gameData = null; window.gameData = null;
-    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closePendingRequestsSheet(); closeChatSheet(); closeQRModal(); closeTauntModal(); closePraiseModal();
+    playersData = {}; prevPlayerStates = null; prevAnnouncementKeys = null; prevTauntKeys = null; prevChatKeys = null; prevReactionKeys = null; chatUnreadCount = 0; prevClearRequestKeys = null; prevRegionClearRequestKeys = null; prevPlateDisputeKeys = null; lastKnownRound = null; lastKnownLuckyFound = null; lastKnownSpeedRoundEnd = null; blackoutWon = false; pendingAchievements = new Set(); lastAchievementCheck = 0; lastSilentAuditAt = 0; lastKnownRivalry = undefined; lastKnownSuddenDeathWinner = null; lastRenderedStateSignature = ''; lastSyncAt = null; playerConfirmedInPack = false; regionMigrationDone = false; endGameScreenShown = false; pendingDeselect = null; if (speedRoundInterval) { clearInterval(speedRoundInterval); speedRoundInterval = null; } hideClearConfirmSheet(); closeEndGameScreen(); closeActivityFeed(); closePendingRequestsSheet(); closeChatSheet(); closeQRModal(); closeTauntModal(); closePraiseModal();
     if (clearSessionToo) { clearGameSession(); clearGameCodeFromUrl(); clearPendingJoinReload(); }
     gameCodeHeader.style.display = 'none'; setupSection.style.display = 'block'; gameActive.style.display = 'none';
     document.getElementById('newGameInput').value = ''; document.getElementById('joinCodeInput').value = clearSessionToo ? codeForInput : (pendingGameCodeFromUrl || '');
@@ -3593,8 +3599,8 @@ async function runAuditCorrections() {
         return;
     }
 
-    const { corrections, regionCorrections, coinCorrections, achievementCorrections } = results;
-    const totalFixes = corrections.length + regionCorrections.length + coinCorrections.length + achievementCorrections.length;
+    const { corrections, regionCorrections, coinCorrections, achievementCorrections, streakCorrections = [] } = results;
+    const totalFixes = corrections.length + regionCorrections.length + coinCorrections.length + achievementCorrections.length + streakCorrections.length;
 
     if (!totalFixes) {
         body.innerHTML = '<div class="audit-ok">✅ All records are accurate — no changes needed.</div>';
@@ -3604,37 +3610,7 @@ async function runAuditCorrections() {
 
     body.innerHTML = '<div class="audit-loading">⚙️ Applying corrections…</div>';
     try {
-        const updates = {};
-
-        // Plate first-finder fixes
-        corrections.forEach(c => {
-            if (c.type === 'remove') {
-                updates[`claimedStates/${c.stateName}`] = null;
-            } else {
-                updates[`claimedStates/${c.stateName}`] = {
-                    state: c.stateName, playerKey: c.newPlayerKey,
-                    name: c.newPlayerData.name, tag: c.newPlayerData.tag,
-                    displayName: c.newPlayerData.displayName, claimedAt: c.foundAt,
-                };
-            }
-        });
-
-        // Region / corridor completion fixes
-        regionCorrections.forEach(c => { updates[c.path] = c.value; });
-
-        // Coin top-ups (only ever increase, never decrease)
-        coinCorrections.forEach(c => {
-            updates[`players/${c.playerKey}/coins`] = firebase.database.ServerValue.increment(c.delta);
-        });
-
-        // Achievement awards
-        const now = Date.now();
-        achievementCorrections.forEach(c => {
-            updates[`players/${c.playerKey}/achievements/${c.achId}`] = now;
-        });
-
-        updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
-        await currentGameRef.update(updates);
+        await applyAuditCorrections(results);
 
         const MAX_SHOWN = 25;
         const plateItems = corrections.slice(0, MAX_SHOWN).map(c => {
@@ -3647,11 +3623,17 @@ async function runAuditCorrections() {
             const arrow = c.oldName ? `${c.oldName} → <strong>${c.newName}</strong>` : `<strong>${c.newName}</strong> set as first completer`;
             return `<div class="audit-item">🗺️ <strong>${c.label}</strong>: ${arrow}</div>`;
         }).join('');
-        const coinItems = coinCorrections.map(c =>
-            `<div class="audit-item">🪙 <strong>${c.playerName}</strong>: ${c.currentCoins} → ${c.expectedCoins} coins (+${c.delta})</div>`
-        ).join('');
+        const coinItems = coinCorrections.map(c => {
+            const arrow = c.delta >= 0 ? `(+${c.delta})` : `(${c.delta})`;
+            return `<div class="audit-item">🪙 <strong>${c.playerName}</strong>: ${c.currentCoins} → ${c.expectedCoins} coins ${arrow}</div>`;
+        }).join('');
         const achItems = achievementCorrections.map(c =>
-            `<div class="audit-item">🏆 <strong>${c.playerName}</strong>: ${c.achIcon} ${c.achName} awarded</div>`
+            c.action === 'revoke'
+                ? `<div class="audit-item audit-item-remove">🏆 <strong>${c.playerName}</strong>: ${c.achIcon} ${c.achName} revoked</div>`
+                : `<div class="audit-item">🏆 <strong>${c.playerName}</strong>: ${c.achIcon} ${c.achName} awarded</div>`
+        ).join('');
+        const streakItems = streakCorrections.map(c =>
+            `<div class="audit-item audit-item-remove">🔥 <strong>${c.playerName}</strong>: stale streak cleared</div>`
         ).join('');
         const overflow = corrections.length > MAX_SHOWN ? `<div class="audit-more">…and ${corrections.length - MAX_SHOWN} more plate fixes</div>` : '';
 
@@ -3660,16 +3642,80 @@ async function runAuditCorrections() {
         if (regionCorrections.length) parts.push(`${regionCorrections.length} region record${regionCorrections.length === 1 ? '' : 's'}`);
         if (coinCorrections.length) parts.push(`${coinCorrections.length} coin balance${coinCorrections.length === 1 ? '' : 's'}`);
         if (achievementCorrections.length) parts.push(`${achievementCorrections.length} achievement${achievementCorrections.length === 1 ? '' : 's'}`);
+        if (streakCorrections.length) parts.push(`${streakCorrections.length} stale streak${streakCorrections.length === 1 ? '' : 's'}`);
         const summary = parts.join(' · ');
 
         body.innerHTML = `
             <div class="audit-ok">✅ Fixed ${summary}.</div>
-            <div class="audit-list" style="margin-top:10px">${plateItems}${overflow}${regionItems}${coinItems}${achItems}</div>`;
+            <div class="audit-list" style="margin-top:10px">${plateItems}${overflow}${regionItems}${coinItems}${achItems}${streakItems}</div>`;
         showToast(`✅ Audit fixed ${summary}`, 'success');
         renderRegionRecords();
     } catch (err) {
         console.error('Audit auto-apply failed:', err);
         body.innerHTML = '<div class="audit-error">⚠️ Could not apply corrections. Check your connection and try again.</div>';
+    }
+}
+
+// Shared writer used by both the manual audit modal and the silent
+// auto-audit triggered after a plate clear. Pure data, no UI side effects.
+async function applyAuditCorrections(results) {
+    if (!currentGameRef || !results) return;
+    const { corrections, regionCorrections, coinCorrections, achievementCorrections, streakCorrections = [] } = results;
+    const updates = {};
+
+    // Plate first-finder fixes
+    corrections.forEach(c => {
+        if (c.type === 'remove') {
+            updates[`claimedStates/${c.stateName}`] = null;
+        } else {
+            updates[`claimedStates/${c.stateName}`] = {
+                state: c.stateName, playerKey: c.newPlayerKey,
+                name: c.newPlayerData.name, tag: c.newPlayerData.tag,
+                displayName: c.newPlayerData.displayName, claimedAt: c.foundAt,
+            };
+        }
+    });
+
+    // Region / corridor completion fixes
+    regionCorrections.forEach(c => { updates[c.path] = c.value; });
+
+    // Coin corrections — bidirectional. ServerValue.increment handles
+    // both positive (top-up) and negative (claw-back) deltas atomically.
+    coinCorrections.forEach(c => {
+        updates[`players/${c.playerKey}/coins`] = firebase.database.ServerValue.increment(c.delta);
+    });
+
+    // Achievement awards AND revocations
+    const now = Date.now();
+    achievementCorrections.forEach(c => {
+        updates[`players/${c.playerKey}/achievements/${c.achId}`] = c.action === 'revoke' ? null : now;
+    });
+
+    // Stale streak resets
+    streakCorrections.forEach(c => {
+        updates[`players/${c.playerKey}/streak`] = null;
+    });
+
+    updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+    await currentGameRef.update(updates);
+}
+
+// Silent audit — runs the same compute + apply pipeline as the manual
+// audit modal but skips all UI. Used as the auto-trigger after plate
+// clears so the host doesn't have to push a button each time.
+async function runAuditSilently() {
+    try {
+        const results = await computeAuditCorrections();
+        if (!results) return;
+        const total = (results.corrections?.length || 0)
+            + (results.regionCorrections?.length || 0)
+            + (results.coinCorrections?.length || 0)
+            + (results.achievementCorrections?.length || 0)
+            + (results.streakCorrections?.length || 0);
+        if (total === 0) return;
+        await applyAuditCorrections(results);
+    } catch (err) {
+        console.error('Silent audit failed:', err);
     }
 }
 
@@ -4130,7 +4176,9 @@ async function computeAuditCorrections() {
             }
         }
 
-        // ── Coin corrections ─────────────────────────────────────────────────────
+        // ── Coin corrections (bidirectional) ──────────────────────────────────────
+        // actual < expected → top up (covers missed awards)
+        // actual > expected → claw back (covers stale balances after clears)
         const coinCorrections = [];
         Object.entries(players).forEach(([playerKey, playerData]) => {
             const foundSet = new Set(Object.keys(playerData.states || {}));
@@ -4147,12 +4195,14 @@ async function computeAuditCorrections() {
             if (room.completedCorridor?.playerKey === playerKey) expected += COIN_RATES.corridorFirst;
 
             const actual = playerData.coins || 0;
-            if (actual < expected) {
+            if (actual !== expected) {
                 coinCorrections.push({ playerKey, playerName: playerData.displayName || playerKey, currentCoins: actual, expectedCoins: expected, delta: expected - actual });
             }
         });
 
-        // ── Achievement corrections ───────────────────────────────────────────────
+        // ── Achievement corrections (bidirectional) ───────────────────────────────
+        // missing-but-passing → award
+        // earned-but-failing  → revoke (skip manually-awarded ones with no check)
         const achievementCorrections = [];
         const totalPlatesForAudit = getActivePlateEntries(room.settings?.plateScope).length;
         Object.entries(players).forEach(([playerKey, playerData]) => {
@@ -4167,17 +4217,36 @@ async function computeAuditCorrections() {
             const stats = { foundSet, foundCount, firstCount, completedRegions, corridorComplete };
 
             ACHIEVEMENTS.forEach(ach => {
-                if (!ach.check || existing[ach.id]) return;
+                if (!ach.check) return; // manually-awarded (bounty_hunter, speed_podium)
                 try {
+                    const earned = !!existing[ach.id];
                     const passes = ach.id === 'lucky'
                         ? room.luckyPlateFound?.foundByKey === playerKey
                         : ach.check(stats, playerData, totalPlatesForAudit);
-                    if (passes) achievementCorrections.push({ playerKey, playerName: playerData.displayName || playerKey, achId: ach.id, achName: ach.name, achIcon: ach.icon });
+                    if (passes && !earned) {
+                        achievementCorrections.push({ action: 'award', playerKey, playerName: playerData.displayName || playerKey, achId: ach.id, achName: ach.name, achIcon: ach.icon });
+                    } else if (!passes && earned) {
+                        achievementCorrections.push({ action: 'revoke', playerKey, playerName: playerData.displayName || playerKey, achId: ach.id, achName: ach.name, achIcon: ach.icon });
+                    }
                 } catch (e) {}
             });
         });
 
-        return { corrections, regionCorrections, coinCorrections, achievementCorrections, players };
+        // ── Streak corrections (stale-window cleanup) ─────────────────────────────
+        // Streaks that haven't been touched within STREAK_WINDOW_MS are expired
+        // — null them so they stop showing as 🔥×N on the leaderboard.
+        const streakCorrections = [];
+        const now = Date.now();
+        Object.entries(players).forEach(([playerKey, playerData]) => {
+            const streak = playerData.streak;
+            if (!streak) return;
+            const lastFoundAt = streak.lastFoundAt || 0;
+            if (now - lastFoundAt > STREAK_WINDOW_MS) {
+                streakCorrections.push({ playerKey, playerName: playerData.displayName || playerKey });
+            }
+        });
+
+        return { corrections, regionCorrections, coinCorrections, achievementCorrections, streakCorrections, players };
     } catch (err) {
         console.error('Audit failed:', err);
         return null;
